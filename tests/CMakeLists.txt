@@ -13,6 +13,7 @@ enable_testing()
 add_executable(
     libtest 
     src/find_mutual_nns.cpp
+    src/average_closest_mnns.cpp
 )
 
 target_link_libraries(
