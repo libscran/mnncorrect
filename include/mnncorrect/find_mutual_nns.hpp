@@ -1,7 +1,9 @@
 #ifndef MNNCORRECT_FIND_MUTUAL_NN_HPP
 #define MNNCORRECT_FIND_MUTUAL_NN_HPP
 
+#include <vector>
 #include <deque>
+#include <algorithm>
 #include "knncolle/knncolle.hpp"
 
 namespace mnncorrect {
