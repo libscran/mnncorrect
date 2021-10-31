@@ -27,7 +27,7 @@ protected:
         }
     }
 
-    mnncorrect::MnnPairs compute_reference() {
+    mnncorrect::MnnPairs<size_t> compute_reference() {
         knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
         knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
 
@@ -39,7 +39,7 @@ protected:
             }
         }
 
-        mnncorrect::MnnPairs output;
+        mnncorrect::MnnPairs<size_t> output;
         for (size_t r = 0; r < nright; ++r) {
             auto current = left_index.find_nearest_neighbors(right.data() + r * ndim, k2);
             for (const auto& x : current) {
@@ -68,7 +68,7 @@ TEST_P(FindMutualNNsTest, Check) {
 
     knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
     knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
-    auto obs = mnncorrect::find_mutual_nns(left.data(), right.data(), &left_index, &right_index, k1, k2);
+    auto obs = mnncorrect::find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, k1, k2);
 
     EXPECT_EQ(
         std::vector<size_t>(ref.left.begin(), ref.left.end()), 
