@@ -14,6 +14,8 @@ add_executable(
     libtest 
     src/find_mutual_nns.cpp
     src/AutomaticOrder.cpp
+    src/determine_limits.cpp
+    src/utils.cpp
 )
 
 target_link_libraries(

@@ -31,8 +31,8 @@ std::vector<Index> invert_index(size_t n, const std::vector<Index>& uniq, Index 
     return output;
 }
 
-template<typename Float, class Iter>
-Float median(size_t n, Iter ptr) {
+template<typename Float>
+Float median(size_t n, Float* ptr) {
     if (!n) {
         return std::numeric_limits<Float>::quiet_NaN();
     }

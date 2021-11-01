@@ -7,24 +7,6 @@
 
 namespace mnncorrect {
 
-template<typename Index, typename Float, class Builder>
-NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Builder bfun, int k, Float* buffer) {
-    for (size_t f = 0; f < in_mnn.size(); ++f) {
-        auto current = in_mnn[f];
-        auto curdata = data + current * ndim;
-        std::copy(curdata, curdata + ndim, buffer + f * ndim);
-    }
-
-    auto index = bfun(ndim, in_mnn.size(), buffer);
-    NeighborSet<Index, Float> output(nobs);
-    #pragma omp parallel for
-    for (size_t o = 0; o < nobs; ++o) {
-        output[o] = index->find_nearest_neighbors(data + o * ndim, k);
-    }
-
-    return output;
-}
-
 template<typename Index, typename Float>
 void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float limit, Float* output) {
     std::fill(output, output + nmnns * ndim, 0);
