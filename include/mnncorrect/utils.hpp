@@ -4,6 +4,7 @@
 #include <deque>
 #include <vector>
 #include <limits>
+#include <type_traits>
 
 namespace mnncorrect {
 
@@ -16,10 +17,11 @@ struct MnnPairs {
 template<typename Index, typename Dist>
 using NeighborSet = std::vector<std::vector<std::pair<Index, Dist> > >;
 
-template<typename Index, template<typename> class Vector>
-std::vector<Index> unique(const Vector<Index>& input) {
-    std::set<Index> collected(input.begin(), input.end());
-    return std::vector<Index>(collected.begin(), collected.end());
+template<class Vector>
+auto unique(const Vector& input) {
+    typedef typename std::remove_const<typename std::remove_reference<decltype(*input.begin())>::type>::type Value;
+    std::set<Value> collected(input.begin(), input.end());
+    return std::vector<Value>(collected.begin(), collected.end());
 }
 
 template<typename Index>
