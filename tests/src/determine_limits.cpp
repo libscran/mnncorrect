@@ -2,6 +2,7 @@
 #include "mnncorrect/find_mutual_nns.hpp"
 #include "mnncorrect/determine_limit.hpp"
 #include "knncolle/knncolle.hpp"
+#include "aarand/aarand.hpp"
 #include <random>
 
 class DetermineLimitTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
@@ -13,16 +14,15 @@ protected:
         k = std::get<2>(param);
 
         std::mt19937_64 rng(nleft * nright * k);
-        std::normal_distribution<> dist;
 
         left.resize(nleft * ndim);
         for (auto& l : left) {
-            l = dist(rng);
+            l = aarand::standard_normal(rng).first;
         }
 
         right.resize(nright * ndim);
         for (auto& r : right) {
-            r = dist(rng) + 5; // throw in a batch effect.
+            r = aarand::standard_normal(rng).first + 5; // throw in a batch effect.
         }
     }
 
