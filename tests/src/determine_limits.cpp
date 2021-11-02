@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "mnncorrect/find_mutual_nns.hpp"
-#include "mnncorrect/determine_limit.hpp"
+#include "mnncorrect/determine_limits.hpp"
 #include "knncolle/knncolle.hpp"
 #include "aarand/aarand.hpp"
 #include <random>
