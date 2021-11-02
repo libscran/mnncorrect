@@ -15,6 +15,7 @@ add_executable(
     src/find_mutual_nns.cpp
     src/AutomaticOrder.cpp
     src/determine_limits.cpp
+    src/correct_target.cpp
     src/utils.cpp
 )
 

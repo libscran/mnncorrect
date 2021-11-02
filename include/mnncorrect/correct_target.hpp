@@ -2,6 +2,8 @@
 #define MNNCORRECT_CORRECT_TARGET_HPP
 
 #include "utils.hpp"
+#include "knncolle/knncolle.hpp"
+#include "determine_limit.hpp"
 #include <algorithm>
 #include <vector>
 
@@ -13,7 +15,7 @@ void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Flo
 
     std::vector<Float> total(nmnns);
     for (size_t f = 0; f < closest_mnn.size(); ++f) {
-        Float* curdata = data + f * ndim;
+        const Float* curdata = data + f * ndim;
         const auto& my_mnns = closest_mnn[f];
 
         for (const auto& x : my_mnns) {
@@ -30,7 +32,7 @@ void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Flo
     for (size_t i = 0; i < nmnns; ++i) {
         Float* curout = output + i * ndim;
         for (int d = 0; d < ndim; ++d) {
-            curout /= total[i];
+            curout[d] /= total[i];
         }
     }
     return;
@@ -42,11 +44,10 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
     auto uniq_target = unique(pairings.right);
 
     // Determine the expected width to use. 
-    auto ave_vector = compute_average_vector(ndim, nref, ref, ntarget, target, pairings);
-    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref, k); 
-    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target, k); 
+    auto ave_vector = average_batch_vector(ndim, nref, ref, ntarget, target, pairings);
+    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref); 
+    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target); 
 
-    // Identify the set of closest MNN-involved pairs for each point.
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
     auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data());
     Float limit_closest_ref = limit_from_closest_distances(mnn_ref);
@@ -62,7 +63,7 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
     Float limit_target = std::min(limit_batch_target, limit_closest_target);
     compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, limit_target, buffer_target.data());
 
-    // Computing the correction vector for each target point in the MNN pair, stored in the target buffer.
+    // Computing the correction vector for each target point in an MNN pair, stored in the target buffer.
     auto remap_ref = invert_index(nref, uniq_ref);
     auto remap_target = invert_index(ntarget, uniq_target);
 
@@ -95,6 +96,14 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
         }
     }
 
+    return;
+}
+
+/* For testing purposes only. */
+template<typename Index, typename Float>
+void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const MnnPairs<Index>& pairings, int k, Float* output) {
+    auto builder = [](int nd, size_t no, const Float* d) -> auto { return std::shared_ptr<knncolle::Base<Index, Float> >(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); };
+    correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, output);
     return;
 }
 

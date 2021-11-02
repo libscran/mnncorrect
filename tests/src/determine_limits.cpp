@@ -104,8 +104,7 @@ TEST_P(DetermineLimitTest, LimitByClosest) {
 
     auto right_mnn = mnncorrect::unique(pairings.right);
     std::vector<double> buffer(right_mnn.size() * ndim);
-    auto builder = [](int nd, size_t no, const double* d) -> auto { return std::shared_ptr<knncolle::Base<> >(new knncolle::VpTreeEuclidean<>(nd, no, d)); };
-    auto self_mnn = mnncorrect::identify_closest_mnn(ndim, nright, right.data(), right_mnn, builder, k, buffer.data());
+    auto self_mnn = mnncorrect::identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data());
 
     double limit = mnncorrect::limit_from_closest_distances(self_mnn);
 

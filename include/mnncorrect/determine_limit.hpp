@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cmath>
 #include "utils.hpp"
+#include "knncolle/knncolle.hpp"
 
 namespace mnncorrect {
 
@@ -90,6 +91,13 @@ NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Floa
     }
 
     return output;
+}
+
+/* For testing purposes only. */
+template<typename Index, typename Float>
+NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer) {
+    auto builder = [](int nd, size_t no, const Float* d) -> auto { return std::shared_ptr<knncolle::Base<Index, Float> >(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); };
+    return identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer);
 }
 
 template<typename Index, typename Float>
