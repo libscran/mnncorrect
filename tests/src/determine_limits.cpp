@@ -125,3 +125,30 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(10, 50)  // choice of k
     )
 );
+
+TEST(MoreDetermineLimitTest, LimitByClosest) {
+    mnncorrect::NeighborSet<int, double> closest(2);
+
+    closest[0] = std::vector<std::pair<int, double> >{
+        std::make_pair(0, 0.1),
+        std::make_pair(0, 0.5),
+        std::make_pair(0, 0.2),
+        std::make_pair(0, 0.8)
+    };
+    closest[1] = std::vector<std::pair<int, double> >{
+        std::make_pair(0, 0.7),
+        std::make_pair(0, 0.3),
+        std::make_pair(0, 0.5),
+        std::make_pair(0, 0.1)
+    };
+
+    double limit = mnncorrect::limit_from_closest_distances(closest);
+
+    // Should be the same as:
+    // x <- c(0.1, 0.1, 0.2, 0.3, 0.5, 0.5, 0.7, 0.8)
+    // med <- median(x)
+    // diff <- med - x
+    // mad <- median(abs(diff[diff > 0]))
+    // med + 3 * mad * 1.4826
+    EXPECT_FLOAT_EQ(limit, 1.51195);
+}
