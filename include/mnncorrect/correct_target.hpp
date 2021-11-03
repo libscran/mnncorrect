@@ -39,22 +39,33 @@ void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Flo
 }
 
 template<typename Index, typename Float, class Builder>
-void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const MnnPairs<Index>& pairings, Builder bfun, int k, Float* output) {
+void correct_target(
+    int ndim, 
+    size_t nref, 
+    const Float* ref, 
+    size_t ntarget, 
+    const Float* target, 
+    const MnnPairs<Index>& pairings, 
+    Builder bfun, 
+    int k, 
+    Float nmads,
+    Float* output) 
+{
     auto uniq_ref = unique(pairings.left);
     auto uniq_target = unique(pairings.right);
 
     // Determine the expected width to use. 
     auto ave_vector = average_batch_vector(ndim, nref, ref, ntarget, target, pairings);
-    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref); 
-    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target); 
+    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref, nmads); 
+    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target, nmads); 
 
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
     auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data());
-    Float limit_closest_ref = limit_from_closest_distances(mnn_ref);
+    Float limit_closest_ref = limit_from_closest_distances(mnn_ref, nmads);
 
     std::vector<Float> buffer_target(uniq_target.size() * ndim);
     auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data());
-    Float limit_closest_target = limit_from_closest_distances(mnn_target);
+    Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
 
     // Computing the centers of mass, stored in the buffers.
     Float limit_ref = std::min(limit_batch_ref, limit_closest_ref);
@@ -101,9 +112,12 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
 
 /* For testing purposes only. */
 template<typename Index, typename Float>
-void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const MnnPairs<Index>& pairings, int k, Float* output) {
-    auto builder = [](int nd, size_t no, const Float* d) -> auto { return std::shared_ptr<knncolle::Base<Index, Float> >(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); };
-    correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, output);
+void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const MnnPairs<Index>& pairings, int k, Float nmads, Float* output) {
+    typedef knncolle::Base<Index, Float> knncolleBase;
+    auto builder = [](int nd, size_t no, const Float* d) -> auto { 
+        return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
+    };
+    correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, output);
     return;
 }
 

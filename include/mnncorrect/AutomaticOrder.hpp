@@ -45,7 +45,7 @@ public:
 
         std::copy(rdata, rdata + ndim * rnum, corrected);
         ncorrected += rnum;
-        corrected_ids.push_back(ref);
+        order.push_back(ref);
 
         for (size_t b = 0; b < nobs.size(); ++b) {
             if (b == ref) {
@@ -76,11 +76,12 @@ public:
     }
 
 protected:
-    void update(size_t latest, bool testing=false) {
+    void update(size_t latest, size_t npairs, bool testing=false) {
         size_t lnum = nobs[latest]; 
         const Float* ldata = corrected + ncorrected * ndim;
 
-        corrected_ids.push_back(latest);
+        order.push_back(latest);
+        num_pairs.push_back(npairs);
         auto previous_ncorrected = ncorrected;
         ncorrected += lnum;
 
@@ -156,19 +157,31 @@ protected:
     }
 
 public:
-    void run() {
+    void run(Float nmads) {
         while (remaining.size()) {
             auto output = choose();
             auto target = output.first;
             auto tnum = nobs[target];
             auto tdata = batches[target];
 
-            /* Do correction here. */
-            correct_target(ndim, ncorrected, corrected, tnum, tdata, output.second, corrected + ncorrected * ndim);
+            correct_target(
+                ndim, 
+                ncorrected, 
+                corrected, 
+                tnum, 
+                tdata, 
+                output.second, 
+                num_neighbors,
+                nmads,
+                corrected + ncorrected * ndim);
 
-            update(output.first);
+            update(output.first, output.second.size());
         }
     }
+
+    const auto& get_order() const { return order; }
+
+    const auto& get_num_pairs() const { return num_pairs; }
 
 protected:
     int ndim;
@@ -183,7 +196,8 @@ protected:
 
     Float* corrected;
     size_t ncorrected = 0;
-    std::vector<int> corrected_ids;
+    std::vector<int> order;
+    std::vector<int> num_pairs;
 
     std::set<size_t> remaining;
 };

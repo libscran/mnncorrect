@@ -23,9 +23,6 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
     size_t get_ncorrected() const { 
         return ncorrected;
     }
-    const std::vector<int>& get_corrected_ids () const { 
-        return corrected_ids;
-    }
 
     const std::set<size_t>& get_remaining () const { 
         return remaining; 
@@ -36,7 +33,7 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
     }
 
     void test_update(size_t latest) {
-        update(latest, true);
+        update(latest, 1000, true);
         return;
     }
 };
@@ -81,9 +78,9 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
     AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
 
     size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
-    const auto& cbb = coords.get_corrected_ids();
-    EXPECT_EQ(cbb.size(), 1);
-    EXPECT_EQ(cbb[0], maxed);
+    const auto& ord = coords.get_order();
+    EXPECT_EQ(ord.size(), 1);
+    EXPECT_EQ(ord[0], maxed);
 
     size_t ncorrected = coords.get_ncorrected();
     EXPECT_EQ(ncorrected, sizes[maxed]);
@@ -109,7 +106,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     assemble(GetParam());
     AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
     std::vector<char> used(sizes.size());
-    used[coords.get_corrected_ids()[0]] = true;
+    used[coords.get_order()[0]] = true;
 
     std::mt19937_64 rng(123456);
     std::normal_distribution<> dist;
@@ -146,9 +143,9 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         EXPECT_EQ(remaining.size(), sizes.size() - b - 1);
         EXPECT_EQ(sofar + sizes[chosen.first], coords.get_ncorrected());
 
-        const auto& cbb = coords.get_corrected_ids();
-        EXPECT_EQ(cbb.size(), b + 1);
-        EXPECT_EQ(cbb.back(), chosen.first);
+        const auto& ord = coords.get_order();
+        EXPECT_EQ(ord.size(), b + 1);
+        EXPECT_EQ(ord.back(), chosen.first);
 
         const auto& rneighbors = coords.get_neighbors_ref();
         for (auto r : remaining) {
@@ -186,7 +183,11 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
                 }
             }
         }
+    }
 
+    EXPECT_EQ(sizes.size(), coords.get_num_pairs().size() + 1);
+    for (auto np : coords.get_num_pairs()) {
+        EXPECT_TRUE(np > 0);
     }
 }
 

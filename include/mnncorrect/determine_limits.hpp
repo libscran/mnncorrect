@@ -96,7 +96,10 @@ NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Floa
 /* For testing purposes only. */
 template<typename Index, typename Float>
 NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer) {
-    auto builder = [](int nd, size_t no, const Float* d) -> auto { return std::shared_ptr<knncolle::Base<Index, Float> >(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); };
+    typedef knncolle::Base<Index, Float> knncolleBase;
+    auto builder = [](int nd, size_t no, const Float* d) -> auto { 
+        return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d));
+    };
     return identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer);
 }
 

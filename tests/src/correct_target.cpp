@@ -80,7 +80,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
 TEST_P(CorrectTargetTest, Correction) {
     assemble(GetParam());
     std::vector<double> buffer(nright * ndim);
-    mnncorrect::correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, buffer.data());
+    mnncorrect::correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, 3.0, buffer.data());
 
     // Not entirely sure how to check for correctness here; 
     // we'll heuristically check for a delta less than 1 on the mean in each dimension.
