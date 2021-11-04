@@ -16,7 +16,9 @@ add_executable(
     src/AutomaticOrder.cpp
     src/determine_limits.cpp
     src/correct_target.cpp
+    src/restore_order.cpp
     src/utils.cpp
+    src/MnnCorrect.cpp
 )
 
 target_link_libraries(
