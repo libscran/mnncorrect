@@ -9,7 +9,7 @@ namespace mnncorrect {
 
 namespace restore {
 
-std::pair<std::vector<size_t>, size_t> define_offsets(const std::vector<int>& merge_order, const std::vector<size_t>& sizes) {
+inline std::pair<std::vector<size_t>, size_t> define_offsets(const std::vector<int>& merge_order, const std::vector<size_t>& sizes) {
     size_t nbatches = merge_order.size();
     size_t accumulated = 0;
     std::vector<size_t> offsets(nbatches);

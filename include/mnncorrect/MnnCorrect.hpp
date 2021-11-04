@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include "AutomaticOrder.hpp"
+#include "restore_order.hpp"
 #include "knncolle/knncolle.hpp"
 
 namespace mnncorrect {
@@ -84,9 +85,9 @@ private:
 
 public:
     Results run(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
-        auto output = run_internal(ndim, nobs, batches, output);
-        restore_order(ndim, output.merge_order, nobs, output);
-        return output;
+        auto stats = run_internal(ndim, nobs, batches, output);
+        restore_order(ndim, stats.merge_order, nobs, output);
+        return stats;
     }
 
     Results run(int ndim, const std::vector<size_t>& nobs, const Float* input, Float* output) {
@@ -101,7 +102,7 @@ public:
 
     template<typename Batch>
     Results run(int ndim, size_t nobs, const Float* input, const Batch* batch, Float* output) {
-        const Batch nbatches = (nobs ? *std::max_element(batch, batch + nobs) : 0);
+        const Batch nbatches = (nobs ? *std::max_element(batch, batch + nobs) + 1 : 0);
         std::vector<size_t> sizes(nbatches);
         for (size_t o = 0; o < nobs; ++o) {
             ++sizes[batch[o]];
@@ -116,7 +117,7 @@ public:
                break;
            }
         }
-        if (alrady_sorted) {
+        if (already_sorted) {
             return run(ndim, sizes, input, output);
         }
 
@@ -129,6 +130,10 @@ public:
 
         // Dumping everything by order into another vector.
         std::vector<Float> tmp(ndim * nobs);
+        std::vector<const Float*> ptrs(nbatches, tmp.data());
+        for (size_t b = 0; b < nbatches; ++b) {
+            ptrs[b] += offsets[b] * ndim;
+        }
         for (size_t o = 0; o < nobs; ++o) {
             auto current = input + o * ndim;
             auto& offset = offsets[batch[o]];
@@ -137,9 +142,9 @@ public:
             ++offset;
         }
 
-        auto output = run_internal(ndim, sizes, tmp.data(), output);
-        restore_order(ndim, output.merge_order, sizes, batch, output);
-        return output;
+        auto stats = run_internal(ndim, sizes, ptrs, output);
+        restore_order(ndim, stats.merge_order, sizes, batch, output);
+        return stats;
     }
 };
 
