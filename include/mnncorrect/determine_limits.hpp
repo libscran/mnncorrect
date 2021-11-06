@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <memory>
+
 #include "utils.hpp"
 #include "knncolle/knncolle.hpp"
 
