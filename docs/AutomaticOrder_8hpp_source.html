@@ -131,7 +131,7 @@ $(function() {
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>            <span class="keyword">auto</span>&amp; tneighbors = neighbors_target[b];</div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>            tneighbors.resize(tnum);</div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="preprocessor">            #pragma omp for parallel</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="preprocessor">            #pragma omp parallel for</span></div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>            <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> t = 0; t &lt; tnum; ++t) {</div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>                tneighbors[t] = rindex-&gt;find_nearest_neighbors(tdata + ndim * t, num_neighbors);</div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>            }</div>
@@ -140,7 +140,7 @@ $(function() {
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>            rneighbors.resize(rnum);</div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; tindex = indices[b];</div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">            #pragma omp for parallel</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">            #pragma omp parallel for</span></div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>            <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> r = 0; r &lt; rnum; ++r) {</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>                rneighbors[r] = tindex-&gt;find_nearest_neighbors(rdata + ndim * r, num_neighbors);</div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>            }</div>
@@ -172,7 +172,7 @@ $(function() {
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>            rneighbors.resize(ncorrected);</div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; tindex = indices[b];</div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span> </div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">            #pragma omp for parallel</span></div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">            #pragma omp parallel for</span></div>
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>            <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> l = 0; l &lt; lnum; ++l) {</div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>                rneighbors[previous_ncorrected + l] = tindex-&gt;find_nearest_neighbors(ldata + ndim * l, num_neighbors);</div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>            }</div>
@@ -181,7 +181,7 @@ $(function() {
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>            <span class="keyword">const</span> Float* tdata = batches[b];</div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>            <span class="keyword">auto</span>&amp; tneighbors = neighbors_target[b];</div>
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span> </div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="preprocessor">            #pragma omp for parallel</span></div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="preprocessor">            #pragma omp parallel for</span></div>
 <div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>            <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> t = 0; t &lt; tnum; ++t) {</div>
 <div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>                <span class="keyword">auto</span>&amp; current = tneighbors[t];</div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>                <span class="keyword">auto</span> last = current;</div>
