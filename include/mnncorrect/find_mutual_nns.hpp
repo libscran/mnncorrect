@@ -62,14 +62,14 @@ MnnPairs<Index> find_mutual_nns(
     size_t nright = right_index->nobs();
 
     NeighborSet<Index, Float> neighbors_of_left(nleft);
-    #pragma omp for parallel
+    #pragma omp parallel for
     for (size_t l = 0; l < nleft; ++l) {
         auto current = left + ndim * l;
         neighbors_of_left[l] = right_index->find_nearest_neighbors(current, k_left);
     }
 
     NeighborSet<Index, Float> neighbors_of_right(nright);
-    #pragma omp for parallel
+    #pragma omp parallel for
     for (size_t r = 0; r < nright; ++r) {
         auto current = right + ndim * r;
         neighbors_of_right[r] = left_index->find_nearest_neighbors(current, k_right);

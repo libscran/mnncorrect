@@ -58,7 +58,7 @@ public:
             auto& tneighbors = neighbors_target[b];
             tneighbors.resize(tnum);
 
-            #pragma omp for parallel
+            #pragma omp parallel for
             for (size_t t = 0; t < tnum; ++t) {
                 tneighbors[t] = rindex->find_nearest_neighbors(tdata + ndim * t, num_neighbors);
             }
@@ -67,7 +67,7 @@ public:
             rneighbors.resize(rnum);
             const auto& tindex = indices[b];
 
-            #pragma omp for parallel
+            #pragma omp parallel for
             for (size_t r = 0; r < rnum; ++r) {
                 rneighbors[r] = tindex->find_nearest_neighbors(rdata + ndim * r, num_neighbors);
             }
@@ -99,7 +99,7 @@ protected:
             rneighbors.resize(ncorrected);
             const auto& tindex = indices[b];
 
-            #pragma omp for parallel
+            #pragma omp parallel for
             for (size_t l = 0; l < lnum; ++l) {
                 rneighbors[previous_ncorrected + l] = tindex->find_nearest_neighbors(ldata + ndim * l, num_neighbors);
             }
@@ -108,7 +108,7 @@ protected:
             const Float* tdata = batches[b];
             auto& tneighbors = neighbors_target[b];
 
-            #pragma omp for parallel
+            #pragma omp parallel for
             for (size_t t = 0; t < tnum; ++t) {
                 auto& current = tneighbors[t];
                 auto last = current;
