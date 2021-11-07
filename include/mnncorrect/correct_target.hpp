@@ -10,31 +10,43 @@
 namespace mnncorrect {
 
 template<typename Index, typename Float>
-void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float limit, Float* output) {
+void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, int top, Float* output) {
     std::fill(output, output + nmnns * ndim, 0);
+    NeighborSet<Index, Float> inverted(nmnns);
 
-    std::vector<Float> total(nmnns);
     for (size_t f = 0; f < closest_mnn.size(); ++f) {
-        const Float* curdata = data + f * ndim;
         const auto& my_mnns = closest_mnn[f];
-
         for (const auto& x : my_mnns) {
-            if (x.second <= limit) {
-                Float* curout = output + x.first * ndim;
-                for (int d = 0; d < ndim; ++d) {
-                    curout[d] += curdata[d];
-                }
-                ++total[x.first];
+            inverted[x.first].emplace_back(f, x.second);
+        }
+    }
+
+    #pragma omp parallel for
+    for (size_t m = 0; m < nmnns; ++m) {
+        auto& current = inverted[m];
+
+        size_t limit = top;
+        if (current.size() > limit) {
+            std::nth_element(current.begin(), current.begin() + limit, current.end(), 
+                [](const auto& l, const auto& r) -> bool { return l.second < r.second });
+        } else {
+            limit = current.size();
+        }
+
+        Float* out = output + m * ndim;
+        std::fill(out, out + ndim, 0);
+        for (size_t l = 0; l < limit; ++l) {
+            const Float* target = data + current[l].first * ndim;
+            for (int d = 0; d < ndim; ++d) {
+                out[d] += target[d];
             }
         }
-    }
 
-    for (size_t i = 0; i < nmnns; ++i) {
-        Float* curout = output + i * ndim;
         for (int d = 0; d < ndim; ++d) {
-            curout[d] /= total[i];
+            out[d] /= limit;
         }
     }
+
     return;
 }
 
@@ -47,32 +59,22 @@ void correct_target(
     const Float* target, 
     const MnnPairs<Index>& pairings, 
     Builder bfun, 
-    int k, 
-    Float nmads,
+    int k_find,
+    int k_mass,
     Float* output) 
 {
     auto uniq_ref = unique(pairings.left);
     auto uniq_target = unique(pairings.right);
 
-    // Determine the expected width to use. 
-    auto ave_vector = average_batch_vector(ndim, nref, ref, ntarget, target, pairings);
-    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref, nmads); 
-    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target, nmads); 
-
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
-    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data());
-    Float limit_closest_ref = limit_from_closest_distances(mnn_ref, nmads);
+    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k_find, buffer_ref.data());
 
     std::vector<Float> buffer_target(uniq_target.size() * ndim);
-    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data());
-    Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
+    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k_find, buffer_target.data());
 
     // Computing the centers of mass, stored in the buffers.
-    Float limit_ref = std::min(limit_batch_ref, limit_closest_ref);
-    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, limit_ref, buffer_ref.data());
-
-    Float limit_target = std::min(limit_batch_target, limit_closest_target);
-    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, limit_target, buffer_target.data());
+    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, k_mass, buffer_ref.data());
+    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, k_mass, buffer_target.data());
 
     // Computing the correction vector for each target point in an MNN pair, stored in the target buffer.
     auto remap_ref = invert_index(nref, uniq_ref);
