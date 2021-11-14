@@ -81,7 +81,7 @@ Float median(size_t n, Float* ptr) {
 
 constexpr double mad2sigma = 1.4826;
 
-template<typename Float>
+template<typename Index, typename Float>
 void median_distance_from_center(int ndim, size_t nobs, const Float* data, size_t nref, const Float* centers, const Index* assignments, Float* output) {
     std::vector<std::vector<Float> > collected(nref);
     for (size_t o = 0; o < nobs; ++o) {

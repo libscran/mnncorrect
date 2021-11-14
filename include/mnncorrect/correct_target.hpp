@@ -17,10 +17,11 @@ std::vector<Index> compute_batch_vectors(int ndim, size_t nref, const Float* ref
 
     for (size_t p = 0; p < pairings.size(); ++p) {
         Float* optr = output + pairings.left[p] * ndim;
-        const Float* tptr = ref + pairings.right[p] * ndim;
+        const Float* tptr = target + pairings.right[p] * ndim;
         for (int d = 0; d < ndim; ++d) {
             optr[d] += tptr[d];                    
         }
+        ++counter[pairings.left[p]];
     }
 
     for (size_t r = 0; r < nref; ++r) {
@@ -47,7 +48,7 @@ std::pair<Float, Float> intersect_with_sphere(int ndim, const Float* origin, con
         proj += diff * direction[d];
     }
 
-    delta -= radius * radius;
+    delta = proj * proj - (delta - radius * radius);
     if (delta < 0) {
         delta = -1;
     } else {
@@ -64,21 +65,37 @@ Float find_coverage_max(std::vector<std::pair<Float, bool> >& boundaries, Float 
     int coverage = 0, max_coverage = 0;
     Float position_max = 0;
 
-    for (const auto& c : boundaries) {
-        if (c.second) {
+    auto bIt = boundaries.begin();
+    while (bIt != boundaries.end()) {
+        auto self = bIt->first;
+        if (bIt->second) {
             ++coverage;
         } else {
-            if (coverage >= max_coverage) {
-                max_coverage = coverage;
-                position_max = c.first;
-            }
             --coverage;
         }
+        ++bIt;
 
-        if (c.first > limit) {
-            if (coverage >= max_coverage) {
-                position_max = limit;
+        // Resolving all ties.
+        while (bIt != boundaries.end() && bIt->first == self) {
+            if (bIt->second) {
+                ++coverage;
+            } else {
+                --coverage;
             }
+            ++bIt;
+        }
+
+        if (coverage >= max_coverage) {
+            coverage = max_coverage;
+            if (bIt == boundaries.end()) {
+                position_max = limit;
+            } else {
+                position_max = bIt->first; // yes, this is the _next_ boundary. We take the upper end of the interval.
+            }
+        }
+
+        if (bIt != boundaries.end() && bIt->first > limit) {
+            position_max = limit;
             break;
         }
     }
