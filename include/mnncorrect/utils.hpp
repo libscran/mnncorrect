@@ -6,14 +6,41 @@
 #include <limits>
 #include <type_traits>
 #include <set>
+#include <cmath>
 
 namespace mnncorrect {
 
 template<typename Index>
 struct MnnPairs {
-    size_t size() const { return left.size(); }
+    size_t size() const { 
+        return left.size(); 
+    }
+
+    void clear() {
+        left.clear();
+        right.clear();
+        return;
+    }
+
     std::deque<Index> left, right;
 };
+
+template<typename Float>
+Float normalize_vector(int ndim, Float* ptr) {
+    Float l2norm = 0;
+    for (int d = 0; d < ndim; ++d) {
+        l2norm += ptr[d] * ptr[d];
+    }
+
+    if (l2norm) {
+        l2norm = std::sqrt(l2norm);
+        for (int d = 0; d < ndim; ++d) {
+            ptr[d] /= l2norm;
+        }
+    }
+
+    return l2norm;
+}
 
 template<typename Index, typename Dist>
 using NeighborSet = std::vector<std::vector<std::pair<Index, Dist> > >;
@@ -54,6 +81,36 @@ Float median(size_t n, Float* ptr) {
 
 constexpr double mad2sigma = 1.4826;
 
+template<typename Float>
+void median_distance_from_center(int ndim, size_t nobs, const Float* data, size_t nref, const Float* centers, const Index* assignments, Float* output) {
+    std::vector<std::vector<Float> > collected(nref);
+    for (size_t o = 0; o < nobs; ++o) {
+        auto rptr = data + o * ndim;
+        auto cptr = centers + assignments[o] * ndim;
+
+        Float dist = 0;
+        for (int d = 0; d < ndim; ++d) {
+            Float diff = rptr[d] - cptr[d];
+            dist += diff * diff;
+        }
+
+        collected[assignments[o]].push_back(dist);
+    }
+
+    #pragma omp parallel for
+    for (size_t r = 0; r < nref; ++r) {
+        auto& current = collected[r];
+        if (current.size()) {
+            output[r] = median(current.size(), current.data());
+        } else {
+            output[r] = 0; // shouldn't be possible, but whatever, just in case.
+        }
+    }
+
+    return;
 }
+
+}
+
 
 #endif

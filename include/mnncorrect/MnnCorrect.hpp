@@ -15,7 +15,7 @@ public:
     struct Defaults {
         static constexpr int num_neighbors = 15;
 
-        static constexpr Float num_mads = 3;
+        static constexpr int num_clusters = 50;
 
         static constexpr bool approximate = false;
 
@@ -24,7 +24,7 @@ public:
 
 private:
     int num_neighbors = Defaults::num_neighbors;
-    Float num_mads = Defaults::num_mads;
+    int num_clusters = Defaults::num_clusters;
     bool approximate = Defaults::approximate;
     bool automatic_order = Defaults::automatic_order;
 
@@ -34,8 +34,8 @@ public:
         return *this;
     }
 
-    MnnCorrect& set_num_mads(Float n = Defaults::num_mads) {
-        num_mads = n;
+    MnnCorrect& set_num_clusters(int n = Defaults::num_clusters) {
+        num_clusters = n;
         return *this;
     }
 

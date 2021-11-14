@@ -47,7 +47,6 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
 
 }
 
-
 template<typename Index, typename Float, class Searcher>
 MnnPairs<Index> find_mutual_nns(
     const Float* left, 
