@@ -1,6 +1,14 @@
 include(FetchContent)
 
 FetchContent_Declare(
+  kmeans 
+  GIT_REPOSITORY https://github.com/LTLA/CppKmeans
+  GIT_TAG 04ca0aadd96ee5e433ef0a383006946c41a364e3
+)
+
+FetchContent_MakeAvailable(kmeans)
+
+FetchContent_Declare(
   knncolle 
   GIT_REPOSITORY https://github.com/LTLA/knncolle
   GIT_TAG ea57cbd4a0ea5574caefd6cd358f232a3813e639

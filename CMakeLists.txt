@@ -13,7 +13,7 @@ target_include_directories(mnncorrect INTERFACE include/)
 
 add_subdirectory(extern)
 
-target_link_libraries(mnncorrect INTERFACE knncolle aarand)
+target_link_libraries(mnncorrect INTERFACE kmeans knncolle aarand)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(CTest)
