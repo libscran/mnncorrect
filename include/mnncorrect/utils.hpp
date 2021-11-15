@@ -74,35 +74,6 @@ Float median(size_t n, Float* ptr) {
 
 constexpr double mad2sigma = 1.4826;
 
-template<typename Index, typename Float>
-void median_distance_from_center(int ndim, size_t nobs, const Float* data, size_t nref, const Float* centers, const Index* assignments, Float* output) {
-    std::vector<std::vector<Float> > collected(nref);
-    for (size_t o = 0; o < nobs; ++o) {
-        auto rptr = data + o * ndim;
-        auto cptr = centers + assignments[o] * ndim;
-
-        Float dist = 0;
-        for (int d = 0; d < ndim; ++d) {
-            Float diff = rptr[d] - cptr[d];
-            dist += diff * diff;
-        }
-
-        collected[assignments[o]].push_back(dist);
-    }
-
-    #pragma omp parallel for
-    for (size_t r = 0; r < nref; ++r) {
-        auto& current = collected[r];
-        if (current.size()) {
-            output[r] = median(current.size(), current.data());
-        } else {
-            output[r] = 0; // shouldn't be possible, but whatever, just in case.
-        }
-    }
-
-    return;
-}
-
 }
 
 
