@@ -3,7 +3,7 @@
 
 #include "utils.hpp"
 #include "knncolle/knncolle.hpp"
-#include "determine_limits.hpp"
+#include "find_mutual_nns.hpp"
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -16,12 +16,12 @@ std::vector<Index> compute_batch_vectors(int ndim, size_t nref, const Float* ref
     std::vector<Index> counter(nref);
 
     for (size_t p = 0; p < pairings.size(); ++p) {
-        Float* optr = output + pairings.left[p] * ndim;
-        const Float* tptr = target + pairings.right[p] * ndim;
+        Float* optr = output + pairings.ref[p] * ndim;
+        const Float* tptr = target + pairings.target[p] * ndim;
         for (int d = 0; d < ndim; ++d) {
             optr[d] += tptr[d];                    
         }
-        ++counter[pairings.left[p]];
+        ++counter[pairings.ref[p]];
     }
 
     for (size_t r = 0; r < nref; ++r) {
@@ -106,14 +106,13 @@ Float find_coverage_max(std::vector<std::pair<Float, bool> >& boundaries, Float 
     return position_max;
 }
 
-template<typename Index, typename Float>
-std::vector<std::vector<Index> > observations_by_ref(size_t nref, const NeighborSet<Index, Float>& closest_ref) {
-    std::vector<std::vector<Index> > by_neighbor(nref);
-    for (size_t o = 0; o < closest_ref.size(); ++o) {
-        auto r = closest_ref[o].front().first;
-        by_neighbor[r].push_back(o);
+template<typename Index>
+std::vector<std::vector<Index> > observations_by_ref(size_t nref, size_t ntarget, const Index* target_assignments) {
+    std::vector<std::vector<Index> > by_ref(nref);
+    for (size_t t = 0; t < ntarget; ++t) {
+        by_ref[target_assignments[t]].push_back(t);
     }
-    return by_neighbor;
+    return by_ref;
 }
 
 template<typename Index, typename Float>
@@ -243,13 +242,13 @@ void correct_target(
     size_t ntarget, 
     const Float* target, 
     const MnnPairs<Index>& pairings, 
-    const NeighborSet<Index, Float>& target_neighbors,
+    const Index* target_assignments,
     int min_mnns,
     Float* corrected)
 {
     std::vector<Float> vectors(ndim * nref);
     auto counts = compute_batch_vectors (ndim, nref, ref, pairings, target, vectors.data());
-    auto by_ref = observations_by_ref(nref, target_neighbors);
+    auto by_ref = observations_by_ref(nref, ntarget, target_assignments);
 
     // Deciding whether we need to do some extrapolation of the correction vectors.
     bool needs_filling = false, has_okay = false;
@@ -282,7 +281,7 @@ void correct_target(
     for (size_t t = 0; t < ntarget; ++t) {
         auto src = target + t * ndim;
         auto out = corrected + t * ndim;
-        auto corr = vectors.data() + target_neighbors[t].front().first * ndim;
+        auto corr = vectors.data() + target_assignments[t] * ndim;
         for (int d = 0; d < ndim; ++d) {
             out[d] = src[d] - corr[d];
         }

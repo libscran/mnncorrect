@@ -10,21 +10,6 @@
 
 namespace mnncorrect {
 
-template<typename Index>
-struct MnnPairs {
-    size_t size() const { 
-        return left.size(); 
-    }
-
-    void clear() {
-        left.clear();
-        right.clear();
-        return;
-    }
-
-    std::deque<Index> left, right;
-};
-
 template<bool sqrt = true, typename Float>
 Float l2norm(int ndim, const Float* ptr) {
     Float l2norm = 0;

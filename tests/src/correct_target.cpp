@@ -118,19 +118,10 @@ protected:
 
         knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
         neighbors_of_right.resize(nright);
-        for (size_t r = 0; r < nright; ++r) {
-            auto current = right.data() + ndim * r;
-            neighbors_of_right[r] = left_index.find_nearest_neighbors(current, 1); 
-        }
-
         knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
         neighbors_of_left.resize(nleft);
-        for (size_t l = 0; l < nleft; ++l) {
-            auto current = left.data() + ndim * l;
-            neighbors_of_left[l] = right_index.find_nearest_neighbors(current, k);
-        }
 
-        pairings = mnncorrect::find_mutual_nns<int>(neighbors_of_left, neighbors_of_right);
+        pairings = mnncorrect::find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, k, neighbors_of_left, neighbors_of_right.data());
     }
 
     int ndim = 5, k;
@@ -138,7 +129,7 @@ protected:
     std::vector<double> left, right;
 
     mnncorrect::NeighborSet<int, double> neighbors_of_left;
-    mnncorrect::NeighborSet<int, double> neighbors_of_right;
+    std::vector<int> neighbors_of_right;
     mnncorrect::MnnPairs<int> pairings;
 };
 
@@ -151,7 +142,7 @@ TEST_P(CorrectTargetTest, BatchVectors) {
     // rather than using compute_batch_vector's running calculation.
     std::vector<std::vector<int> > by_left(nleft);
     for (size_t p = 0; p < pairings.size(); ++p) {
-        by_left[pairings.left[p]].push_back(pairings.right[p]);
+        by_left[pairings.ref[p]].push_back(pairings.target[p]);
     }
 
     for (size_t i = 0; i < nleft; ++i) {
@@ -183,7 +174,7 @@ TEST_P(CorrectTargetTest, ScaleVectors) {
 
     std::vector<double> output(ndim * nleft);
     auto counts = mnncorrect::compute_batch_vectors(ndim, nleft, left.data(), pairings, right.data(), output.data());
-    auto by_left = mnncorrect::observations_by_ref(nleft, neighbors_of_right);
+    auto by_left = mnncorrect::observations_by_ref(nleft, nright, neighbors_of_right.data());
 
     // Trying with a large radius to test out the coverage-finder.
     {
@@ -320,8 +311,8 @@ TEST_P(CorrectTargetTest, AverageBatchVectors) {
 
     std::vector<double> expected(ndim);
     for (size_t p = 0; p < pairings.size(); ++p) {
-        auto lptr = left.data() + pairings.left[p] * ndim;
-        auto rptr = right.data() + pairings.right[p] * ndim;
+        auto lptr = left.data() + pairings.ref[p] * ndim;
+        auto rptr = right.data() + pairings.target[p] * ndim;
         for (int d = 0; d < ndim; ++d) {
             expected[d] += (rptr[d] - lptr[d]);
         }
@@ -337,7 +328,7 @@ TEST_P(CorrectTargetTest, Correction) {
     assemble(GetParam());
     std::vector<double> radius(nleft, 10);
     std::vector<double> buffer(nright * ndim);
-    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right, 5, buffer.data());
+    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right.data(), 5, buffer.data());
 
     EXPECT_NE(buffer, right); // check that it wasn't just copied verbatim.
 
@@ -363,7 +354,7 @@ TEST_F(CorrectTargetTest, MoreCorrection) {
 
     std::vector<double> radius(nleft, 10);
     std::vector<double> buffer(nright * ndim);
-    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right, 5, buffer.data());
+    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right.data(), 5, buffer.data());
 
     // We'll heuristically check for a delta less than 1 on the mean right versus the left cluster's centroid. 
     std::vector<double> right_means(ndim);

@@ -2,79 +2,61 @@
 #define MNNCORRECT_FIND_MUTUAL_NN_HPP
 
 #include <vector>
+#include <deque>
 #include <algorithm>
-#include "knncolle/knncolle.hpp"
 #include "utils.hpp"
 
 namespace mnncorrect {
 
-template<typename Index, typename Float>
-MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const NeighborSet<Index, Float>& right) {
-    size_t nleft = left.size();
-    size_t nright = right.size();
-
-    std::vector<std::vector<Index> > neighbors_of_left(nleft);
-    for (size_t l = 0; l < nleft; ++l) {
-        auto& storage = neighbors_of_left[l];
-        for (const auto& f : left[l]) {
-            storage.push_back(f.first);
-        }
-        std::sort(storage.begin(), storage.end());
+template<typename Index>
+struct MnnPairs {
+    size_t size() const { 
+        return ref.size(); 
     }
 
-    MnnPairs<Index> output;
-    std::vector<size_t> last(nleft);
-    for (size_t r = 0; r < nright; ++r) {
-        const auto& mine = right[r];
+    void clear() {
+        ref.clear();
+        target.clear();
+        return;
+    }
 
-        for (auto left_pair : mine) {
-            auto left_neighbor = left_pair.first;
-            const auto& other = neighbors_of_left[left_neighbor];
-            auto& position = last[left_neighbor];
-            for (; position < other.size(); ++position) {
-                if (other[position] >= r) {
-                    if (other[position] == r) {
-                        output.left.push_back(left_neighbor);
-                        output.right.push_back(r);
-                    }
-                    break;
-                }
+    std::deque<Index> ref, target;
+};
+
+template<typename Index, typename Float>
+MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& ref, const Index* target) {
+    MnnPairs<Index> output;
+    for (size_t l = 0; l < ref.size(); ++l) {
+        for (const auto& f : ref[l]) {
+            if (static_cast<Index>(l) == target[f.first]) {
+                output.ref.push_back(l);
+                output.target.push_back(f.first);
             }
         }
     }
-
     return output;
-
 }
 
 template<typename Index, typename Float, class Searcher>
-MnnPairs<Index> find_mutual_nns(
-    const Float* left, 
-    const Float* right, 
-    const Searcher* left_index, 
-    const Searcher* right_index, 
-    int k_left, 
-    int k_right)
-{
-    int ndim = left_index->ndim();
-    size_t nleft = left_index->nobs();
-    size_t nright = right_index->nobs();
+MnnPairs<Index> find_mutual_nns(const Float* ref, const Float* target, const Searcher* ref_index, const Searcher* target_index, int k, NeighborSet<Index, Float>& ref_neighbors, Index* target_closest) {
+    int ndim = ref_index->ndim();
+    size_t nref = ref_index->nobs();
+    size_t ntarget = target_index->nobs();
 
-    NeighborSet<Index, Float> neighbors_of_left(nleft);
     #pragma omp parallel for
-    for (size_t l = 0; l < nleft; ++l) {
-        auto current = left + ndim * l;
-        neighbors_of_left[l] = right_index->find_nearest_neighbors(current, k_left);
+    for (size_t r = 0; r < ntarget; ++r) {
+        auto current = target + ndim * r;
+        auto found = ref_index->find_nearest_neighbors(current, 1);
+        target_closest[r] = found.front().first;
     }
 
-    NeighborSet<Index, Float> neighbors_of_right(nright);
     #pragma omp parallel for
-    for (size_t r = 0; r < nright; ++r) {
-        auto current = right + ndim * r;
-        neighbors_of_right[r] = left_index->find_nearest_neighbors(current, k_right);
+    for (size_t l = 0; l < nref; ++l) {
+        auto current = ref + ndim * l;
+        ref_neighbors[l] = target_index->find_nearest_neighbors(current, k);
     }
 
-    return find_mutual_nns<Index, Float>(neighbors_of_left, neighbors_of_right);
+    return find_mutual_nns(ref_neighbors, target_closest);
 }
 
 }
