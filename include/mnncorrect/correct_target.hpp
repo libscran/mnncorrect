@@ -244,8 +244,8 @@ void correct_target(
     const Float* target, 
     const MnnPairs<Index>& pairings, 
     const NeighborSet<Index, Float>& target_neighbors,
-    Float* corrected,
-    int min_mnns)
+    int min_mnns,
+    Float* corrected)
 {
     std::vector<Float> vectors(ndim * nref);
     auto counts = compute_batch_vectors (ndim, nref, ref, pairings, target, vectors.data());

@@ -333,70 +333,19 @@ TEST_P(CorrectTargetTest, AverageBatchVectors) {
     }
 }
 
-//TEST_P(CorrectTargetTest, CenterOfMass) {
-//    assemble(GetParam());
-//
-//    // Setting up the values for a reasonable comparison.
-//    auto right_mnn = mnncorrect::unique(pairings.right);
-//    std::vector<double> buffer(right_mnn.size() * ndim);
-//    auto self_mnn = mnncorrect::identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data());
-//
-//    double limit = mnncorrect::limit_from_closest_distances(self_mnn);
-//    mnncorrect::compute_center_of_mass(ndim, right_mnn.size(), self_mnn, right.data(), limit, buffer.data());
-//
-//    // Reference calculation for each MNN.
-//    std::vector<std::vector<int> > inverted(right_mnn.size());
-//    for (size_t s = 0; s < self_mnn.size(); ++s) {
-//        for (const auto& p : self_mnn[s]) {
-//            if (p.second <= limit) {
-//                inverted[p.first].push_back(s);
-//            }
-//        }
-//    }
-//
-//    for (size_t i = 0; i < inverted.size(); ++i) {
-//        const auto& inv = inverted[i];
-//        std::vector<double> ref(ndim);
-//
-//        for (auto x : inv) {
-//            const double* current = right.data() + x * ndim;
-//            for (int d = 0; d < ndim; ++d) {
-//                ref[d] += current[d];
-//            }
-//        }
-//
-//        const double* obs = buffer.data() + i * ndim;
-//        for (int d = 0; d < ndim; ++d) {
-//            EXPECT_FLOAT_EQ(ref[d] / inv.size(), obs[d]);
-//        }
-//    }
-//}
-//
-//TEST_P(CorrectTargetTest, Correction) {
-//    assemble(GetParam());
-//    std::vector<double> buffer(nright * ndim);
-//    mnncorrect::correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, 3.0, buffer.data());
-//
-//    // Not entirely sure how to check for correctness here; 
-//    // we'll heuristically check for a delta less than 1 on the mean in each dimension.
-//    std::vector<double> left_means(ndim), right_means(ndim);
-//    for (size_t l = 0; l < nleft; ++l) {
-//        for (int d = 0; d < ndim; ++d) {
-//            left_means[d] += left[l * ndim + d];
-//        }
-//    }
-//    for (size_t r = 0; r < nright; ++r) {
-//        for (int d = 0; d < ndim; ++d) {
-//            right_means[d] += buffer[r * ndim + d];
-//        }
-//    }
-//    for (int d = 0; d < ndim; ++d) {
-//        left_means[d] /= nleft;
-//        right_means[d] /= nright;
-//        double delta = std::abs(left_means[d] - right_means[d]);
-//        EXPECT_TRUE(delta < 1);
-//    }
-//}
+TEST_P(CorrectTargetTest, Correction) {
+    assemble(GetParam());
+    std::vector<double> radius(nleft, 10);
+    std::vector<double> buffer(nright * ndim);
+    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right, 5, buffer.data());
+
+    EXPECT_NE(buffer, right); // check that it wasn't just copied verbatim.
+
+    for (size_t r = 0; r < nright; ++r) { // check that it was actually modified.
+        double l2 = mnncorrect::l2norm(ndim, buffer.data() + r * ndim);
+        EXPECT_TRUE(l2 > 0);
+    }
+}
 
 INSTANTIATE_TEST_CASE_P(
     CorrectTarget,
@@ -407,3 +356,27 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(10, 50)  // choice of k
     )
 );
+
+TEST_F(CorrectTargetTest, MoreCorrection) {
+    // Simulating a scenario where there is only one cluster, so the correction should align the batch centers.
+    assemble(std::tuple<int, int, int>(1, 100, 10));
+
+    std::vector<double> radius(nleft, 10);
+    std::vector<double> buffer(nright * ndim);
+    mnncorrect::correct_target(ndim, nleft, left.data(), radius.data(), nright, right.data(), pairings, neighbors_of_right, 5, buffer.data());
+
+    // We'll heuristically check for a delta less than 1 on the mean right versus the left cluster's centroid. 
+    std::vector<double> right_means(ndim);
+    for (size_t r = 0; r < nright; ++r) {
+        for (int d = 0; d < ndim; ++d) {
+            right_means[d] += buffer[r * ndim + d];
+        }
+    }
+    for (int d = 0; d < ndim; ++d) {
+        right_means[d] /= nright;
+        double delta = std::abs(left[d] - right_means[d]);
+        EXPECT_TRUE(delta < 1);
+    }
+}
+
+
