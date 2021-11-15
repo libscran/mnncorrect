@@ -117,6 +117,7 @@ TEST_P(AutomaticOrderTest, ChoiceAndUpdate) {
     std::normal_distribution<> dist;
 
     for (size_t b = 1; b < sizes.size(); ++b) {
+        auto copy_centers = coords.get_centers();
         coords.test_choose();
 
         auto chosen = coords.get_latest();
@@ -144,6 +145,8 @@ TEST_P(AutomaticOrderTest, ChoiceAndUpdate) {
             EXPECT_TRUE(clusters[r + sofar] >= 0); 
         }
 
+        EXPECT_NE(copy_centers, coords.get_centers());
+
         // Applying an update. We mock up some corrected data.
         double* fixed = output.data() + sofar * ndim;
         for (size_t s = 0; s < sizes[chosen]; ++s) {
@@ -152,7 +155,10 @@ TEST_P(AutomaticOrderTest, ChoiceAndUpdate) {
             }
         }
 
+        std::vector<int> copy_clusters_prev(clusters.begin(), clusters.begin() + sofar);
+        std::vector<int> copy_clusters_now(clusters.begin() + sofar, clusters.begin() + sofar + chosen_size);
         coords.reset_clusters(sofar, sofar + chosen_size);
+
         coords.test_update();
 
         // Check that the update works as expected.
@@ -167,6 +173,9 @@ TEST_P(AutomaticOrderTest, ChoiceAndUpdate) {
         for (size_t r = 0 ; r < chosen_size; ++r) {
             EXPECT_TRUE(clusters[r + sofar] >= 0); 
         }
+
+        EXPECT_EQ(copy_clusters_prev, std::vector<int>(clusters.begin(), clusters.begin() + sofar)); // should be unchanged.
+        EXPECT_NE(copy_clusters_now, std::vector<int>(clusters.begin() + sofar, clusters.begin() + sofar + chosen_size)); 
     }
 
     EXPECT_EQ(sizes.size(), coords.get_num_pairs().size() + 1);

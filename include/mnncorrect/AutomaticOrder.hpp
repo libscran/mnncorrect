@@ -120,7 +120,7 @@ public:
                 this->ndim,
                 this->num_centers,
                 this->centers.data(),
-                this->radius,
+                this->radius.data(),
                 this->nobs[latest],
                 this->batches[latest],
                 pairings, 
