@@ -10,18 +10,32 @@ struct Builder {
 };
 
 struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
-    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k) :
-        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k) {}
+    static constexpr int num_centers = 50;
 
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_ref () const { 
-        return neighbors_ref;
+    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k) :
+        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, num_centers, 5678u, Builder(), k)
+    {
+        std::fill(clusters.begin(), clusters.end(), -1); // fail fast if this isn't properly filled. 
     }
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_target () const { 
-        return neighbors_target;
+
+    const std::vector<int>& get_clusters() const { 
+        return this->clusters;
+    }
+
+    const std::vector<double>& get_centers() const { 
+        return this->centers;
+    }
+
+    const mnncorrect::MnnPairs<int>& get_pairings() const { 
+        return pairings;
     }
 
     size_t get_ncorrected() const { 
         return ncorrected;
+    }
+
+    size_t get_latest() const { 
+        return latest;
     }
 
     const std::set<size_t>& get_remaining () const { 
@@ -32,8 +46,13 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
         return choose();        
     }
 
-    void test_update(size_t latest) {
-        update(latest, 1000, true);
+    void test_update() {
+        update(true);
+        return;
+    }
+
+    void reset_clusters(size_t from, size_t to) {
+        std::fill(clusters.begin() + from, clusters.begin() + to, -1);
         return;
     }
 };
@@ -73,7 +92,7 @@ protected:
     std::vector<double> output;
 };
 
-TEST_P(AutomaticOrderTest, CheckInitialization) {
+TEST_P(AutomaticOrderTest, Initialization) {
     assemble(GetParam());
     AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
 
@@ -86,23 +105,9 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
     EXPECT_EQ(ncorrected, sizes[maxed]);
     EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[maxed]);
     EXPECT_EQ(coords.get_remaining().size(), sizes.size() - 1);
-
-    const auto& rneighbors = coords.get_neighbors_ref(); 
-    const auto& lneighbors = coords.get_neighbors_target();
-
-    for (size_t b = 0; b < sizes.size(); ++b) {
-        if (b == maxed) { 
-            continue; 
-        }
-
-        EXPECT_EQ(rneighbors[b].size(), ncorrected);
-        EXPECT_EQ(rneighbors[b][0].size(), k);
-        EXPECT_EQ(lneighbors[b].size(), sizes[b]);
-        EXPECT_EQ(lneighbors[b][0].size(), k);
-    }
 }
 
-TEST_P(AutomaticOrderTest, CheckUpdate) {
+TEST_P(AutomaticOrderTest, ChoiceAndUpdate) {
     assemble(GetParam());
     AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
     std::vector<char> used(sizes.size());
@@ -112,76 +117,55 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     std::normal_distribution<> dist;
 
     for (size_t b = 1; b < sizes.size(); ++b) {
-        auto chosen = coords.test_choose();
-        EXPECT_FALSE(used[chosen.first]);
-        used[chosen.first] = true;
+        coords.test_choose();
+
+        auto chosen = coords.get_latest();
+        EXPECT_FALSE(used[chosen]);
+        used[chosen] = true;
+
+        size_t chosen_size = sizes[chosen];
         size_t sofar = coords.get_ncorrected();
 
         // Check that the MNN pair indices are correct.
-        EXPECT_TRUE(chosen.second.size() > 0);
-        const auto& left = chosen.second.left;
+        const auto& pairings = coords.get_pairings();
+        EXPECT_TRUE(pairings.size() > 0);
+        const auto& left = pairings.ref;
         for (auto l : left) {
-            EXPECT_TRUE(l < coords.get_ncorrected());
+            EXPECT_TRUE(l < AutomaticOrder2::num_centers);
         }
 
-        const auto& right = chosen.second.right;
+        const auto& right = pairings.target;
         for (auto r : right) {
-            EXPECT_TRUE(r < sizes[chosen.first]);
+            EXPECT_TRUE(r < chosen_size);
+        }
+
+        const auto& clusters = coords.get_clusters();
+        for (size_t r = 0 ; r < chosen_size; ++r) {
+            EXPECT_TRUE(clusters[r + sofar] >= 0); 
         }
 
         // Applying an update. We mock up some corrected data.
         double* fixed = output.data() + sofar * ndim;
-        for (size_t s = 0; s < sizes[chosen.first]; ++s) {
+        for (size_t s = 0; s < sizes[chosen]; ++s) {
             for (int d = 0; d < ndim; ++d) {
                 fixed[s * ndim + d] = dist(rng);
             }
         }
-        coords.test_update(chosen.first);
+
+        coords.reset_clusters(sofar, sofar + chosen_size);
+        coords.test_update();
 
         // Check that the update works as expected.
         const auto& remaining = coords.get_remaining();
         EXPECT_EQ(remaining.size(), sizes.size() - b - 1);
-        EXPECT_EQ(sofar + sizes[chosen.first], coords.get_ncorrected());
+        EXPECT_EQ(sofar + sizes[chosen], coords.get_ncorrected());
 
         const auto& ord = coords.get_order();
         EXPECT_EQ(ord.size(), b + 1);
-        EXPECT_EQ(ord.back(), chosen.first);
+        EXPECT_EQ(ord.back(), chosen);
 
-        const auto& rneighbors = coords.get_neighbors_ref();
-        for (auto r : remaining) {
-            const auto& rcurrent = rneighbors[r];
-            knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[r], data[r].data());
-            EXPECT_EQ(rcurrent.size(), coords.get_ncorrected());
-
-            for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
-                auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
-                const auto& updated = rcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
-
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
-                }
-            }
-        }
-
-        knncolle::VpTreeEuclidean<> ref_index(ndim, coords.get_ncorrected(), output.data());
-        const auto& tneighbors = coords.get_neighbors_target();
-        for (auto r : remaining) {
-            const auto& current = data[r];
-            const auto& tcurrent = tneighbors[r];
-            EXPECT_EQ(tcurrent.size(), sizes[r]);
-
-            for (size_t x = 0; x < sizes[r]; ++x) {
-                auto naive = ref_index.find_nearest_neighbors(current.data() + x * ndim, k);
-                const auto& updated = tcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
-
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
-                }
-            }
+        for (size_t r = 0 ; r < chosen_size; ++r) {
+            EXPECT_TRUE(clusters[r + sofar] >= 0); 
         }
     }
 

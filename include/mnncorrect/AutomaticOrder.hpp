@@ -19,6 +19,7 @@ class AutomaticOrder : public IterativeMerger<Index, Float> {
 public:
     AutomaticOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, int ncenters, uint64_t s, Builder bfun, int k) :
         IterativeMerger<Index, Float>(nd, std::move(no), std::move(b), c, ncenters, s),
+        indices(this->nobs.size()),
         builder(std::move(bfun)),
         num_neighbors(k)
     {
@@ -35,7 +36,8 @@ public:
         #pragma omp parallel for
         for (size_t b = 0; b < this->nobs.size(); ++b) {
             if (b != ref) {
-                indices[b] = bfun(this->ndim, this->nobs[b], this->batches[b]);
+                auto ptr = bfun(this->ndim, this->nobs[b], this->batches[b]);
+                indices[b] = ptr;
             }
         }
 
@@ -62,7 +64,15 @@ protected:
             const auto& tindex = indices[b];
             std::vector<Index> tneighbors(tnum);
 
-            auto tmp = find_mutual_nns(this->centers.data(), tdata, ref_index.get(), tindex.get(), this->num_neighbors, rneighbors, tneighbors.data());
+            auto tmp = find_mutual_nns(
+                this->centers.data(), 
+                tdata, 
+                ref_index.get(), 
+                tindex.get(), 
+                this->num_neighbors, 
+                rneighbors, 
+                tneighbors.data()
+            );
 
             if (tmp.size() > pairings.size()) {
                 pairings = std::move(tmp);
@@ -88,13 +98,14 @@ protected:
         remaining.erase(latest);
 
         // Adding cluster assignments for the latest batch.
-        if (remaining.size()) {
-            const Float* ldata = this->corrected + previous_ncorrected * this->ndim;
-            #pragma omp parallel for
-            for (size_t l = 0; l < lnum; ++l) {
-                auto best = ref_index->find_nearest_neighbors(ldata + this->ndim * l, 1);
-                this->clusters[previous_ncorrected + l] = best.front().first;
-            }
+        if (testing || remaining.size()) {
+            assign_to_cluster(
+                this->ndim, 
+                lnum, 
+                this->corrected + previous_ncorrected * this->ndim, 
+                ref_index.get(), 
+                this->clusters.data() + previous_ncorrected
+            );
         }
 
         return;
@@ -115,7 +126,8 @@ public:
                 pairings, 
                 this->clusters.data() + this->ncorrected,
                 min_mnns,
-                this->corrected + this->ncorrected * this->ndim);
+                this->corrected + this->ncorrected * this->ndim
+            );
 
             update();
         }
