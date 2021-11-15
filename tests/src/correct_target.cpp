@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "mnncorrect/find_mutual_nns.hpp"
 #include "mnncorrect/correct_target.hpp"
 #include "aarand/aarand.hpp"
@@ -87,6 +88,12 @@ TEST(CorrectTarget, FindCoverageMax) {
         boundaries.emplace_back(4.5, false);
         EXPECT_EQ(mnncorrect::find_coverage_max(boundaries, 10000.0), 4.5); // correctly recognizes the small interval as having max coverage.
     }
+
+    // Does the right thing with empty boundaries.
+    {
+        std::vector<std::pair<double, bool> > boundaries;
+        EXPECT_EQ(mnncorrect::find_coverage_max(boundaries, 10000.0), 10000.0); 
+    }
 }
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
@@ -109,15 +116,29 @@ protected:
             r = aarand::standard_normal(rng).first + 5; // throw in a batch effect.
         }
 
-        // Setting up the values for a reasonable comparison.
         knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
+        neighbors_of_right.resize(nright);
+        for (size_t r = 0; r < nright; ++r) {
+            auto current = right.data() + ndim * r;
+            neighbors_of_right[r] = left_index.find_nearest_neighbors(current, 1); 
+        }
+
         knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
-        pairings = mnncorrect::find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, 1, k);
+        neighbors_of_left.resize(nleft);
+        for (size_t l = 0; l < nleft; ++l) {
+            auto current = left.data() + ndim * l;
+            neighbors_of_left[l] = right_index.find_nearest_neighbors(current, k);
+        }
+
+        pairings = mnncorrect::find_mutual_nns<int>(neighbors_of_left, neighbors_of_right);
     }
 
     int ndim = 5, k;
     size_t nleft, nright;
     std::vector<double> left, right;
+
+    mnncorrect::NeighborSet<int, double> neighbors_of_left;
+    mnncorrect::NeighborSet<int, double> neighbors_of_right;
     mnncorrect::MnnPairs<int> pairings;
 };
 
@@ -154,6 +175,161 @@ TEST_P(CorrectTargetTest, BatchVectors) {
             }
             EXPECT_FLOAT_EQ(expected[d], observed[d]);
         }
+    }
+}
+
+TEST_P(CorrectTargetTest, ScaleVectors) {
+    assemble(GetParam());
+
+    std::vector<double> output(ndim * nleft);
+    auto counts = mnncorrect::compute_batch_vectors(ndim, nleft, left.data(), pairings, right.data(), output.data());
+    auto by_left = mnncorrect::observations_by_ref(nleft, neighbors_of_right);
+
+    // Trying with a large radius to test out the coverage-finder.
+    {
+        auto original = output;
+        auto copy = output;
+        std::vector<double> radius(nleft, 10);
+        mnncorrect::scale_batch_vectors(ndim, nleft, left.data(), radius.data(), by_left, right.data(), copy.data());
+
+        // Checking that the L2 norms are not smaller after scaling, and that some of them have changed.
+        int changed = 0;
+        for (size_t l = 0; l < nleft; ++l) {
+            auto l2old = mnncorrect::l2norm(ndim, original.data() + l * ndim);
+            auto l2new = mnncorrect::l2norm(ndim, copy.data() + l * ndim);
+            EXPECT_TRUE(l2old <= l2new);
+            changed += l2old < l2new;
+        }
+        EXPECT_TRUE(changed > 0);
+    }
+
+    // Trying with a smaller radius.
+    {
+        auto original = output;
+        auto copy = output;
+        std::vector<double> radius(nleft, 1);
+        mnncorrect::scale_batch_vectors(ndim, nleft, left.data(), radius.data(), by_left, right.data(), copy.data());
+
+        // Checking that the L2 norms are not smaller after scaling.
+        int changed = 0;
+        for (size_t l = 0; l < nleft; ++l) {
+            auto l2old = mnncorrect::l2norm(ndim, original.data() + l * ndim);
+            auto l2new = mnncorrect::l2norm(ndim, copy.data() + l * ndim);
+            EXPECT_TRUE(l2old <= l2new);
+        }
+    }
+
+    // Doesn't freak out with all-zero inputs.
+    {
+        std::vector<double> original(ndim * nleft);
+        auto copy = original;
+        std::vector<double> radius(nleft, 0.0001);
+        mnncorrect::scale_batch_vectors(ndim, nleft, left.data(), radius.data(), by_left, right.data(), copy.data());
+        EXPECT_EQ(original, copy);
+
+        // Also testing correct fallback with empty indices.
+        by_left[0].clear();
+        mnncorrect::scale_batch_vectors(ndim, nleft, left.data(), radius.data(), by_left, right.data(), copy.data());
+        EXPECT_EQ(original, copy);
+    }
+}
+
+TEST_P(CorrectTargetTest, ExtrapolateVectors) {
+    assemble(GetParam());
+    
+    // Mocking up some vectors.
+    std::vector<double> output(ndim * nleft);
+    std::mt19937_64 rng(ndim * nright);
+    for (auto& o : output) {
+        o = aarand::standard_normal(rng).first; 
+    }
+
+    // Make the first reference missing, and ensuring that it is closest to the second reference.
+    {
+        auto copy = output;
+        std::vector<char> is_ok(nleft, true);
+        is_ok[0] = false;
+        std::copy(left.begin() + ndim, left.begin() + 2 * ndim, left.begin()); 
+
+        mnncorrect::extrapolate_vectors(ndim, nleft, left.data(), is_ok, output.data());
+
+        // First vector is replaced by the second vector.
+        {
+            std::vector<double> first(output.begin(), output.begin() + ndim);
+            std::vector<double> old(copy.begin(), copy.begin() + ndim);
+            EXPECT_NE(first, old);
+            std::vector<double> second(output.begin() + ndim, output.begin() + 2 * ndim);
+            EXPECT_EQ(first, second);
+        }
+
+        // Remaining vectors are the same as the inputs.
+        {
+            std::vector<double> first(copy.begin() + ndim, copy.end());
+            std::vector<double> second(output.begin() + ndim, output.end());
+            EXPECT_EQ(first, second);
+        }
+    }
+
+    // Make the last reference missing, and ensuring that it is closest to the third reference.
+    {
+        auto copy = output;
+        std::vector<char> is_ok(nleft, true);
+        is_ok[nleft - 1] = false;
+        std::copy(left.begin() + 2 * ndim, left.begin() + 3 * ndim, left.end() - ndim);
+
+        mnncorrect::extrapolate_vectors(ndim, nleft, left.data(), is_ok, output.data());
+
+        // Last vector is replaced by the third vector.
+        {
+            std::vector<double> first(output.end() - ndim, output.end());
+            std::vector<double> old(copy.end() - ndim, copy.end());
+            EXPECT_NE(first, old);
+            std::vector<double> second(output.begin() + 2 * ndim, output.begin() + 3 * ndim);
+            EXPECT_EQ(first, second);
+        }
+
+        // Remaining vectors are the same as the inputs.
+        {
+            std::vector<double> first(copy.begin(), copy.end() - ndim);
+            std::vector<double> second(output.begin(), output.end() - ndim);
+            EXPECT_EQ(first, second);
+        }
+    }
+
+    // Throws the exception if nothing is available.
+    {
+        std::vector<char> is_ok(nleft);
+        EXPECT_ANY_THROW({
+            try {
+                mnncorrect::extrapolate_vectors(ndim, nleft, left.data(), is_ok, output.data());
+            } catch (std::exception& e){
+                std::string msg(e.what());
+                EXPECT_TRUE(msg.find("sufficient MNN") != std::string::npos);
+                throw;
+            }
+        });
+    }
+}
+
+TEST_P(CorrectTargetTest, AverageBatchVectors) {
+    assemble(GetParam());
+
+    std::vector<double> output(ndim * nleft);
+    auto counts = mnncorrect::compute_batch_vectors(ndim, nleft, left.data(), pairings, right.data(), output.data());
+    auto averaged = mnncorrect::average_batch_vectors(ndim, nleft, counts, output.data());
+
+    std::vector<double> expected(ndim);
+    for (size_t p = 0; p < pairings.size(); ++p) {
+        auto lptr = left.data() + pairings.left[p] * ndim;
+        auto rptr = right.data() + pairings.right[p] * ndim;
+        for (int d = 0; d < ndim; ++d) {
+            expected[d] += (rptr[d] - lptr[d]);
+        }
+    }
+
+    for (int d = 0; d < ndim; ++d) {
+        expected[d] /= pairings.size();
+        EXPECT_FLOAT_EQ(averaged[d], expected[d]);
     }
 }
 
@@ -226,7 +402,7 @@ INSTANTIATE_TEST_CASE_P(
     CorrectTarget,
     CorrectTargetTest,
     ::testing::Combine(
-        ::testing::Values(100, 1000), // left
+        ::testing::Values(5, 20), // left
         ::testing::Values(100, 1000), // right
         ::testing::Values(10, 50)  // choice of k
     )

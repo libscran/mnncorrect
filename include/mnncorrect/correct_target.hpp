@@ -60,8 +60,11 @@ std::pair<Float, Float> intersect_with_sphere(int ndim, const Float* origin, con
 
 template<typename Float>
 Float find_coverage_max(std::vector<std::pair<Float, bool> >& boundaries, Float limit) {
-    std::sort(boundaries.begin(), boundaries.end());
+    if (boundaries.empty()) {
+        return limit;
+    }
 
+    std::sort(boundaries.begin(), boundaries.end());
     int coverage = 0, max_coverage = 0;
     Float position_max = 0;
 
@@ -117,7 +120,7 @@ template<typename Index, typename Float>
 void scale_batch_vectors(int ndim, size_t nref, const Float* ref, const Float* radius, const std::vector<std::vector<Index> >& by_ref, const Float* target, Float* vectors) {
     #pragma omp parallel
     {
-        std::vector<Float> vbuffer;
+        std::vector<Float> vbuffer(ndim);
         std::vector<std::pair<Float, bool> > collected;
 
         #pragma omp for
@@ -165,7 +168,7 @@ void scale_batch_vectors(int ndim, size_t nref, const Float* ref, const Float* r
                             Float at_max = find_coverage_max(collected, mean_proj);
                             Float scale = at_max / l2norm; // Divide by l2norm so that it can directly scale 'vectors'.
                             for (int d = 0; d < ndim; ++d) {
-                                vptr[r] *= scale; 
+                                vptr[d] *= scale; 
                             }
                         }
                     }
@@ -177,7 +180,7 @@ void scale_batch_vectors(int ndim, size_t nref, const Float* ref, const Float* r
     return;
 }
 
-template<typename Index, typename Float>
+template<typename Float>
 void extrapolate_vectors(int ndim, size_t nref, const Float* ref, const std::vector<char>& ok, Float* vectors) {
     for (size_t r = 0; r < nref; ++r) {
         if (!ok[r]) {
@@ -205,7 +208,7 @@ void extrapolate_vectors(int ndim, size_t nref, const Float* ref, const std::vec
                 throw std::runtime_error("no clusters with sufficient MNN pairs");
             } else {
                 Float* vptr = vectors + r * ndim;
-                const Float vptr2 = vectors + (closest_ptr - ref);
+                const Float* vptr2 = vectors + (closest_ptr - ref);
                 std::copy(vptr2, vptr2 + ndim, vptr);
             }
         }

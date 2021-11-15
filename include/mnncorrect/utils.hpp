@@ -25,21 +25,29 @@ struct MnnPairs {
     std::deque<Index> left, right;
 };
 
-template<typename Float>
-Float normalize_vector(int ndim, Float* ptr) {
+template<bool sqrt = true, typename Float>
+Float l2norm(int ndim, const Float* ptr) {
     Float l2norm = 0;
     for (int d = 0; d < ndim; ++d) {
         l2norm += ptr[d] * ptr[d];
     }
-
-    if (l2norm) {
+    
+    if (sqrt) {
         l2norm = std::sqrt(l2norm);
+    }
+    return l2norm;
+}
+
+template<typename Float>
+Float normalize_vector(int ndim, Float* ptr) {
+    Float l2 = l2norm<false>(ndim, ptr);
+    if (l2) {
+        l2 = std::sqrt(l2);
         for (int d = 0; d < ndim; ++d) {
-            ptr[d] /= l2norm;
+            ptr[d] /= l2;
         }
     }
-
-    return l2norm;
+    return l2;
 }
 
 template<typename Index, typename Dist>
