@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
   kmeans 
   GIT_REPOSITORY https://github.com/LTLA/CppKmeans
-  GIT_TAG 04ca0aadd96ee5e433ef0a383006946c41a364e3
+  GIT_TAG b28c8d0356be7578af82772a382f02754f10aee8
 )
 
 FetchContent_MakeAvailable(kmeans)

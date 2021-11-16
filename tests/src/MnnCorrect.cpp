@@ -46,7 +46,8 @@ TEST_P(MnnCorrectTest, Basic) {
     assemble(GetParam());
 
     mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k);
+    mnnrun.set_num_neighbors(k).set_num_clusters(1); // setting to a single cluster for the 'perfect' correction.
+
     std::vector<double> output(nobs * ndim);
     auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
     size_t refbatch = ordering.merge_order.front();

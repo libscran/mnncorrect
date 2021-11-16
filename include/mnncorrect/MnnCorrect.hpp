@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <vector>
+#include <cstdint>
+
 #include "AutomaticOrder.hpp"
 #include "restore_order.hpp"
 #include "knncolle/knncolle.hpp"
@@ -13,20 +15,26 @@ template<typename Index = int, typename Float = double>
 class MnnCorrect {
 public:
     struct Defaults {
-        static constexpr int num_neighbors = 15;
+        static constexpr int num_neighbors = 20;
 
         static constexpr int num_clusters = 50;
+
+        static constexpr int min_mnn_pairs = 5;
 
         static constexpr bool approximate = false;
 
         static constexpr bool automatic_order = true;
+
+        static constexpr uint64_t seed = 5678u;
     };
 
 private:
+    int min_mnn_pairs = Defaults::min_mnn_pairs;
     int num_neighbors = Defaults::num_neighbors;
     int num_clusters = Defaults::num_clusters;
     bool approximate = Defaults::approximate;
     bool automatic_order = Defaults::automatic_order;
+    uint64_t seed = Defaults::seed;
 
 public:
     MnnCorrect& set_num_neighbors(int n = Defaults::num_neighbors) {
@@ -60,8 +68,8 @@ public:
 private:
     template<class Builder>
     Results run_automatic_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
-        AutomaticOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
-        runner.run(num_mads);
+        AutomaticOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, num_clusters, seed, bfun, num_neighbors);
+        runner.run(min_mnn_pairs);
         return Results(runner.get_order(), runner.get_num_pairs());
     }
 

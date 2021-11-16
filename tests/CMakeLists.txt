@@ -13,7 +13,8 @@ enable_testing()
 add_executable(
     libtest 
     src/find_mutual_nns.cpp
-#    src/AutomaticOrder.cpp
+    src/IterativeMerger.cpp
+    src/AutomaticOrder.cpp
     src/correct_target.cpp
     src/restore_order.cpp
     src/utils.cpp
