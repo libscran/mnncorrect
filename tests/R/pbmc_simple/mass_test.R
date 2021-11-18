@@ -1,20 +1,25 @@
-library(scRNAseq)
-sceG <- GrunPancreasData()
-sceM <- MuraroPancreasData()
+########################
+# Setting up the datasets.
 
-common <- intersect(rownames(sceG), rownames(sceM))
-combined <- cbind(assay(sceG)[common,], assay(sceM)[common,])
-batch <- rep(c("Grun", "Muraro"), c(ncol(sceG), ncol(sceM)))
+library(TENxPBMCData)
 
-saveRDS(list(combined, batch), file="args.rds")
-#X <- readRDS("args.rds"); combined <- X[[1]]; block <- X[[2]]
+sce3k <- TENxPBMCData("pbmc3k")
+sce4k <- TENxPBMCData("pbmc4k")
+common <- intersect(rownames(sce3k), rownames(sce4k))
+
+sce3k <- sce3k[common,]
+sce4k <- sce4k[common,]
+x0 <- cbind(assay(sce3k), assay(sce4k))
+block <- rep(c("3k", "4k"), c(ncol(sce3k), ncol(sce4k)))
+
+saveRDS(list(x0, block), file="whee.rds")
+# X <- readRDS("whee.rds"); x0 <- X[[1]]; block <- X[[2]]
 
 ########################
 # Preamble of scran.chan::quickMergedAnalysis
 
 library(scran.chan)
-library(Matrix)
-x <- initializeSparseMatrix(combined, num.threads=1)
+x <- initializeSparseMatrix(x0, num.threads=1)
 
 qc.metrics <- perCellQCMetrics.chan(x, subsets=list(), num.threads=1)
 qc.filters <- perCellQCFilters.chan(qc.metrics$sums, batch=block, qc.metrics$detected, qc.metrics$subsets, nmads=3)
@@ -34,19 +39,12 @@ pcs <- pca$components
 # Merging method starts here.
 
 plock <- block[!qc.discard]
-y.g <- pcs[,plock == "Grun"]
-y.m <- pcs[,plock == "Muraro"]
+y3k <- pcs[,plock == "3k"]
+y4k <- pcs[,plock == "4k"]
 
 library(mnncorrect.ref)
-corrected.g <- mnncorrect.ref(y.m, y.g)
-total <- cbind(corrected.g, y.m)
+corrected.3k <- mnncorrect.ref(y4k, y3k, k=15)
+total <- cbind(corrected.3k, y4k)
 out <- runTSNE.chan(total)
-
 plot(out[,1], out[,2], col=factor(plock))
-segments(
-    out[pairings$first,1], 
-    out[pairings$first,2],
-    out[ncol(y.g) + pairings$second,1],
-    out[ncol(y.g) + pairings$second,2],
-    col="dodgerblue"
-)
+
