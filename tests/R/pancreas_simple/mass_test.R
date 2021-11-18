@@ -37,53 +37,8 @@ plock <- block[!qc.discard]
 y.g <- pcs[,plock == "Grun"]
 y.m <- pcs[,plock == "Muraro"]
 
-library(BiocNeighbors)
-pairings <- findMutualNN(t(y.g), t(y.m), k1=15)
-
-# Computing centers of mass for each MNN-involved cell.
-mnn.g <- unique(pairings$first)
-mnn.m <- unique(pairings$second)
-
-closest.g <- queryKNN(query=t(y.g), X=t(y.g[,mnn.g]), k=15)
-limit.g <- median(closest.g$distance) + mad(closest.g$distance) * 3
-keep <- closest.g$index
-keep[closest.g$distance > limit.g] <- NA
-
-neighbors.g <- split(rep(seq_len(ncol(y.g)), 15), keep)
-centers.g <- matrix(0, nrow(y.g), length(neighbors.g))
-for (i in seq_along(neighbors.g)) {
-    candidates <- y.g[,neighbors.g[[i]],drop=FALSE]
-    centers.g[,i] <- rowMeans(candidates)
-}
-
-closest.m <- queryKNN(query=t(y.m), X=t(y.m[,mnn.m]), k=15)
-limit.m <- median(closest.m$distance) + mad(closest.m$distance) * 3
-keep <- closest.m$index
-keep[closest.m$distance > limit.m] <- NA
-
-neighbors.m <- split(rep(seq_len(ncol(y.m)), 15), keep)
-centers.m <- matrix(0, nrow(y.m), length(neighbors.m))
-for (i in seq_along(neighbors.m)) {
-    candidates <- y.m[,neighbors.m[[i]],drop=FALSE]
-    centers.m[,i] <- rowMeans(candidates)
-}
-
-# Finishing it off.
-corrected.g <- y.g
-for (x in seq_len(ncol(y.g))) {
-    closest <- closest.g$index[x,]
-
-    keep <- pairings$first %in% mnn.g[closest]
-    pfirst <- pairings$first[keep]
-    psecond <- pairings$second[keep]
-    candidates <- centers.m[,match(psecond, mnn.m),drop=FALSE] - centers.g[,match(pfirst, mnn.g),drop=FALSE]
-
-    correction <- rowMeans(candidates)
-    d <- dist(t(candidates))
-    med <- candidates[,which.max(-colSums(as.matrix(d)))]
-
-    corrected.g[,x] <- corrected.g[,x] + (correction * 9 + med) / 10
-}
+library(mnncorrect.ref)
+corrected.g <- mnncorrect.ref(y.m, y.g)
 
 total <- cbind(corrected.g, y.m)
 out <- runTSNE.chan(total)
