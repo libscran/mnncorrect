@@ -1,9 +1,11 @@
 #ifndef MNNCORRECT_CORRECT_TARGET_HPP
 #define MNNCORRECT_CORRECT_TARGET_HPP
 
-#include "utils.hpp"
 #include "knncolle/knncolle.hpp"
-#include "determine_limits.hpp"
+
+#include "utils.hpp"
+#include "RobustAverage.hpp"
+
 #include <algorithm>
 #include <vector>
 
@@ -57,35 +59,6 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
     return med + nmads * mad * static_cast<Float>(mad2sigma);
 }
 
-template<typename Index, typename Float>
-void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float limit, Float* output) {
-    std::fill(output, output + nmnns * ndim, 0);
-
-    std::vector<Float> total(nmnns);
-    for (size_t f = 0; f < closest_mnn.size(); ++f) {
-        const Float* curdata = data + f * ndim;
-        const auto& my_mnns = closest_mnn[f];
-
-        for (const auto& x : my_mnns) {
-            if (x.second <= limit) {
-                Float* curout = output + x.first * ndim;
-                for (int d = 0; d < ndim; ++d) {
-                    curout[d] += curdata[d];
-                }
-                ++total[x.first];
-            }
-        }
-    }
-
-    for (size_t i = 0; i < nmnns; ++i) {
-        Float* curout = output + i * ndim;
-        for (int d = 0; d < ndim; ++d) {
-            curout[d] /= total[i];
-        }
-    }
-    return;
-}
-
 template<typename Index, typename Float, class Builder>
 void correct_target(
     int ndim, 
@@ -97,6 +70,8 @@ void correct_target(
     Builder bfun, 
     int k, 
     Float nmads,
+    int robust_iterations,
+    Float robust_trim,
     Float* output) 
 {
     auto uniq_ref = unique(pairings.left);
@@ -112,42 +87,60 @@ void correct_target(
     Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
 
     // Computing the centers of mass, stored in the buffers.
-    Float limit_ref = std::min(limit_batch_ref, limit_closest_ref);
-    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, limit_ref, buffer_ref.data());
-
-    Float limit_target = std::min(limit_batch_target, limit_closest_target);
-    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, limit_target, buffer_target.data());
-
-    // Computing the correction vector for each target point in an MNN pair, stored in the target buffer.
-    auto remap_ref = invert_index(nref, uniq_ref);
-    auto remap_target = invert_index(ntarget, uniq_target);
-
-    std::vector<Float> weights(ntarget);
-    for (auto x : pairings.right) {
-        ++weights[x];
+    {
+        auto inverted = invert_neighbors(uniq_ref.size(), mnn_ref);
+        #pragma omp parallel
+        {
+            RobustAverage<Float> rbave(robust_iterations, robust_trim, limit_closest_ref);
+            #pragma omp for
+            for (size_t g = 0; g < inverted.size(); ++g) {
+                rbave.run(ndim, inverted[g], ref, buffer_ref.data() + g * ndim);
+            }
+        }
     }
-
-    for (size_t p = 0; p < pairings.size(); ++p) {
-        auto r = buffer_ref.data() + ndim * remap_ref[pairings.left[p]];
-        auto t = buffer_target.data() + ndim * remap_target[pairings.right[p]];
-        auto w = 1 / weights[pairings.right[p]];
-        for (int d = 0; d < ndim; ++d) {
-            t[d] -= r[d] * w;
+    {
+        auto inverted = invert_neighbors(uniq_target.size(), mnn_target);
+        #pragma omp parallel
+        {
+            RobustAverage<Float> rbave(robust_iterations, robust_trim, limit_closest_target);
+            #pragma omp for
+            for (size_t g = 0; g < inverted.size(); ++g) {
+                rbave.run(ndim, inverted[g], target, buffer_target.data() + g * ndim);
+            }
         }
     }
 
-    // And then applying it to the target data.
-    for (size_t t = 0; t < ntarget; ++t) {
-        auto src = target + t * ndim;
-        auto out = output + t * ndim;
-        std::copy(src, src + ndim, out);
+    // Computing the correction vector for each target point. 
+    auto remap_ref = invert_indices(nref, uniq_ref);
+    auto remap_target = invert_indices(ntarget, uniq_target);
 
-        const auto& my_mnns = mnn_target[t];
-        for (const auto& x : my_mnns) {
-            auto corr = buffer_target.data() + x.first * ndim;
-            for (int d = 0; d < ndim; ++d) {
-                out[d] -= corr[d] / my_mnns.size();
+    // And then applying it to the target data.
+    #pragma omp parallel
+    {
+        std::vector<Float> corrections;
+        corrections.reserve(ndim * 100); // just filling it with something.
+        RobustAverage<Float> rbave(robust_iterations, robust_trim);
+        
+        #pragma omp for
+        for (size_t t = 0; t < ntarget; ++t) {
+            const auto& target_closest = mnn_target[t];
+            corrections.clear();
+            int ncorrections = 0;
+
+            for (auto tp : target_closest) {
+                const Float* ptptr = buffer_target.data() + remap_target[tp];
+                const auto& ref_partners = pairings.matches[tp];
+
+                for (auto rp : ref_partners) {
+                    const Float* prptr = buffer_ref.data() + remap_ref[rp];
+                    for (int d = 0; d < ndim; ++d) {
+                        corrections.push_back(prptr[d] - ptptr[d]);
+                    }
+                    ++ncorrections;
+                }
             }
+
+            rbave.run(ndim, ncorrections, corrections.data(), output + t * ndim);
         }
     }
 

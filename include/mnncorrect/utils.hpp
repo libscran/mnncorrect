@@ -5,23 +5,33 @@
 #include <vector>
 #include <limits>
 #include <type_traits>
-#include <set>
-#include "knncolle/knncolle.hpp"
+#include <unordered_set>
 
 namespace mnncorrect {
 
 template<typename Index, typename Dist>
 using NeighborSet = std::vector<std::vector<std::pair<Index, Dist> > >;
 
+template<typename Index, typename Dist>
+std::vector<std::vector<Index> > invert_neighbors(size_t n, const NeighborSet<Index, Dist>& neighbors) {
+    std::vector<std::vector<Index> > output(n);
+    for (size_t i = 0; i < neighbors.size(); ++i) {
+        for (const auto& x : neighbors[i]) {
+            output[x.first].push_back(i);
+        }
+    }
+    return output;
+}
+
 template<class Vector>
 auto unique(const Vector& input) {
     typedef typename std::remove_const<typename std::remove_reference<decltype(*input.begin())>::type>::type Value;
-    std::set<Value> collected(input.begin(), input.end());
+    std::unordered_set<Value> collected(input.begin(), input.end());
     return std::vector<Value>(collected.begin(), collected.end());
 }
 
 template<typename Index>
-std::vector<Index> invert_index(size_t n, const std::vector<Index>& uniq, Index placeholder = 0) {
+std::vector<Index> invert_indices(size_t n, const std::vector<Index>& uniq, Index placeholder = 0) {
     std::vector<Index> output(n, placeholder);
     for (size_t u = 0; u < uniq.size(); ++u) {
         output[uniq[u]] = u;        
