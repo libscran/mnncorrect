@@ -2,25 +2,38 @@
 #include "mnncorrect/utils.hpp"
 #include <cmath>
 
-TEST(Utils, Unique) {
-    {
-        auto u = mnncorrect::unique(std::deque<int>{ 1, 1, 2, 3, 4, 4 });
-        std::vector<int> ref { 1, 2, 3, 4};
-        EXPECT_EQ(u, ref);
-    }
+TEST(Utils, InvertNeighbors) {
+    mnncorrect::NeighborSet<int, double> nns(4);
+    nns[0].emplace_back(4, -1); // distances don't matter, so we just set them to -1.
+    nns[0].emplace_back(2, -1);
+    nns[0].emplace_back(1, -1);
 
-    // Trying out of order.
-    {
-        auto u = mnncorrect::unique(std::deque<int>{ 2, 4, 0, 2, 0, 3, 4});
-        std::vector<int> ref { 0, 2, 3, 4};
-        EXPECT_EQ(u, ref);
-    }
+    nns[1].emplace_back(3, -1);
+    nns[1].emplace_back(4, -1);
+    nns[1].emplace_back(2, -1);
+
+    nns[2].emplace_back(0, -1);
+    nns[3].emplace_back(4, -1);
+
+    auto inv = mnncorrect::invert_neighbors(5, nns);
+    EXPECT_EQ(inv.size(), 5);
+
+    std::vector<int> exp0 { 2 };
+    EXPECT_EQ(inv[0], exp0);
+    std::vector<int> exp1 { 0 };
+    EXPECT_EQ(inv[1], exp1);
+    std::vector<int> exp2 { 0, 1 };
+    EXPECT_EQ(inv[2], exp2);
+    std::vector<int> exp3 { 1 };
+    EXPECT_EQ(inv[3], exp3);
+    std::vector<int> exp4 { 0, 1, 3 };
+    EXPECT_EQ(inv[4], exp4);
 }
 
-TEST(Utils, InvertIndex) {
+TEST(Utils, InvertIndices) {
     {
         std::vector<int> u { 0, 2, 3, 4};
-        auto inv = mnncorrect::invert_index(5, u, -1);
+        auto inv = mnncorrect::invert_indices(5, u, -1);
         std::vector<int> expected{ 0, -1, 1, 2, 3 };
         EXPECT_EQ(inv, expected);
     }
@@ -28,7 +41,7 @@ TEST(Utils, InvertIndex) {
     // Works out of order.
     {
         std::vector<int> u { 5, 2, 8 };
-        auto inv = mnncorrect::invert_index(10, u, -1);
+        auto inv = mnncorrect::invert_indices(10, u, -1);
         std::vector<int> expected{ -1, -1, 1, -1, -1, 0, -1, -1, 2, -1 };
         EXPECT_EQ(inv, expected);
     }

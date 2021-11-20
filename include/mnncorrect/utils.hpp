@@ -5,7 +5,6 @@
 #include <vector>
 #include <limits>
 #include <type_traits>
-#include <unordered_set>
 
 namespace mnncorrect {
 
@@ -21,13 +20,6 @@ std::vector<std::vector<Index> > invert_neighbors(size_t n, const NeighborSet<In
         }
     }
     return output;
-}
-
-template<class Vector>
-auto unique(const Vector& input) {
-    typedef typename std::remove_const<typename std::remove_reference<decltype(*input.begin())>::type>::type Value;
-    std::unordered_set<Value> collected(input.begin(), input.end());
-    return std::vector<Value>(collected.begin(), collected.end());
 }
 
 template<typename Index>

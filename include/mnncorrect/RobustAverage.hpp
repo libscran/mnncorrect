@@ -6,10 +6,11 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include "utils.hpp"
 
 namespace mnncorrect {
 
-template<typename Float>
+template<typename Index, typename Float>
 class RobustAverage {
 public:
     RobustAverage(int it, double tr, Float lim) : iterations(it), trim(tr), limit2(lim * lim) {
@@ -60,7 +61,7 @@ private:
 
                 Float d2 = 0;
                 for (int d = 0; d < ndim; ++d) {
-                    Float diff = output[d] - bptr[d];
+                    Float diff = output[d] - dptr[d];
                     d2 += diff * diff;
                 }
                 if (d2 < limit2) {
@@ -72,15 +73,15 @@ private:
             // differences in order that affect numerical precision, as well as
             // problems when trim = 0 such that the nth element is the end
             // iterator (and thus not de-referenceable). 
-            std::sort(delta.begin(), delta.end());
+            std::sort(deltas.begin(), deltas.end());
 
             std::fill(output, output + ndim, 0);
-            size_t limit = std::ceil((1.0 - trim) * static_cast<double>(delta.size()));
+            size_t limit = std::ceil((1.0 - trim) * static_cast<double>(deltas.size()));
 
             for (size_t x = 0; x < limit; ++x) {
-                auto bptr = data + delta[x].second * ndim;
+                auto dptr = data + deltas[x].second * ndim;
                 for (int d = 0; d < ndim; ++d) {
-                    output[d] += bptr[d];
+                    output[d] += dptr[d];
                 }
             }
             for (int d = 0; d < ndim; ++d) {
@@ -91,13 +92,12 @@ private:
 
 public:
     void run(int ndim, size_t npts, const Float* data, Float* output) {
-        run(ndim, npts, [](size_t i) -> size_t { return i }, data, output);
+        run(ndim, npts, [](size_t i) -> size_t { return i; }, data, output);
         return;
     }
 
-    template<typename Index>
     void run(int ndim, const std::vector<Index>& indices, const Float* data, Float* output) {
-        run(ndim, indices.size(), [&](size_t i) -> size_t { return indices[i] }, data, output);
+        run(ndim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output);
         return;
     }
 
