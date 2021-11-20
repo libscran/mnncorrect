@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
-#include "mnncorrect/find_mutual_nns.hpp"
+
 #include <random>
 #include <vector>
+
+#include "mnncorrect/find_mutual_nns.hpp"
+#include "helper_find_mutual_nns.hpp"
 
 class FindMutualNNsTest : public ::testing::TestWithParam<std::tuple<int, int, int, int> > {
 protected:
@@ -27,7 +30,7 @@ protected:
         }
     }
 
-    mnncorrect::MnnPairs<size_t> compute_reference() {
+    mnncorrect::MnnPairs<int> compute_reference() {
         knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
         knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
 
@@ -39,14 +42,13 @@ protected:
             }
         }
 
-        mnncorrect::MnnPairs<size_t> output;
+        mnncorrect::MnnPairs<int> output(nright);
         for (size_t r = 0; r < nright; ++r) {
             auto current = left_index.find_nearest_neighbors(right.data() + r * ndim, k2);
             for (const auto& x : current) {
                 auto it = found.find(std::pair<size_t, size_t>(x.first, r));
                 if (it != found.end()) {
-                    output.left.push_back(x.first);
-                    output.right.push_back(r);
+                    output.matches[r].push_back(x.first);
                 }
             }
         }
@@ -63,21 +65,22 @@ protected:
 TEST_P(FindMutualNNsTest, Check) {
     assemble(GetParam());
     auto ref = compute_reference();
-    EXPECT_TRUE(ref.left.size() > 0);
-    EXPECT_TRUE(ref.right.size() > 0);
+
+    // Checking that we do have some MNNs.
+    size_t np = 0;
+    for (const auto& x : ref.matches) {
+        np += x.size();
+    }
+    EXPECT_TRUE(np > 0);
 
     knncolle::VpTreeEuclidean<> left_index(ndim, nleft, left.data());
     knncolle::VpTreeEuclidean<> right_index(ndim, nright, right.data());
-    auto obs = mnncorrect::find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, k1, k2);
+    auto obs = find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, k1, k2);
 
-    EXPECT_EQ(
-        std::vector<size_t>(ref.left.begin(), ref.left.end()), 
-        std::vector<size_t>(obs.left.begin(), obs.left.end())
-    );
-    EXPECT_EQ(
-        std::vector<size_t>(ref.right.begin(), ref.right.end()), 
-        std::vector<size_t>(obs.right.begin(), obs.right.end())
-    );
+    EXPECT_EQ(obs.matches.size(), ref.matches.size());
+    for (size_t r = 0; r < obs.matches.size(); ++r) {
+        EXPECT_EQ(ref.matches[r], obs.matches[r]);
+    }
 }
 
 INSTANTIATE_TEST_CASE_P(

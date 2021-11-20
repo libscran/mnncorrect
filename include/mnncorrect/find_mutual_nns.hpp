@@ -8,6 +8,13 @@
 
 namespace mnncorrect {
 
+template<typename Index>
+struct MnnPairs {
+    MnnPairs(size_t nright=0) : matches(nright) {}
+    std::vector<std::vector<Index> > matches;
+    size_t num_pairs = 0;
+};
+
 template<typename Index, typename Float>
 MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const NeighborSet<Index, Float>& right) {
     size_t nleft = left.size();
@@ -22,7 +29,7 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
         std::sort(storage.begin(), storage.end());
     }
 
-    MnnPairs<Index> output;
+    MnnPairs<Index> output(nright);
     std::vector<size_t> last(nleft);
     for (size_t r = 0; r < nright; ++r) {
         const auto& mine = right[r];
@@ -34,8 +41,8 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
             for (; position < other.size(); ++position) {
                 if (other[position] >= r) {
                     if (other[position] == r) {
-                        output.left.push_back(left_neighbor);
-                        output.right.push_back(r);
+                        output.matches[r].push_back(left_neighbor);
+                        ++output.num_pairs;
                     }
                     break;
                 }
@@ -44,38 +51,17 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
     }
 
     return output;
-
 }
 
-
-template<typename Index, typename Float, class Searcher>
-MnnPairs<Index> find_mutual_nns(
-    const Float* left, 
-    const Float* right, 
-    const Searcher* left_index, 
-    const Searcher* right_index, 
-    int k_left, 
-    int k_right)
-{
-    int ndim = left_index->ndim();
-    size_t nleft = left_index->nobs();
-    size_t nright = right_index->nobs();
-
-    NeighborSet<Index, Float> neighbors_of_left(nleft);
+template<typename Index, typename Dist>
+NeighborSet<Index, Dist> find_nns(size_t n, const Dist* query, const knncolle::Base<Index, Dist>* index, int k) {
+    NeighborSet<Index, Dist> output(n);
+    int ndim = index->ndim();
     #pragma omp parallel for
-    for (size_t l = 0; l < nleft; ++l) {
-        auto current = left + ndim * l;
-        neighbors_of_left[l] = right_index->find_nearest_neighbors(current, k_left);
+    for (size_t l = 0; l < n; ++l) {
+        output[l] = index->find_nearest_neighbors(query + ndim * l, k);
     }
-
-    NeighborSet<Index, Float> neighbors_of_right(nright);
-    #pragma omp parallel for
-    for (size_t r = 0; r < nright; ++r) {
-        auto current = right + ndim * r;
-        neighbors_of_right[r] = left_index->find_nearest_neighbors(current, k_right);
-    }
-
-    return find_mutual_nns<Index, Float>(neighbors_of_left, neighbors_of_right);
+    return output;
 }
 
 }

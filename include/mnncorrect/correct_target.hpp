@@ -9,6 +9,54 @@
 
 namespace mnncorrect {
 
+template<typename Index, typename Float, class Builder>
+NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Builder bfun, int k, Float* buffer) {
+    for (size_t f = 0; f < in_mnn.size(); ++f) {
+        auto current = in_mnn[f];
+        auto curdata = data + current * ndim;
+        std::copy(curdata, curdata + ndim, buffer + f * ndim);
+    }
+
+    auto index = bfun(ndim, in_mnn.size(), buffer);
+    NeighborSet<Index, Float> output(nobs);
+    #pragma omp parallel for
+    for (size_t o = 0; o < nobs; ++o) {
+        output[o] = index->find_nearest_neighbors(data + o * ndim, k);
+    }
+
+    return output;
+}
+
+template<typename Index, typename Float>
+Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float nmads = 3) {
+    assert(found.size() > 0);
+
+    // Pooling all distances together.
+    std::vector<Float> all_distances;
+    all_distances.reserve(found.size() * found[0].size());
+    for (const auto& f : found) {
+        for (const auto& x : f) {
+            all_distances.push_back(x.second);
+        }
+    }
+
+    // Computing the MAD from the lower half, to mitigate biases from a long right tail.
+    Float med = median(all_distances.size(), all_distances.data());
+    size_t counter = 0;
+    for (auto& a : all_distances) {
+        Float delta = med - a;
+        if (delta > 0) {
+            all_distances[counter] = delta;
+            ++counter;
+        }
+    }
+    Float mad = median(counter, all_distances.data());
+
+    // Under normality, most of the distribution should be obtained
+    // within 3 sigma of the correction vector. 
+    return med + nmads * mad * static_cast<Float>(mad2sigma);
+}
+
 template<typename Index, typename Float>
 void compute_center_of_mass(int ndim, size_t nmnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float limit, Float* output) {
     std::fill(output, output + nmnns * ndim, 0);
@@ -55,10 +103,6 @@ void correct_target(
     auto uniq_target = unique(pairings.right);
 
     // Determine the expected width to use. 
-    auto ave_vector = average_batch_vector(ndim, nref, ref, ntarget, target, pairings);
-    Float limit_batch_ref = limit_from_batch_vector(ndim, nref, ref, ave_vector, uniq_ref, nmads); 
-    Float limit_batch_target = limit_from_batch_vector(ndim, ntarget, target, ave_vector, uniq_target, nmads); 
-
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
     auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data());
     Float limit_closest_ref = limit_from_closest_distances(mnn_ref, nmads);
@@ -107,17 +151,6 @@ void correct_target(
         }
     }
 
-    return;
-}
-
-/* For testing purposes only. */
-template<typename Index, typename Float>
-void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const MnnPairs<Index>& pairings, int k, Float nmads, Float* output) {
-    typedef knncolle::Base<Index, Float> knncolleBase;
-    auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-        return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
-    };
-    correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, output);
     return;
 }
 
