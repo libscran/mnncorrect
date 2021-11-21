@@ -63,7 +63,7 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 }
 
 template<typename Index, typename Float>
-void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, Float limit, const Float* data, Float* buffer, int iterations, double trim, Float Limit) {
+void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit) {
     auto inverted = invert_neighbors(num_mnns, closest_mnn);
     #pragma omp parallel
     {
@@ -104,8 +104,8 @@ void correct_target(
     Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
 
     // Computing the centers of mass, stored in the buffers.
-    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, limit_closest_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref);
-    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, limit_closest_target, target, buffer_target.data(), robust_iterations, robust_trim, limit_closest_target);
+    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref);
+    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, buffer_target.data(), robust_iterations, robust_trim, limit_closest_target);
 
     // Computing the correction vector for each target point, 
     // And then applying it to the target data.
@@ -124,12 +124,12 @@ void correct_target(
             corrections.clear();
             int ncorrections = 0;
 
-            for (auto tp : target_closest) {
-                const Float* ptptr = buffer_target.data() + remap_target[tp];
-                const auto& ref_partners = pairings.matches[tp];
+            for (auto tc : target_closest) {
+                const Float* ptptr = buffer_target.data() + tc.first * ndim;
+                const auto& ref_partners = pairings.matches.at(uniq_target[tc.first]);
 
                 for (auto rp : ref_partners) {
-                    const Float* prptr = buffer_ref.data() + remap_ref[rp];
+                    const Float* prptr = buffer_ref.data() + remap_ref[rp] * ndim;
                     for (int d = 0; d < ndim; ++d) {
                         corrections.push_back(prptr[d] - ptptr[d]);
                     }
@@ -137,7 +137,14 @@ void correct_target(
                 }
             }
 
-            rbave.run(ndim, ncorrections, corrections.data(), output + t * ndim);
+            auto optr = output + t * ndim;
+            rbave.run(ndim, ncorrections, corrections.data(), optr);
+
+            // Actually applying the correction.
+            auto tptr = target + t * ndim;
+            for (int d = 0; d < ndim; ++d) {
+                optr[d] += tptr[d];
+            }
         }
     }
 

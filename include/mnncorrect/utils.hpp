@@ -23,7 +23,7 @@ std::vector<std::vector<Index> > invert_neighbors(size_t n, const NeighborSet<In
 }
 
 template<typename Index>
-std::vector<Index> invert_indices(size_t n, const std::vector<Index>& uniq, Index placeholder = 0) {
+std::vector<Index> invert_indices(size_t n, const std::vector<Index>& uniq, Index placeholder = -1) {
     std::vector<Index> output(n, placeholder);
     for (size_t u = 0; u < uniq.size(); ++u) {
         output[uniq[u]] = u;        

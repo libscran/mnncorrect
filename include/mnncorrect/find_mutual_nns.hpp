@@ -4,7 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
-#include <unordered_set>
+#include <set>
 #include "knncolle/knncolle.hpp"
 #include "utils.hpp"
 
@@ -23,7 +23,7 @@ struct MnnPairs {
 
 template<typename Index>
 std::vector<Index> unique_left(const MnnPairs<Index>& input) {
-    std::unordered_set<Index> tmp;
+    std::set<Index> tmp; // yes, I would like it to be ordered, please.
     for (const auto& x : input.matches) {
         for (auto y : x.second) {
             tmp.insert(y);
@@ -39,6 +39,7 @@ std::vector<Index> unique_right(const MnnPairs<Index>& input) {
     for (const auto& x : input.matches) {
         output.push_back(x.first);
     }
+    std::sort(output.begin(), output.end());
     return output;
 }
 
@@ -60,7 +61,7 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
     std::vector<size_t> last(nleft);
     for (Index r = 0; r < nright; ++r) {
         const auto& mine = right[r];
-        auto& holder = output.matches[r];
+        std::vector<Index> holder;
 
         for (auto left_pair : mine) {
             auto left_neighbor = left_pair.first;
@@ -76,6 +77,10 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
                     break;
                 }
             }
+        }
+
+        if (holder.size()) {
+            output.matches[r] = std::move(holder);
         }
     }
 

@@ -46,13 +46,17 @@ protected:
         mnncorrect::MnnPairs<int> output(nright);
         for (size_t r = 0; r < nright; ++r) {
             auto current = left_index.find_nearest_neighbors(right.data() + r * ndim, k2);
-            auto& holder = output.matches[static_cast<int>(r)];
 
+            std::vector<int> holder; 
             for (const auto& x : current) {
                 auto it = found.find(std::pair<size_t, size_t>(x.first, r));
                 if (it != found.end()) {
                     holder.push_back(x.first);
                 }
+            }
+
+            if (holder.size()) {
+                output.matches[static_cast<int>(r)] = holder;
             }
         }
 
