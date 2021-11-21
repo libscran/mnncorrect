@@ -84,11 +84,11 @@ void correct_target(
     size_t ntarget, 
     const Float* target, 
     const MnnPairs<Index>& pairings, 
-    Builder bfun, 
+    const Builder& bfun, 
     int k, 
     Float nmads,
     int robust_iterations,
-    Float robust_trim,
+    double robust_trim, // yes, this is a double. Doesn't really matter given where we're using it.
     Float* output) 
 {
     auto uniq_ref = unique_left(pairings);

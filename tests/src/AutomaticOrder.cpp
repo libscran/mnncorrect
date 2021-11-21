@@ -118,15 +118,13 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         size_t sofar = coords.get_ncorrected();
 
         // Check that the MNN pair indices are correct.
-        EXPECT_TRUE(chosen.second.size() > 0);
-        const auto& left = chosen.second.left;
-        for (auto l : left) {
-            EXPECT_TRUE(l < coords.get_ncorrected());
-        }
-
-        const auto& right = chosen.second.right;
-        for (auto r : right) {
-            EXPECT_TRUE(r < sizes[chosen.first]);
+        const auto& m = chosen.second.matches;
+        EXPECT_TRUE(m.size() > 0);
+        for (const auto& x : m) {
+            EXPECT_TRUE(x.first < sizes[chosen.first]);
+            for (const auto& y : x.second) {
+                EXPECT_TRUE(y < coords.get_ncorrected());
+            }
         }
 
         // Applying an update. We mock up some corrected data.

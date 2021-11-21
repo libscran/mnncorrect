@@ -20,13 +20,24 @@ public:
         static constexpr bool approximate = false;
 
         static constexpr bool automatic_order = true;
+
+        static constexpr int robust_iterations = 1;
+
+        static constexpr double robust_trim = 0.2;
     };
 
 private:
     int num_neighbors = Defaults::num_neighbors;
+
     Float num_mads = Defaults::num_mads;
+
     bool approximate = Defaults::approximate;
+
     bool automatic_order = Defaults::automatic_order;
+
+    int robust_iterations = Defaults::robust_iterations;
+
+    double robust_trim = Defaults::robust_trim;
 
 public:
     MnnCorrect& set_num_neighbors(int n = Defaults::num_neighbors) {
@@ -61,7 +72,7 @@ private:
     template<class Builder>
     Results run_automatic_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
         AutomaticOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
-        runner.run(num_mads);
+        runner.run(num_mads, robust_iterations, robust_trim);
         return Results(runner.get_order(), runner.get_num_pairs());
     }
 
