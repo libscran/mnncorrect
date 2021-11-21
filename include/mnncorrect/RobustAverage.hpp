@@ -10,12 +10,30 @@
 
 namespace mnncorrect {
 
+/* 
+ * This computes a robust average after trimming away observations that are
+ * furthest from the mean observation. Specifically, we keep all observations
+ * that are less than or equal to the '1 - trim' quantile, given a trimming
+ * proportion between 0 and 1. The trimmed set is used to compute a new mean
+ * and this process is repeated for the specified number of iterations. 
+ * 
+ * The use of the quantile here is approximately equivalent to removing 'trim'
+ * furthest observations, but with the following subtleties:
+ *
+ * - If there are observations at tied distances at the trim boundary,
+ *   all ties are retained. This avoids arbitrary changes in the resullts
+ *   depending on the input order of observations.
+ * - If trim = 1, the point closest to the mean is always retained,
+ *   ensuring that the mean calculation in the next iteration is defined.
+ * - If trim > 0, the furthest point is always removed. This ensures that
+ *   some trimming is always performed when requested.
+ */ 
 template<typename Index, typename Float>
 class RobustAverage {
 public:
     RobustAverage(int it, double tr) : iterations(it), trim(tr) {
-        if (trim < 0 || trim >= 1) {
-            throw std::runtime_error("trimming proportion must be in [0, 1)");
+        if (trim < 0 || trim > 1) {
+            throw std::runtime_error("trimming proportion must be in [0, 1]");
         }
         if (iterations < 0) {
             throw std::runtime_error("number of iterations must be non-negative");
@@ -39,6 +57,11 @@ private:
             output[d] /= npts;
         }
 
+        // The 'npts - 1' reflects the fact that we're comparing to a quantile.
+        // The closest point is at 0%, while the furthest point is at 100%,
+        // so we already spent one observation defining the boundaries.
+        const double threshold = static_cast<double>(npts - 1) * (1 - trim);
+
         // And now iterating.
         deltas.reserve(npts);
 
@@ -55,24 +78,33 @@ private:
                 }
                 deltas.emplace_back(d2, j);
             }
-            
-            // Sort rather than nth_element; avoid machine-dependent
-            // differences in order that affect numerical precision, as well as
-            // problems when trim = 0 such that the nth element is the end
-            // iterator (and thus not de-referenceable). 
+
             std::sort(deltas.begin(), deltas.end());
 
-            std::fill(output, output + ndim, 0);
-            size_t limit = std::ceil((1.0 - trim) * static_cast<double>(deltas.size()));
+            // We always keep at least the closest observation.
+            auto first_ptr = data + deltas.front().second * ndim;
+            std::copy(first_ptr, first_ptr + ndim, output);
+            double counter = 1;
 
-            for (size_t x = 0; x < limit; ++x) {
+            // Checking if we can add another observation without cutting into
+            // the specified trim proportion - 'counter/(npt - 1)' is the
+            // quantile of the current observation in the loop. The exception
+            // is if the threshold interrupts some ties, in which case all of
+            // them are retained to avoid arbitrary ordering effects.
+            for (size_t x = 1; x < npts; ++x) {
+                if (counter > threshold && deltas[x].first > deltas[x-1].first) {
+                    break;
+                }
+
                 auto dptr = data + deltas[x].second * ndim;
                 for (int d = 0; d < ndim; ++d) {
                     output[d] += dptr[d];
                 }
+                ++counter;
             }
+
             for (int d = 0; d < ndim; ++d) {
-                output[d] /= limit;
+                output[d] /= counter;
             }
         }
     }
