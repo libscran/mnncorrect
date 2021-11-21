@@ -12,11 +12,13 @@ template<typename Index, typename Dist>
 using NeighborSet = std::vector<std::vector<std::pair<Index, Dist> > >;
 
 template<typename Index, typename Dist>
-std::vector<std::vector<Index> > invert_neighbors(size_t n, const NeighborSet<Index, Dist>& neighbors) {
+std::vector<std::vector<Index> > invert_neighbors(size_t n, const NeighborSet<Index, Dist>& neighbors, Dist limit) {
     std::vector<std::vector<Index> > output(n);
     for (size_t i = 0; i < neighbors.size(); ++i) {
         for (const auto& x : neighbors[i]) {
-            output[x.first].push_back(i);
+            if (x.second <= limit) {
+                output[x.first].push_back(i);
+            }
         }
     }
     return output;

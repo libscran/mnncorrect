@@ -45,17 +45,12 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
         }
     }
 
-    // Computing the MAD from the lower half, to mitigate biases from a long right tail.
+    // Computing the median and MAD. 
     Float med = median(all_distances.size(), all_distances.data());
-    size_t counter = 0;
     for (auto& a : all_distances) {
-        Float delta = med - a;
-        if (delta > 0) {
-            all_distances[counter] = delta;
-            ++counter;
-        }
+        a = std::abs(a - med);
     }
-    Float mad = median(counter, all_distances.data());
+    Float mad = median(all_distances.size(), all_distances.data());
 
     // Under normality, most of the distribution should be obtained
     // within 3 sigma of the correction vector. 
@@ -64,10 +59,10 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 
 template<typename Index, typename Float>
 void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit) {
-    auto inverted = invert_neighbors(num_mnns, closest_mnn);
+    auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
     #pragma omp parallel
     {
-        RobustAverage<Index, Float> rbave(iterations, trim, limit);
+        RobustAverage<Index, Float> rbave(iterations, trim);
         #pragma omp for
         for (size_t g = 0; g < num_mnns; ++g) {
             rbave.run(ndim, inverted[g], data, buffer + g * ndim);
@@ -102,10 +97,20 @@ void correct_target(
     std::vector<Float> buffer_target(uniq_target.size() * ndim);
     auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data());
     Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
+    std::cout << limit_closest_ref << "\t" << limit_closest_target << std::endl;
 
     // Computing the centers of mass, stored in the buffers.
     compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref);
     compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, buffer_target.data(), robust_iterations, robust_trim, limit_closest_target);
+
+    std::cout << "REF:" << std::endl;
+    for (int d = 0; d < ndim; ++d) {
+        std::cout << "\t" << buffer_ref[d] << std::endl;
+    }
+    std::cout << "TARGET:" << std::endl;
+    for (int d = 0; d < ndim; ++d) {
+        std::cout << "\t" << buffer_target[d] << std::endl;
+    }
 
     // Computing the correction vector for each target point, 
     // And then applying it to the target data.

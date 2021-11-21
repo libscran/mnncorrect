@@ -13,22 +13,7 @@ namespace mnncorrect {
 template<typename Index, typename Float>
 class RobustAverage {
 public:
-    RobustAverage(int it, double tr, Float lim) : iterations(it), trim(tr), limit2(lim * lim) {
-        check_args();
-        return;
-    }
-
-    RobustAverage(int it, double tr) : iterations(it), trim(tr), limit2(std::numeric_limits<Float>::infinity()) {
-        check_args();
-        return;
-    }
-
-private:
-    int iterations;
-    double trim;
-    Float limit2;
-
-    void check_args() {
+    RobustAverage(int it, double tr) : iterations(it), trim(tr) {
         if (trim < 0 || trim >= 1) {
             throw std::runtime_error("trimming proportion must be in [0, 1)");
         }
@@ -36,6 +21,10 @@ private:
             throw std::runtime_error("number of iterations must be non-negative");
         }
     }
+
+private:
+    int iterations;
+    double trim;
 
     template<class Function>
     void run(int ndim, size_t npts, Function indfun, const Float* data, Float* output) {
@@ -64,9 +53,7 @@ private:
                     Float diff = output[d] - dptr[d];
                     d2 += diff * diff;
                 }
-                if (d2 < limit2) {
-                    deltas.emplace_back(d2, j);
-                }
+                deltas.emplace_back(d2, j);
             }
             
             // Sort rather than nth_element; avoid machine-dependent

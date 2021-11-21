@@ -4,30 +4,46 @@
 
 TEST(Utils, InvertNeighbors) {
     mnncorrect::NeighborSet<int, double> nns(4);
-    nns[0].emplace_back(4, -1); // distances don't matter, so we just set them to -1.
-    nns[0].emplace_back(2, -1);
-    nns[0].emplace_back(1, -1);
+    nns[0].emplace_back(4, 0.12); // distances are more-or-less random. 
+    nns[0].emplace_back(2, 1);
+    nns[0].emplace_back(1, 0.32);
 
-    nns[1].emplace_back(3, -1);
-    nns[1].emplace_back(4, -1);
-    nns[1].emplace_back(2, -1);
+    nns[1].emplace_back(3, 0.5);
+    nns[1].emplace_back(4, 1);
+    nns[1].emplace_back(2, 0.3);
 
-    nns[2].emplace_back(0, -1);
-    nns[3].emplace_back(4, -1);
+    nns[2].emplace_back(0, 0.1);
+    nns[3].emplace_back(4, 1);
 
-    auto inv = mnncorrect::invert_neighbors(5, nns);
+    auto inv = mnncorrect::invert_neighbors(5, nns, 1000.0);
     EXPECT_EQ(inv.size(), 5);
+    {
+        std::vector<int> exp0 { 2 };
+        EXPECT_EQ(inv[0], exp0);
+        std::vector<int> exp1 { 0 };
+        EXPECT_EQ(inv[1], exp1);
+        std::vector<int> exp2 { 0, 1 };
+        EXPECT_EQ(inv[2], exp2);
+        std::vector<int> exp3 { 1 };
+        EXPECT_EQ(inv[3], exp3);
+        std::vector<int> exp4 { 0, 1, 3 };
+        EXPECT_EQ(inv[4], exp4);
+    }
 
-    std::vector<int> exp0 { 2 };
-    EXPECT_EQ(inv[0], exp0);
-    std::vector<int> exp1 { 0 };
-    EXPECT_EQ(inv[1], exp1);
-    std::vector<int> exp2 { 0, 1 };
-    EXPECT_EQ(inv[2], exp2);
-    std::vector<int> exp3 { 1 };
-    EXPECT_EQ(inv[3], exp3);
-    std::vector<int> exp4 { 0, 1, 3 };
-    EXPECT_EQ(inv[4], exp4);
+    auto inv2 = mnncorrect::invert_neighbors(5, nns, 0.5);
+    EXPECT_EQ(inv2.size(), 5);
+    {
+        std::vector<int> exp0 { 2 };
+        EXPECT_EQ(inv2[0], exp0);
+        std::vector<int> exp1 { 0 };
+        EXPECT_EQ(inv2[1], exp1);
+        std::vector<int> exp2 { 1 };
+        EXPECT_EQ(inv2[2], exp2);
+        std::vector<int> exp3 { 1 };
+        EXPECT_EQ(inv2[3], exp3);
+        std::vector<int> exp4 { 0 };
+        EXPECT_EQ(inv2[4], exp4);
+    }
 }
 
 TEST(Utils, InvertIndices) {
