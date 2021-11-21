@@ -21,9 +21,9 @@ public:
 
         static constexpr bool automatic_order = true;
 
-        static constexpr int robust_iterations = 1;
+        static constexpr int robust_iterations = 2;
 
-        static constexpr double robust_trim = 0.2;
+        static constexpr double robust_trim = 0.25;
     };
 
 private:
@@ -57,6 +57,16 @@ public:
 
     MnnCorrect& set_automatic_order(bool a = Defaults::automatic_order) {
         automatic_order = a;
+        return *this;
+    }
+
+    MnnCorrect& set_robust_iterations(int i = Defaults::robust_iterations) {
+        robust_iterations = i;
+        return *this;
+    }
+
+    MnnCorrect& set_robust_trim(double t = Defaults::robust_trim) {
+        robust_trim = t;
         return *this;
     }
 

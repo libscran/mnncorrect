@@ -1,14 +1,16 @@
-Package: mnncorrect.ref 
+Package: mnncorrect.ref
 Title: Reference implementation for MNN Correction 
 Description: A slow and simple reference implementation for comparison to the C++ code.
 Authors@R: person("Aaron", "Lun", email="infinite.monkeys.with.keyboards@gmail.com", role=c("aut", "cre"))
 Version: 0.99.0
 Date: 2021-11-17
-Depends:
-    scran.chan
 Imports:
     Rcpp,
     BiocNeighbors
 LinkingTo:
     Rcpp
+Suggests:
+    testthat
+SystemRequirements: C++17
+StagedInstall: no
 RoxygenNote: 7.1.2
