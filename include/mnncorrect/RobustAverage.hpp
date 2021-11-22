@@ -85,6 +85,7 @@ private:
             auto first_ptr = data + deltas.front().second * ndim;
             std::copy(first_ptr, first_ptr + ndim, output);
             double counter = 1;
+            Float last = deltas.front().first;
 
             // Checking if we can add another observation without cutting into
             // the specified trim proportion - 'counter/(npt - 1)' is the
@@ -92,14 +93,26 @@ private:
             // is if the threshold interrupts some ties, in which case all of
             // them are retained to avoid arbitrary ordering effects.
             for (size_t x = 1; x < npts; ++x) {
-                if (counter > threshold && deltas[x].first > deltas[x-1].first) {
-                    break;
+
+                // When considering ties, we need to account for numerical
+                // precision by allowing a tolerance - in this case, of 1e-10.
+                // To avoid a sliding slope of inclusion, we fix our
+                // comparisons to the first element of a tied run and only
+                // consider subsequent elements to be tied if they are within
+                // the tolerance of the first element.
+                constexpr Float tol = 1.0000000001;
+                if (deltas[x].first > last * tol) { // i.e., not tied.
+                    last = deltas[x].first;
+                    if (counter > threshold) {
+                        break;
+                    }
                 }
 
                 auto dptr = data + deltas[x].second * ndim;
                 for (int d = 0; d < ndim; ++d) {
                     output[d] += dptr[d];
                 }
+
                 ++counter;
             }
 
