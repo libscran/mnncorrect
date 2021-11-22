@@ -16,6 +16,15 @@ jobs:
     - name: Prebuild the stuff
       run: cmake -S . -B build
 
+    - name: Set the package directory
+      run: echo "R_PKG_DIR=${R_HOME}/library" >> $GITHUB_ENV
+
+    - name: Restore the package directory
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.R_PKG_DIR }}
+        key: preinstalled-packages
+
     - name: Install dependencies
       shell: Rscript {0}
       run: BiocManager::install(c("Rcpp", "testthat", "BiocNeighbors"))
