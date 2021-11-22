@@ -26,7 +26,8 @@ namespace mnncorrect {
  * - If trim = 1, the point closest to the mean is always retained,
  *   ensuring that the mean calculation in the next iteration is defined.
  * - If trim > 0, the furthest point is always removed. This ensures that
- *   some trimming is always performed when requested.
+ *   some trimming is always performed (unless, of course, there was only
+ *   one point, in which case that point is just retained).
  */ 
 template<typename Index, typename Float>
 class RobustAverage {
@@ -95,8 +96,9 @@ private:
             for (size_t x = 1; x < npts; ++x) {
 
                 // When considering ties, we need to account for numerical
-                // precision by allowing a tolerance - in this case, of 1e-10.
-                // To avoid a sliding slope of inclusion, we fix our
+                // imprecision in the distance calculations. We do so by
+                // allowing a tolerance in the comparison - in this case, of
+                // 1e-10. To avoid a sliding slope of inclusion, we fix our
                 // comparisons to the first element of a tied run and only
                 // consider subsequent elements to be tied if they are within
                 // the tolerance of the first element.

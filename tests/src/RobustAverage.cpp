@@ -16,14 +16,6 @@ TEST(RobustAverageTest, Basic) {
         EXPECT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
     }
 
-    // or if the trim is zero.
-    {
-        mnncorrect::RobustAverage<int, double> test(1, 0);
-        double output;
-        test.run(1, data.size(), data.data(), &output);
-        EXPECT_FLOAT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
-    }
-
     // Keeping the mean of the closest three observations to the first mean.
     {
         mnncorrect::RobustAverage<int, double> test(1, 0.3);
@@ -55,13 +47,39 @@ TEST(RobustAverageTest, Basic) {
         test.run(1, data.size(), data.data(), &output);
         EXPECT_FLOAT_EQ(output, (0.5 + 0.2 + 0.12) / 3.0);
     }
+}
 
-    // With a trim of 1, we keep the closest observation.
+TEST(RobustAverageTest, EdgeCases) {
+    std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
+
+    // Taking the average if the trim is zero.
+    {
+        mnncorrect::RobustAverage<int, double> test(1, 0);
+        double output;
+        test.run(1, data.size(), data.data(), &output);
+        EXPECT_FLOAT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
+    }
+
+    // With a trim of 1, we keep the closest observation only.
     {
         mnncorrect::RobustAverage<int, double> test(1, 1);
         double output;
         test.run(1, data.size(), data.data(), &output);
         EXPECT_FLOAT_EQ(output, 0.5);
+    }
+
+    // Doing the right things with only one observation.
+    {
+        mnncorrect::RobustAverage<int, double> test(1, 1);
+        double output;
+        test.run(1, 1, data.data(), &output);
+        EXPECT_FLOAT_EQ(output, 0.1);
+    }
+    {
+        mnncorrect::RobustAverage<int, double> test(1, 0);
+        double output;
+        test.run(1, 1, data.data(), &output);
+        EXPECT_FLOAT_EQ(output, 0.1);
     }
 }
 
@@ -82,6 +100,25 @@ TEST(RobustAverageTest, Ties) {
         double output;
         test.run(1, data.size(), data.data(), &output);
         EXPECT_FLOAT_EQ(output, 3);
+    }
+
+    // With only two elements, both of them should be tied to the mean and
+    // never removed.  We use lots of significant figures to ensure that the
+    // tolerance mechanisms are working correctly.
+    {
+        std::vector<double> data { .28376783287177263475, .43984537534872874 };
+        mnncorrect::RobustAverage<int, double> test(1, 0.5);
+        double output;
+        test.run(1, data.size(), data.data(), &output);
+        EXPECT_FLOAT_EQ(output, (data[0] + data[1]) / 2);
+    }
+    
+    {
+        std::vector<double> data { 0.6363161874823, 10.2347625487411981 };
+        mnncorrect::RobustAverage<int, double> test(1, 0.5);
+        double output;
+        test.run(1, data.size(), data.data(), &output);
+        EXPECT_FLOAT_EQ(output, (data[0] + data[1]) / 2);
     }
 }
 
