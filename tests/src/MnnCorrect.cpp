@@ -82,6 +82,39 @@ TEST_P(MnnCorrectTest, Basic) {
     EXPECT_EQ(original, corrected);
 }
 
+TEST_P(MnnCorrectTest, Iterative) {
+    assemble(GetParam());
+
+    // Running it all at once.
+    mnncorrect::MnnCorrect<> mnnrun;
+    mnnrun.set_num_neighbors(k);
+    std::vector<double> output(nobs * ndim);
+    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+
+    // Now trying to run it iteratively.
+    size_t previous = ordering.merge_order[0];
+    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
+    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
+    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+
+    for (size_t i = 1; i < ordering.merge_order.size(); ++i) {
+        if (i != 1) {
+            std::copy(ref.begin(), ref.end(), buffer.begin());
+            ref_ptrs[0] = buffer.data();
+            ref_sizes[0] += sizes[previous];
+        }
+
+        size_t current = ordering.merge_order[i];
+        ref_ptrs[1] = ptrs[current];
+        ref_sizes[1] = sizes[current];
+        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+        previous = current;
+    }
+    
+    mnncorrect::restore_order(ndim, ordering.merge_order, sizes, ref.data());
+    EXPECT_EQ(output, ref);
+}
+
 TEST_P(MnnCorrectTest, OtherInputs) {
     assemble(GetParam());
 

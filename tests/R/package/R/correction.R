@@ -1,16 +1,16 @@
 #' @export
 #' @importFrom BiocNeighbors findMutualNN queryKNN
-mnncorrect.ref <- function(ref, target, k=15, iterations=2, trim=0.25) {
+mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25) {
     pairings <- findMutualNN(t(ref), t(target), k1=k)
     mnn.r <- unique(pairings$first)
     mnn.t <- unique(pairings$second)
 
     # Computing centers of mass for each MNN-involved cell.
-    r.out <- center_of_mass(ref, mnn.r, k=k, nmads=3, iterations=iterations, trim=trim)
+    r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, iterations=iterations, trim=trim)
     closest.r <- r.out$closest
     centers.r <- r.out$centers
 
-    t.out <- center_of_mass(target, mnn.t, k=k, nmads=3, iterations=iterations, trim=trim)
+    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, iterations=iterations, trim=trim)
     closest.t <- t.out$closest
     centers.t <- t.out$centers
 
@@ -56,7 +56,25 @@ robust_centroid <- function(y, iterations, trim) {
     center <- rowMeans(y)
     for (i in seq_len(iterations)) {
         delta <- sqrt(colSums((y - center)^2))
-        center <- rowMeans(y[,delta <= quantile(delta, 1-trim),drop=FALSE])
+
+        # We give it a bit of a bump to avoid problems with numerical precision and ties.
+        keep <- delta <= quantile(delta, 1-trim) * 1.00000001 
+
+        center <- rowMeans(y[,keep,drop=FALSE])
     }
+
+#    ref <- robust_average(y, iterations, trim)
+#    if (!isTRUE(all.equal(center, ref))) {
+#        cat("DELTA IS:\n")
+#        print(sort(delta))
+#        print(sum(keep))
+#        print(quantile(delta, 1-trim) * 1.00000001)
+#        cat("REF IS:\n")
+#        print(ref)
+#        cat("CENTER IS:\n")
+#        print(center)
+#        stop("ARGGHH")
+#    }
+
     center
 }

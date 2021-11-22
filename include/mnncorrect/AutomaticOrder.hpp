@@ -41,8 +41,6 @@ public:
         size_t ref = std::max_element(nobs.begin(), nobs.end()) - nobs.begin();
         const size_t rnum = nobs[ref];
         const Float* rdata = batches[ref];
-        const auto& rindex = indices[ref];
-
         std::copy(rdata, rdata + ndim * rnum, corrected);
         ncorrected += rnum;
         order.push_back(ref);
@@ -52,25 +50,8 @@ public:
                 continue;
             }
             remaining.insert(b);
-            
-            const size_t tnum = nobs[b];
-            const Float* tdata = batches[b];
-            auto& tneighbors = neighbors_target[b];
-            tneighbors.resize(tnum);
-
-            #pragma omp parallel for
-            for (size_t t = 0; t < tnum; ++t) {
-                tneighbors[t] = rindex->find_nearest_neighbors(tdata + ndim * t, num_neighbors);
-            }
-
-            auto& rneighbors = neighbors_ref[b];
-            rneighbors.resize(rnum);
-            const auto& tindex = indices[b];
-
-            #pragma omp parallel for
-            for (size_t r = 0; r < rnum; ++r) {
-                rneighbors[r] = tindex->find_nearest_neighbors(rdata + ndim * r, num_neighbors);
-            }
+            neighbors_target[b] = find_nns(nobs[b], batches[b], indices[ref].get(), num_neighbors);
+            neighbors_ref[b] = find_nns(rnum, rdata, indices[b].get(), num_neighbors);
         }
         return;
     }
@@ -148,7 +129,7 @@ protected:
         size_t chosen = 0;
         for (auto b : remaining) {
             auto tmp = find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
-            if (tmp.size() > output.size()) {
+            if (tmp.num_pairs > output.num_pairs) {
                 output = std::move(tmp);
                 chosen = b;
             }
@@ -157,7 +138,7 @@ protected:
     }
 
 public:
-    void run(Float nmads) {
+    void run(Float nmads, int robust_iterations, double robust_trim) {
         while (remaining.size()) {
             auto output = choose();
             auto target = output.first;
@@ -171,11 +152,14 @@ public:
                 tnum, 
                 tdata, 
                 output.second, 
+                builder,
                 num_neighbors,
                 nmads,
+                robust_iterations,
+                robust_trim,
                 corrected + ncorrected * ndim);
 
-            update(output.first, output.second.size());
+            update(output.first, output.second.num_pairs);
         }
     }
 
