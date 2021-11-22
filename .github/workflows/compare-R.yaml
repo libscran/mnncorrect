@@ -1,0 +1,30 @@
+on: [push, pull_request]
+
+name: "mnncorrect.ref comparison"
+
+jobs:
+  build:
+    name: Compare to mnncorrect.ref
+    runs-on: ubuntu-latest
+    container: bioconductor/bioconductor_docker:devel
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Get latest CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Prebuild the stuff
+      run: cmake -S . -B build
+
+    - name: Install dependencies
+      shell: Rscript {0}
+      run: BiocManager::install(c("Rcpp", "testthat", "BiocNeighbors"))
+
+    - name: Install reference package
+      run: R CMD INSTALL tests/R/package
+
+    - name: Run the comparisons
+      shell: Rscript {0}
+      run: |
+        setwd("tests/R/package/tests")
+        source("testthat.R")
