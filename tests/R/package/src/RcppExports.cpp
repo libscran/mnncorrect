@@ -25,9 +25,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// robust_average
+Rcpp::NumericVector robust_average(Rcpp::NumericMatrix x, int iterations, double trim);
+RcppExport SEXP _mnncorrect_ref_robust_average(SEXP xSEXP, SEXP iterationsSEXP, SEXP trimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
+    Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
+    rcpp_result_gen = Rcpp::wrap(robust_average(x, iterations, trim));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mnncorrect_ref_mnn_correct", (DL_FUNC) &_mnncorrect_ref_mnn_correct, 6},
+    {"_mnncorrect_ref_robust_average", (DL_FUNC) &_mnncorrect_ref_robust_average, 3},
     {NULL, NULL, 0}
 };
 
