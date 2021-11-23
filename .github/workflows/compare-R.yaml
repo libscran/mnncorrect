@@ -17,7 +17,7 @@ jobs:
       run: cmake -S . -B build
 
     - name: Set the package directory
-      run: echo "R_PKG_DIR=${R_HOME}/library" >> $GITHUB_ENV
+      run: echo "R_PKG_DIR=${R_HOME}/site-library" >> $GITHUB_ENV
 
     - name: Restore the package directory
       uses: actions/cache@v2
