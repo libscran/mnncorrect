@@ -44,8 +44,16 @@ y3k <- pcs[,plock == "3k"]
 y4k <- pcs[,plock == "4k"]
 
 library(mnncorrect.ref)
-corrected.3k <- mnncorrect.ref(y4k, y3k, k=15)
-total <- cbind(corrected.3k, y4k)
+#corrected.3k <- mnncorrect.ref(y4k, y3k, k=15)
+#total <- cbind(corrected.3k, y4k)
+total <- mnncorrect.cpp(pcs, plock)$corrected
 out <- runTSNE.chan(total)
-plot(out[,1], out[,2], col=factor(plock))
 
+before <- runTSNE.chan(pcs) # for comparison's sake.
+
+png("output.png", res=120, width=10, height=6, units="in")
+par(mfrow=c(1,2))
+plot(before[,1], before[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="Before")
+plot(out[,1], out[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="After")
+legend("topright", c("3k", "4k"), col=1:2, pch=1)
+dev.off()

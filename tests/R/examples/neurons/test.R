@@ -43,12 +43,16 @@ yz <- pcs[,plock == "zeisel"]
 yt <- pcs[,plock == "tasic"]
 
 library(mnncorrect.ref)
-corrected.t <- mnncorrect.ref(yz, yt, k=50)
-total <- cbind(yz, corrected.t)
+#corrected.t <- mnncorrect.ref(yz, yt)
+#total <- cbind(yz, corrected.t)
+total <- mnncorrect.cpp(pcs, plock)$corrected
 out <- runTSNE.chan(total)
 
-plot(out[,1], out[,2], col=factor(plock))
+before <- runTSNE.chan(pcs) # for comparison's sake.
 
-
-clusters <- clusterKmeans.chan(yz, 20)
-plot(out[plock=="zeisel",1], out[plock=="zeisel",2], col=clusters$clusters)
+png("output.png", res=120, width=10, height=6, units="in")
+par(mfrow=c(1,2))
+plot(before[,1], before[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="Before")
+plot(out[,1], out[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="After")
+legend("topright", c("Tasic", "Zeisel"), col=1:2, pch=1)
+dev.off()

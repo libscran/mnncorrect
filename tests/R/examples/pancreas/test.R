@@ -4,7 +4,7 @@ sceM <- MuraroPancreasData()
 
 common <- intersect(rownames(sceG), rownames(sceM))
 combined <- cbind(assay(sceG)[common,], assay(sceM)[common,])
-batch <- rep(c("Grun", "Muraro"), c(ncol(sceG), ncol(sceM)))
+block <- rep(c("Grun", "Muraro"), c(ncol(sceG), ncol(sceM)))
 
 saveRDS(list(combined, batch), file="args.rds")
 # X <- readRDS("args.rds"); combined <- X[[1]]; block <- X[[2]]
@@ -38,15 +38,24 @@ y.g <- pcs[,plock == "Grun"]
 y.m <- pcs[,plock == "Muraro"]
 
 library(mnncorrect.ref)
-corrected.g <- mnncorrect.ref(y.m, y.g)
-total <- cbind(corrected.g, y.m)
+#corrected.g <- mnncorrect.ref(y.m, y.g)
+#total <- cbind(corrected.g, y.m)
+total <- mnncorrect.cpp(pcs, plock)$corrected
 out <- runTSNE.chan(total)
 
-plot(out[,1], out[,2], col=factor(plock))
-segments(
-    out[pairings$first,1], 
-    out[pairings$first,2],
-    out[ncol(y.g) + pairings$second,1],
-    out[ncol(y.g) + pairings$second,2],
-    col="dodgerblue"
-)
+before <- runTSNE.chan(pcs) # for comparison's sake.
+
+png("output.png", res=120, width=10, height=6, units="in")
+par(mfrow=c(1,2))
+plot(before[,1], before[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="Before")
+plot(out[,1], out[,2], col=factor(plock), xlab="TSNE1", ylab="TSNE2", main="After")
+legend("topright", c("Grun", "Muraro"), col=1:2, pch=1)
+dev.off()
+
+#segments(
+#    out[pairings$first,1], 
+#    out[pairings$first,2],
+#    out[ncol(y.g) + pairings$second,1],
+#    out[ncol(y.g) + pairings$second,2],
+#    col="dodgerblue"
+#)
