@@ -67,8 +67,48 @@ $(function() {
   <div class="headertitle"><div class="title">C++ library for MNN correction </div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p ><a class="anchor" id="md__github_workspace_README"></a> </p><h1>Overview</h1>
-<p >This library provides functionality for batch correction of arbitrary data via the use of mutual nearest neighbors (MNNs). MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see <a href="https://doi.org/10.1038/nbt.4091">Haghverdi et al., 2018</a>) but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches. The MNN implementation here is based on the <code>fastMNN()</code> function in the <a href="https://bioconductor.org/packages/batchelor"><b>batchelor</b> package</a>, which provides a number of improvements and speed-ups over the original method in the Haghverdi paper. </p>
+<div class="textblock"><p ><a class="anchor" id="md__github_workspace_README"></a> <img src="https://github.com/LTLA/CppMnnCorrect/actions/workflows/run-tests.yaml/badge.svg" alt="Unit tests" style="pointer-events: none;" class="inline"/> <img src="https://github.com/LTLA/CppMnnCorrect/actions/workflows/doxygenate.yaml/badge.svg" alt="Documentation" style="pointer-events: none;" class="inline"/> <img src="https://github.com/LTLA/CppMnnCorrect/actions/workflows/compare-R.yaml/badge.svg" alt="R comparison" style="pointer-events: none;" class="inline"/> <a href="https://codecov.io/gh/LTLA/CppMnnCorrect"><img src="https://codecov.io/gh/LTLA/CppMnnCorrect/branch/master/graph/badge.svg?token=J3dxS3MtT1" alt="codecov" style="pointer-events: none;" class="inline"/></a></p>
+<h1>Overview</h1>
+<p >This library provides functionality for batch correction of arbitrary data via the use of mutual nearest neighbors (MNNs). MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see <a href="https://doi.org/10.1038/nbt.4091">Haghverdi et al., 2018</a>) but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches. The MNN implementation here is based on the <code>fastMNN()</code> function in the <a href="https://bioconductor.org/packages/batchelor"><b>batchelor</b> package</a>, which provides a number of improvements and speed-ups over the original method in the Haghverdi paper.</p>
+<h1>Quick start</h1>
+<p >Given a dense feature-by-observation matrix in column-major format and a batch assignment vector for each observation (i.e., column), we can compute corrected values:</p>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;mnncorrect/MnnCorrect.hpp&quot;</span></div>
+<div class="line"> </div>
+<div class="line">std::vector&lt;double&gt; matrix(ndim * nobs); <span class="comment">// fill with values...</span></div>
+<div class="line">std::vector&lt;int&gt; batch(nobs) <span class="comment">// fill with values...</span></div>
+<div class="line"> </div>
+<div class="line">mnncorrect::MnnCorrect&lt;&gt; runner;</div>
+<div class="line">std::vector&lt;double&gt; output(ndim * nobs);</div>
+<div class="line">runner.run(ndim, nobs, matrix.data(), batch.data(), output.data());</div>
+</div><!-- fragment --><p >See the <a href="https://ltla.github.io/CppMnnCorrect">reference documentation</a> for more details.</p>
+<h1>Theoretical details</h1>
+<p >We assume that (i) our batches share some subpopulations, and (ii) even after the addition of an arbitrary batch effect, the cells from one subpopulation in one batch are still closer to the cells in the corresponding subpopulation in the other batch (and vice versa) when compared to cells in different subpopulations. Thus, by identifying pairs of cells that are MNNs, we can determine which subpopulations are shared across batches. Any differences in location between batches for the shared subpopulations are attributed to batch effects and targeted for removal. In contrast, a subpopulation unique to a single batch will not contain any MNNs (and thus will not interfere with correction), as it will not have a corresponding subpopulation in the other batch for which it can be the closest neighbor.</p>
+<p >To remove batch effects, we consider one batch to be the "reference" and another to be the "target". For each MNN pair, we compute a correction vector that moves the target batch towards the reference. For each observation in the target batch, we identify the closest <code>k</code> observations in the same batch that are part of a MNN pair (i.e., "MNN-involved observations"). We then compute a robust average across all of the correction vectors associated with those closest observations. This average is used as the correction vector for that observation, allowing the correction to adjust to local variations in the magnitude and direction of the batch effect.</p>
+<p >The correction vector for each MNN pair is not directly computed from the two paired observations. Rather, for each observation, we compute a "center of mass" using neighboring points from the same batch. Specifically, given an observation <b>v</b> that is part of an MNN pair, we find the set <b>S</b> of observations in the same batch for which <b>v</b> is one of the <code>k</code> closest neighbors. We take the robust average of the coordinates in <b>S</b>, which is defined as the center of mass location for <b>v</b>. The correction vector is then computed between the two center of mass locations across batches. This aims to eliminate "kissing" effects where the correction only brings the surfaces of the batches into contact.</p>
+<p >As an additional note, the center of mass calculation excludes all observations that are more than a threshold distance away from <b>v</b>. To choose this threshold, we compute the distances from each observation in <b>S</b> to <b>v</b>, and we pool this across all <b>v</b> involved in MNN pairs. We then use the "median + 3 MAD" approach on the resulting distribution of distances to define a threshold. The aim is to ensure that the threshold is large enough to capture cells from the same subpopulation without including cells from distinct subpopulations. Our assumption is that most cells in each batch belong to a shared subpopulation.</p>
+<p >In the case of &gt;2 batches, we progressively merge the batches to a reference, i.e., after each merge step, the merged dataset is used as the new reference to merge the next batch, and so on. By default, we use the largest batch as the reference and we choose the batch with the most MNN pairs to merge at each step. This ensures that we have a plentiful number of MNNs for a stable correction at each step. Indeed, it allows us to merge together batches that share no subpopulations as long as there is an intervening batch that can "plug the gap", so to speak.</p>
+<h1>Building projects</h1>
+<p >If you're using CMake, you just need to add something like this to your <code>CMakeLists.txt</code>:</p>
+<div class="fragment"><div class="line">include(FetchContent)</div>
+<div class="line"> </div>
+<div class="line">FetchContent_Declare(</div>
+<div class="line">  libscran</div>
+<div class="line">  GIT_REPOSITORY https://github.com/LTLA/libscran</div>
+<div class="line">  GIT_TAG master # or any version of interest</div>
+<div class="line">)</div>
+<div class="line"> </div>
+<div class="line">FetchContent_MakeAvailable(libscran)</div>
+</div><!-- fragment --><p >Then you can link to <b>libscran</b> to make the headers available during compilation:</p>
+<div class="fragment"><div class="line"># For executables:</div>
+<div class="line">target_link_libraries(myexe libscran)</div>
+<div class="line"> </div>
+<div class="line"># For libaries</div>
+<div class="line">target_link_libraries(mylib INTERFACE libscran)</div>
+</div><!-- fragment --><p >If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's <code>-I</code>. Note that this requires manual management of a few dependencies:</p>
+<ul>
+<li><a href="https://github.com/LTLA/knncolle"><b>knncolle</b></a>, for k-nearest neighbor detection. This in turn has a suite of its own dependencies, see the link for details.</li>
+<li><a href="https://github.com/LTLA/aarand"><b>aarand</b></a>, for system-agnostic random distribution functions. </li>
+</ul>
 </div></div><!-- PageDoc -->
 </div><!-- contents -->
 <!-- start footer part -->
