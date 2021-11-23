@@ -63,6 +63,26 @@ By default, we use the largest batch as the reference and we choose the batch wi
 This ensures that we have a plentiful number of MNNs for a stable correction at each step.
 Indeed, it allows us to merge together batches that share no subpopulations as long as there is an intervening batch that can "plug the gap", so to speak.
 
+## Examples
+
+The `tests/R/examples` directory contains a few examples using the C++ code on some real datasets (namely, single-cell RNA-seq datasets).
+To run these, install the package at `tests/R/package` (this requires the [**scran.chan**](https://github.com/LTLA/scran.chan) package, which also wraps this C++ library in a more complete package).
+
+`pbmc`: mergesthe PBMC 3K and 4K datasets from 10X Genomics.
+These are technical replicates (I think) so a complete merge is to be expected.
+
+![pbmc-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pbmc/output.png)
+
+`pancreas`: merges the [Grun et al. (2016)](https://dx.doi.org/10.1016%2Fj.stem.2016.05.010) and [Muraro et al. (2016)](https://doi.org/10.1016/j.cels.2016.09.002) datasets.
+I believe this involves data from different patients but using the same-ish technology.
+
+![pancreas-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pancreas/output.png)
+
+`neurons`: merges the [Zeisel et al. (2015)](https://doi.org/10.1126/science.aaa1934) and [Tasic et al. (2016)](https://doi.org/10.1038/nn.4216) datasets.
+This involves different technologies and different cell populations.
+
+![neurons-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/neurons/output.png)
+
 ## Building projects
 
 If you're using CMake, you just need to add something like this to your `CMakeLists.txt`:
@@ -90,9 +110,11 @@ target_link_libraries(mylib INTERFACE libscran)
 ```
 
 If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's `-I`.
-Note that this requires manual management of a few dependencies:
+Note that this requires manual management of the [**knncolle**](https://github.com/LTLA/knncolle) library for k-nearest neighbor detection.
+This in turn has a suite of its own dependencies, see the link for details.
 
-- [**knncolle**](https://github.com/LTLA/knncolle), for k-nearest neighbor detection.
-  This in turn has a suite of its own dependencies, see the link for details.
-- [**aarand**](https://github.com/LTLA/aarand), for system-agnostic random distribution functions.
+## References
 
+Haghverdi L, Lun ATL, Morgan MD, Marioni JC (2018).
+Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
+_Nat. Biotechnol._ 36(5):421-427
