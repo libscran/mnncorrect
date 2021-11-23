@@ -89,6 +89,14 @@ $(function() {
 <p >The correction vector for each MNN pair is not directly computed from the two paired observations. Rather, for each observation, we compute a "center of mass" using neighboring points from the same batch. Specifically, given an observation <b>v</b> that is part of an MNN pair, we find the set <b>S</b> of observations in the same batch for which <b>v</b> is one of the <code>k</code> closest neighbors. We take the robust average of the coordinates in <b>S</b>, which is defined as the center of mass location for <b>v</b>. The correction vector is then computed between the two center of mass locations across batches. This aims to eliminate "kissing" effects where the correction only brings the surfaces of the batches into contact.</p>
 <p >As an additional note, the center of mass calculation excludes all observations that are more than a threshold distance away from <b>v</b>. To choose this threshold, we compute the distances from each observation in <b>S</b> to <b>v</b>, and we pool this across all <b>v</b> involved in MNN pairs. We then use the "median + 3 MAD" approach on the resulting distribution of distances to define a threshold. The aim is to ensure that the threshold is large enough to capture cells from the same subpopulation without including cells from distinct subpopulations. Our assumption is that most cells in each batch belong to a shared subpopulation.</p>
 <p >In the case of &gt;2 batches, we progressively merge the batches to a reference, i.e., after each merge step, the merged dataset is used as the new reference to merge the next batch, and so on. By default, we use the largest batch as the reference and we choose the batch with the most MNN pairs to merge at each step. This ensures that we have a plentiful number of MNNs for a stable correction at each step. Indeed, it allows us to merge together batches that share no subpopulations as long as there is an intervening batch that can "plug the gap", so to speak.</p>
+<h1>Examples</h1>
+<p >The <code>tests/R/examples</code> directory contains a few examples using the C++ code on some real datasets (namely, single-cell RNA-seq datasets). To run these, install the package at <code>tests/R/package</code> (this requires the <a href="https://github.com/LTLA/scran.chan"><b>scran.chan</b></a> package, which also wraps this C++ library in a more complete package).</p>
+<p ><code>pbmc</code>: mergesthe PBMC 3K and 4K datasets from 10X Genomics. These are technical replicates (I think) so a complete merge is to be expected.</p>
+<p ><img src="https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pbmc/output.png" alt="pbmc-output" class="inline"/></p>
+<p ><code>pancreas</code>: merges the <a href="https://dx.doi.org/10.1016%2Fj.stem.2016.05.010">Grun et al. (2016)</a> and <a href="https://doi.org/10.1016/j.cels.2016.09.002">Muraro et al. (2016)</a> datasets. I believe this involves data from different patients but using the same-ish technology.</p>
+<p ><img src="https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pancreas/output.png" alt="pancreas-output" class="inline"/></p>
+<p ><code>neurons</code>: merges the <a href="https://doi.org/10.1126/science.aaa1934">Zeisel et al. (2015)</a> and <a href="https://doi.org/10.1038/nn.4216">Tasic et al. (2016)</a> datasets. This involves different technologies and different cell populations.</p>
+<p ><img src="https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/neurons/output.png" alt="neurons-output" class="inline"/></p>
 <h1>Building projects</h1>
 <p >If you're using CMake, you just need to add something like this to your <code>CMakeLists.txt</code>:</p>
 <div class="fragment"><div class="line">include(FetchContent)</div>
@@ -106,11 +114,9 @@ $(function() {
 <div class="line"> </div>
 <div class="line"># For libaries</div>
 <div class="line">target_link_libraries(mylib INTERFACE libscran)</div>
-</div><!-- fragment --><p >If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's <code>-I</code>. Note that this requires manual management of a few dependencies:</p>
-<ul>
-<li><a href="https://github.com/LTLA/knncolle"><b>knncolle</b></a>, for k-nearest neighbor detection. This in turn has a suite of its own dependencies, see the link for details.</li>
-<li><a href="https://github.com/LTLA/aarand"><b>aarand</b></a>, for system-agnostic random distribution functions. </li>
-</ul>
+</div><!-- fragment --><p >If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's <code>-I</code>. Note that this requires manual management of the <a href="https://github.com/LTLA/knncolle"><b>knncolle</b></a> library for k-nearest neighbor detection. This in turn has a suite of its own dependencies, see the link for details.</p>
+<h1>References</h1>
+<p >Haghverdi L, Lun ATL, Morgan MD, Marioni JC (2018). Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors. <em>Nat. Biotechnol.</em> 36(5):421-427 </p>
 </div></div><!-- PageDoc -->
 </div><!-- contents -->
 <!-- start footer part -->
