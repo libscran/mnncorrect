@@ -72,14 +72,16 @@ $(function() {
 <p >This library provides functionality for batch correction of arbitrary data via the use of mutual nearest neighbors (MNNs). MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see <a href="https://doi.org/10.1038/nbt.4091">Haghverdi et al., 2018</a>) but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches. The MNN implementation here is based on the <code>fastMNN()</code> function in the <a href="https://bioconductor.org/packages/batchelor"><b>batchelor</b> package</a>, which provides a number of improvements and speed-ups over the original method in the Haghverdi paper.</p>
 <h1>Quick start</h1>
 <p >Given a dense feature-by-observation matrix in column-major format and a batch assignment vector for each observation (i.e., column), we can compute corrected values:</p>
-<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;mnncorrect/MnnCorrect.hpp&quot;</span></div>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="MnnCorrect_8hpp.html">mnncorrect/MnnCorrect.hpp</a>&quot;</span></div>
 <div class="line"> </div>
 <div class="line">std::vector&lt;double&gt; matrix(ndim * nobs); <span class="comment">// fill with values...</span></div>
 <div class="line">std::vector&lt;int&gt; batch(nobs) <span class="comment">// fill with values...</span></div>
 <div class="line"> </div>
-<div class="line">mnncorrect::MnnCorrect&lt;&gt; runner;</div>
+<div class="line"><a class="code hl_class" href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect&lt;&gt;</a> runner;</div>
 <div class="line">std::vector&lt;double&gt; output(ndim * nobs);</div>
 <div class="line">runner.run(ndim, nobs, matrix.data(), batch.data(), output.data());</div>
+<div class="ttc" id="aMnnCorrect_8hpp_html"><div class="ttname"><a href="MnnCorrect_8hpp.html">MnnCorrect.hpp</a></div><div class="ttdoc">Batch correction using mutual nearest neighbors.</div></div>
+<div class="ttc" id="aclassmnncorrect_1_1MnnCorrect_html"><div class="ttname"><a href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect</a></div><div class="ttdoc">Batch correction using mutual nearest neighbors.</div><div class="ttdef"><b>Definition:</b> MnnCorrect.hpp:45</div></div>
 </div><!-- fragment --><p >See the <a href="https://ltla.github.io/CppMnnCorrect">reference documentation</a> for more details.</p>
 <h1>Theoretical details</h1>
 <p >We assume that (i) our batches share some subpopulations, and (ii) even after the addition of an arbitrary batch effect, the cells from one subpopulation in one batch are still closer to the cells in the corresponding subpopulation in the other batch (and vice versa) when compared to cells in different subpopulations. Thus, by identifying pairs of cells that are MNNs, we can determine which subpopulations are shared across batches. Any differences in location between batches for the shared subpopulations are attributed to batch effects and targeted for removal. In contrast, a subpopulation unique to a single batch will not contain any MNNs (and thus will not interfere with correction), as it will not have a corresponding subpopulation in the other batch for which it can be the closest neighbor.</p>
