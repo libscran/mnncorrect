@@ -7,22 +7,75 @@
 #include "restore_order.hpp"
 #include "knncolle/knncolle.hpp"
 
+/**
+ * @file MnnCorrect.hpp
+ *
+ * @brief Batch correction using mutual nearest neighbors.
+ */
+
 namespace mnncorrect {
 
+/**
+ * @brief Batch correction using mutual nearest neighbors.
+ *
+ * @tparam Index Integer type for the observation indices.
+ * @tparam Float Floating point type for the data and distances.
+ *
+ * This class implements a variant of the MNN correction method described by Haghverdi _et al._ (2018).
+ * Two cells from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
+ * The MNN pairs are assumed to represent cells from corresponding subpopulations across the two batches.
+ * Any differences in location between the paired cells can be interpreted as the batch effect and targeted for removal.
+ *
+ * We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the (unchanged) former. 
+ * For each observation in the target batch, we find the closest MNN pairs (based on the locations of the paired observation in the same batch)
+ * and we compute a robust average of the correction vectors involving those pairs.
+ * This average is used to obtain a single correction vector that is applied to the target observation to obtain corrected values.
+ *
+ * Each MNN pair's correction vector is computed between the "center of mass" locations for the paired observations.
+ * The center of mass for each observation is defined as a robust average of a subset of neighboring observations from the same batch.
+ * Robustification is performed by iterations of trimming of observations that are furthest from the mean.
+ * In addition, we explicitly remove observations that are more than a certain distance from the observation in the MNN pair.
+ *
+ * @see
+ * Haghverdi L et al. (2018).
+ * Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
+ * _Nature Biotech._ 36, 421-427
+ */
 template<typename Index = int, typename Float = double>
 class MnnCorrect {
 public:
+    /**
+     * @brief Default parameter settings.
+     */
     struct Defaults {
+        /**
+         * See `set_num_neighbors()` for more details.
+         */
         static constexpr int num_neighbors = 15;
 
+        /**
+         * See `set_num_mads()` for more details.
+         */
         static constexpr Float num_mads = 3;
 
+        /**
+         * See `set_approximate()` for more details.
+         */
         static constexpr bool approximate = false;
 
+        /**
+         * See `set_automatic_order()` for more details.
+         */
         static constexpr bool automatic_order = true;
 
+        /**
+         * See `set_robust_iterations()` for more details.
+         */
         static constexpr int robust_iterations = 2;
 
+        /**
+         * See `set_robust_trim()` for more details.
+         */
         static constexpr double robust_trim = 0.25;
     };
 
@@ -40,53 +93,115 @@ private:
     double robust_trim = Defaults::robust_trim;
 
 public:
+    /**
+     * @param n Number of nearest neighbors to use for the searches.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     *
+     * This parameter is used to define the MNN pairs at the start.
+     * Larger values increase the number of MNN pairs and improve the stability of the correction, 
+     * at the cost of reduced resolution of matching subpopulations across batches.
+     * The number of neighbors is also used to identify the closest MNN pairs when computing the average correction vector for each target observation.
+     * Again, this improves stability at the cost of resolution for local variations in the correction vectors.
+     */
     MnnCorrect& set_num_neighbors(int n = Defaults::num_neighbors) {
         num_neighbors = n;
         return *this;
     }
 
+    /**
+     * @param n Number of median absolute deviations to use to define the distance threshold for the center of mass calculations.
+     * Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     */
     MnnCorrect& set_num_mads(Float n = Defaults::num_mads) {
         num_mads = n;
         return *this;
     }
 
+    /**
+     * @param a Should an approximate nearest neighbor search be performed with Annoy?
+     *
+     * @return A reference to this `MnnCorrect` object.
+     */
     MnnCorrect& set_approximate(bool a = Defaults::approximate) {
         approximate = a;
         return *this;
     }
 
+    /**
+     * @param a Should batches be ordered automatically?
+     *
+     * @return A reference to this `MnnCorrect` object.
+     *
+     * If `true`, the largest batch is used as the reference and other batches are successively merged onto it.
+     * At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.
+     *
+     * If `false`, the supplied order of batches (or order of batch IDs) is used directly.
+     */
     MnnCorrect& set_automatic_order(bool a = Defaults::automatic_order) {
         automatic_order = a;
         return *this;
     }
 
+    /**
+     * @param i Number of iterations to use for robustification.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     */
     MnnCorrect& set_robust_iterations(int i = Defaults::robust_iterations) {
         robust_iterations = i;
         return *this;
     }
 
+    /**
+     * @param t Trimming proportion to use for robustification.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     */
     MnnCorrect& set_robust_trim(double t = Defaults::robust_trim) {
         robust_trim = t;
         return *this;
     }
 
 public:
-    struct Results {
-        Results() {}
-        Results(std::vector<int> mo, std::vector<int> np) : merge_order(std::move(mo)), num_pairs(std::move(np)) {}
+    /**
+     * @brief Correction details.
+     */
+    struct Details {
+        /**
+         * @cond
+         */
+        Details() {}
+        Details(std::vector<int> mo, std::vector<int> np) : merge_order(std::move(mo)), num_pairs(std::move(np)) {}
+        /**
+         * @endcond
+         */
+
+        /**
+         * Order in which batches are merged.
+         * The first entry is the index/ID of the batch used as the reference,
+         * and the remaining entries are merged to the reference in the listed order.
+         */
         std::vector<int> merge_order;
+
+        /**
+         * Number of MNN pairs identified at each merge step.
+         * This is of length one less than `merge_order`.
+         */
         std::vector<int> num_pairs;
     };
 
 private:
     template<class Builder>
-    Results run_automatic_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
+    Details run_automatic_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
         AutomaticOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
         runner.run(num_mads, robust_iterations, robust_trim);
-        return Results(runner.get_order(), runner.get_num_pairs());
+        return Details(runner.get_order(), runner.get_num_pairs());
     }
 
-    Results run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
+    Details run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
         typedef knncolle::Base<Index, Float> knncolleBase; 
 
         if (automatic_order) {
@@ -105,13 +220,43 @@ private:
     }
 
 public:
-    Results run(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
+    /**
+     * Merge batches contained in separate arrays.
+     *
+     * @param ndim Number of dimensions.
+     * @param nobs Vector of length equal to the number of batches.
+     * Each entry contains the number of observations in each batch.
+     * @param[in] batches Vector of length equal to the number of batches.
+     * Each entry points to a column-major dimension-by-observation array containing the uncorrected data for each batch.
+     * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
+     * This is used to store the corrected values from all batches.
+     *
+     * @return `output` is filled contiguously with the corrected values from successive batches,
+     * i.e., the first batch takes `nobs[0] * ndim` elements, the second batch takes the next `nobs[1] * ndim` elements and so on.
+     * Filling is done column-major, i.e., values for the same observations are adjacent.
+     * A `Details` object is returned containing statistics about the merge process.
+     */
+    Details run(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
         auto stats = run_internal(ndim, nobs, batches, output);
         restore_order(ndim, stats.merge_order, nobs, output);
         return stats;
     }
 
-    Results run(int ndim, const std::vector<size_t>& nobs, const Float* input, Float* output) {
+    /**
+     * A convenience overload to merge batches contained in the same array.
+     *
+     * @param ndim Number of dimensions.
+     * @param nobs Vector of length equal to the number of batches.
+     * Each entry contains the number of observations in each batch.
+     * @param[in] input Pointer to a column-major dimension-by-observation array containing the uncorrected data for all batches.
+     * Observations from the same batch are assumed to be contiguous.
+     * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
+     * This is used to store the corrected values from all batches.
+     *
+     * @return `output` is filled contiguously with the corrected values from successive batches.
+     * A `Details` object is returned containing statistics about the merge process.
+     */
+    Details run(int ndim, const std::vector<size_t>& nobs, const Float* input, Float* output) {
         std::vector<const Float*> batches;
         batches.reserve(nobs.size());
         for (auto n : nobs) {
@@ -121,8 +266,25 @@ public:
         return run(ndim, nobs, batches, output);
     }
 
+    /**
+     * Merge batches where observations are arbitrarily ordered in the same array.
+     *
+     * @tparam Batch Integer type for the batch IDs.
+     *
+     * @param ndim Number of dimensions.
+     * @param nobs Number of observations across all batches.
+     * @param[in] input Pointer to a column-major dimension-by-observation array containing the uncorrected data for all batches.
+     * @param[in] batch Pointer to an array of length `nobs` containing the batch ID for each observation.
+     * IDs should be zero-indexed and lie within $[0, N)$ where $N$ is the number of unique batches.
+     * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
+     * This is used to store the corrected values from all batches.
+     *
+     * @return `output` is filled with the corrected values from successive batches.
+     * The order of observations in `output` is the same as that in the `input` (i.e., not necessarily contiguous).
+     * A `Details` object is returned containing statistics about the merge process.
+     */
     template<typename Batch>
-    Results run(int ndim, size_t nobs, const Float* input, const Batch* batch, Float* output) {
+    Details run(int ndim, size_t nobs, const Float* input, const Batch* batch, Float* output) {
         const Batch nbatches = (nobs ? *std::max_element(batch, batch + nobs) + 1 : 0);
         std::vector<size_t> sizes(nbatches);
         for (size_t o = 0; o < nobs; ++o) {
