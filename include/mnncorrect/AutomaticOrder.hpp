@@ -5,9 +5,11 @@
 #include "knncolle/knncolle.hpp"
 #include "find_mutual_nns.hpp"
 #include "correct_target.hpp"
+
 #include <algorithm>
 #include <set>
 #include <stdexcept>
+#include <memory>
 
 namespace mnncorrect {
 
