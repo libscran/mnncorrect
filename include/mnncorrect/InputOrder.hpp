@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "knncolle/knncolle.hpp"
 #include "find_mutual_nns.hpp"
+#include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
 #include <algorithm>
 #include <set>
@@ -43,8 +44,8 @@ public:
         ncorrected += rnum;
 
         if (nobs.size() > 1) {
-            neighbors_target = find_nns(nobs[1], batches[1], indices[0].get(), num_neighbors);
-            neighbors_ref = find_nns(rnum, rdata, indices[1].get(), num_neighbors);
+            neighbors_target = quick_find_nns(nobs[1], batches[1], indices[0].get(), num_neighbors);
+            neighbors_ref = quick_find_nns(rnum, rdata, indices[1].get(), num_neighbors);
         }
 
         return;
@@ -83,34 +84,8 @@ protected:
                 if (prev) {
                     #pragma omp parallel for
                     for (size_t n = 0; n < nxnum; ++n) {
-                        // TODO: roll this into a shared function.
-                        auto& current = neighbors_target[n];
-                        auto last = current;
                         auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
-
-                        current.clear();
-                        auto lIt = last.begin(), aIt = alt.begin();
-                        while (current.size() < num_neighbors) {
-                            if (lIt != last.end() && aIt != alt.end()) {
-                                if (lIt->second > aIt->second) {
-                                    current.push_back(*aIt);
-                                    current.back().first += previous_ncorrected;
-                                    ++aIt;
-                                } else {
-                                    current.push_back(*lIt);
-                                    ++lIt;
-                                }
-                            } else if (lIt != last.end()) {
-                                current.push_back(*lIt);
-                                ++lIt;
-                            } else if (aIt != alt.end()) {
-                                current.push_back(*aIt);
-                                current.back().first += previous_ncorrected;
-                                ++aIt;
-                            } else {
-                                break;
-                            }
-                        }
+                        fuse_nn_results(neighbors_target[n], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
                     }
                 } else {
                     #pragma omp parallel for

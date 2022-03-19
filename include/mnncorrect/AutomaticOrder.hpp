@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "knncolle/knncolle.hpp"
 #include "find_mutual_nns.hpp"
+#include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
 #include <algorithm>
 #include <set>
@@ -50,8 +51,8 @@ public:
                 continue;
             }
             remaining.insert(b);
-            neighbors_target[b] = find_nns(nobs[b], batches[b], indices[ref].get(), num_neighbors);
-            neighbors_ref[b] = find_nns(rnum, rdata, indices[b].get(), num_neighbors);
+            neighbors_target[b] = quick_find_nns(nobs[b], batches[b], indices[ref].get(), num_neighbors);
+            neighbors_ref[b] = quick_find_nns(rnum, rdata, indices[b].get(), num_neighbors);
         }
         return;
     }
@@ -91,33 +92,8 @@ protected:
 
             #pragma omp parallel for
             for (size_t t = 0; t < tnum; ++t) {
-                auto& current = tneighbors[t];
-                auto last = current;
                 auto alt = lindex->find_nearest_neighbors(tdata + ndim * t, num_neighbors);
-
-                current.clear();
-                auto lIt = last.begin(), aIt = alt.begin();
-                while (current.size() < num_neighbors) {
-                    if (lIt != last.end() && aIt != alt.end()) {
-                        if (lIt->second > aIt->second) {
-                            current.push_back(*aIt);
-                            current.back().first += previous_ncorrected;
-                            ++aIt;
-                        } else {
-                            current.push_back(*lIt);
-                            ++lIt;
-                        }
-                    } else if (lIt != last.end()) {
-                        current.push_back(*lIt);
-                        ++lIt;
-                    } else if (aIt != alt.end()) {
-                        current.push_back(*aIt);
-                        current.back().first += previous_ncorrected;
-                        ++aIt;
-                    } else {
-                        break;
-                    }
-                }
+                fuse_nn_results(tneighbors[t], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
             }
         }
 
