@@ -59,51 +59,47 @@ protected:
         ncorrected += lnum;
 
         auto next = latest + 1;
-        if constexpr(!testing) { // testing = true for correct building of all indices.
-            if (next == batches.size()) { 
-                return;
-            }
+        if (next == batches.size()) { 
+            return;
         }
 
         // Updating all statistics with the latest batch added to the corrected reference.
         indices[latest] = builder(ndim, lnum, ldata);
         const auto& lindex = indices[latest];
 
-        if (next < batches.size()) {
-            auto nxdata = batches[next];
-            auto nxnum = nobs[next];
-            const auto& nxdex = indices[next];
-            neighbors_ref.resize(ncorrected);
-            neighbors_target.resize(nxnum);
+        auto nxdata = batches[next];
+        auto nxnum = nobs[next];
+        const auto& nxdex = indices[next];
+        neighbors_ref.resize(ncorrected);
+        neighbors_target.resize(nxnum);
 
-            // Progressively finding the best neighbors across the currently built batches.
-            size_t previous_ncorrected = 0;
-            for (size_t prev = 0; prev < next; ++prev) {
-                const auto& prevdex = indices[prev];
-                
-                if (prev) {
-                    #pragma omp parallel for
-                    for (size_t n = 0; n < nxnum; ++n) {
-                        auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
-                        fuse_nn_results(neighbors_target[n], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
-                    }
-                } else {
-                    #pragma omp parallel for
-                    for (size_t n = 0; n < nxnum; ++n) {
-                        neighbors_target[n] = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
-                    }
-                }
-
-                auto prevnum = nobs[prev];
-                auto prevdata = corrected + previous_ncorrected * ndim;
-
+        // Progressively finding the best neighbors across the currently built batches.
+        size_t previous_ncorrected = 0;
+        for (size_t prev = 0; prev < next; ++prev) {
+            const auto& prevdex = indices[prev];
+            
+            if (prev) {
                 #pragma omp parallel for
-                for (size_t p = 0; p < prevnum; ++p) {
-                    neighbors_ref[previous_ncorrected + p] = nxdex->find_nearest_neighbors(prevdata + ndim * p, num_neighbors);
+                for (size_t n = 0; n < nxnum; ++n) {
+                    auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
+                    fuse_nn_results(neighbors_target[n], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
                 }
-
-                previous_ncorrected += prevnum;
+            } else {
+                #pragma omp parallel for
+                for (size_t n = 0; n < nxnum; ++n) {
+                    neighbors_target[n] = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
+                }
             }
+
+            auto prevnum = nobs[prev];
+            auto prevdata = corrected + previous_ncorrected * ndim;
+
+            #pragma omp parallel for
+            for (size_t p = 0; p < prevnum; ++p) {
+                neighbors_ref[previous_ncorrected + p] = nxdex->find_nearest_neighbors(prevdata + ndim * p, num_neighbors);
+            }
+
+            previous_ncorrected += prevnum;
         }
 
         return;

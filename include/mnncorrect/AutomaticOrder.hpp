@@ -58,17 +58,16 @@ public:
     }
 
 protected:
-    void update(size_t latest, size_t npairs, bool testing=false) {
+    void update(size_t latest) {
         size_t lnum = nobs[latest]; 
         const Float* ldata = corrected + ncorrected * ndim;
 
         order.push_back(latest);
-        num_pairs.push_back(npairs);
         auto previous_ncorrected = ncorrected;
         ncorrected += lnum;
 
         remaining.erase(latest);
-        if (!testing && remaining.empty()) {
+        if (remaining.empty()) {
             return;
         }
 
@@ -135,7 +134,8 @@ public:
                 robust_trim,
                 corrected + ncorrected * ndim);
 
-            update(output.first, output.second.num_pairs);
+            update(output.first);
+            num_pairs.push_back(output.second.num_pairs);
         }
     }
 
