@@ -195,50 +195,30 @@ public:
     };
 
 private:
-    template<class Builder>
-    Details run_automatic_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
-        AutomaticOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
-        runner.run(num_mads, robust_iterations, robust_trim);
-        return Details(runner.get_order(), runner.get_num_pairs());
+    typedef knncolle::Base<Index, Float> knncolleBase; 
+
+    static std::shared_ptr<knncolleBase> approximate_builder(int nd, size_t no, const Float* d) {
+        return std::shared_ptr<knncolleBase>(new knncolle::AnnoyEuclidean<Index, Float>(nd, no, d)); 
     }
 
-    template<class Builder>
-    Details run_input_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
-        InputOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
-        runner.run(num_mads, robust_iterations, robust_trim);
-
-        std::vector<int> order(nobs.size());
-        std::iota(order.begin(), order.end(), 0);
-        return Details(std::move(order), runner.get_num_pairs());
+    static std::shared_ptr<knncolleBase> exact_builder(int nd, size_t no, const Float* d) {
+        return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
     }
 
     Details run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
-        typedef knncolle::Base<Index, Float> knncolleBase; 
+        // Function name decays to a function pointer, should be callable by just doing builder(). 
+        auto builder = (approximate ? approximate_builder : exact_builder);
 
         if (automatic_order) {
-            if (approximate) {
-                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-                    return std::shared_ptr<knncolleBase>(new knncolle::AnnoyEuclidean<Index, Float>(nd, no, d)); 
-                };
-                return run_automatic_internal(ndim, nobs, batches, builder, output);
-            } else {
-                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-                    return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
-                };
-                return run_automatic_internal(ndim, nobs, batches, builder, output);
-            }
+            AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
+            runner.run(num_mads, robust_iterations, robust_trim);
+            return Details(runner.get_order(), runner.get_num_pairs());
         } else {
-            if (approximate) {
-                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-                    return std::shared_ptr<knncolleBase>(new knncolle::AnnoyEuclidean<Index, Float>(nd, no, d)); 
-                };
-                return run_input_internal(ndim, nobs, batches, builder, output);
-            } else {
-                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-                    return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
-                };
-                return run_input_internal(ndim, nobs, batches, builder, output);
-            }
+            InputOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
+            runner.run(num_mads, robust_iterations, robust_trim);
+            std::vector<int> order(nobs.size());
+            std::iota(order.begin(), order.end(), 0);
+            return Details(std::move(order), runner.get_num_pairs());
         }
     }
 

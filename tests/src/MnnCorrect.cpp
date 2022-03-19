@@ -115,6 +115,37 @@ TEST_P(MnnCorrectTest, Iterative) {
     EXPECT_EQ(output, ref);
 }
 
+TEST_P(MnnCorrectTest, NonAutomatic) {
+    assemble(GetParam());
+
+    // Running it all at once.
+    mnncorrect::MnnCorrect<> mnnrun;
+    mnnrun.set_num_neighbors(k).set_automatic_order(false);
+    std::vector<double> output(nobs * ndim);
+    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+
+    // Now trying to run it iteratively.
+    size_t previous = 0;
+    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
+    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
+    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+
+    for (size_t i = 1; i < sizes.size(); ++i) {
+        if (i != 1) {
+            std::copy(ref.begin(), ref.end(), buffer.begin());
+            ref_ptrs[0] = buffer.data();
+            ref_sizes[0] += sizes[previous];
+        }
+
+        ref_ptrs[1] = ptrs[i];
+        ref_sizes[1] = sizes[i];
+        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+        previous = i;
+    }
+
+    EXPECT_EQ(output, ref);
+}
+
 TEST_P(MnnCorrectTest, OtherInputs) {
     assemble(GetParam());
 
