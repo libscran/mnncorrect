@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include "AutomaticOrder.hpp"
+#include "InputOrder.hpp"
 #include "restore_order.hpp"
 #include "knncolle/knncolle.hpp"
 
@@ -201,6 +202,16 @@ private:
         return Details(runner.get_order(), runner.get_num_pairs());
     }
 
+    template<class Builder>
+    Details run_input_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Builder bfun, Float* output) {
+        InputOrder<Index, Float, Builder> runner(ndim, nobs, batches, output, bfun, num_neighbors);
+        runner.run(num_mads, robust_iterations, robust_trim);
+
+        std::vector<int> order(nobs.size());
+        std::iota(order.begin(), order.end(), 0);
+        return Details(std::move(order), runner.get_num_pairs());
+    }
+
     Details run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
         typedef knncolle::Base<Index, Float> knncolleBase; 
 
@@ -215,6 +226,18 @@ private:
                     return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
                 };
                 return run_automatic_internal(ndim, nobs, batches, builder, output);
+            }
+        } else {
+            if (approximate) {
+                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
+                    return std::shared_ptr<knncolleBase>(new knncolle::AnnoyEuclidean<Index, Float>(nd, no, d)); 
+                };
+                return run_input_internal(ndim, nobs, batches, builder, output);
+            } else {
+                auto builder = [](int nd, size_t no, const Float* d) -> auto { 
+                    return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
+                };
+                return run_input_internal(ndim, nobs, batches, builder, output);
             }
         }
     }
