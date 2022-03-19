@@ -22,7 +22,8 @@ template<typename Index, typename Dist>
 void fuse_nn_results(std::vector<std::pair<Index, Dist> >& base, const std::vector<std::pair<Index, Dist> >& alt, size_t num_neighbors, Index offset = 0) {
     auto last = base;
     base.clear();
-    auto lIt = last.begin(), aIt = alt.begin();
+    auto lIt = last.begin();
+    auto aIt = alt.begin();
     while (base.size() < num_neighbors) {
         if (lIt != last.end() && aIt != alt.end()) {
             if (lIt->second > aIt->second) {
