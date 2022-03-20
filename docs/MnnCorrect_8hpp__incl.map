@@ -1,8 +1,9 @@
 <map id="mnncorrect/MnnCorrect.hpp" name="mnncorrect/MnnCorrect.hpp">
-<area shape="rect" id="node1" title="Batch correction using mutual nearest neighbors." alt="" coords="165,5,347,32"/>
+<area shape="rect" id="node1" title="Batch correction using mutual nearest neighbors." alt="" coords="242,5,425,32"/>
 <area shape="rect" id="node2" title=" " alt="" coords="5,80,80,107"/>
 <area shape="rect" id="node3" title=" " alt="" coords="104,80,163,107"/>
 <area shape="rect" id="node4" title=" " alt="" coords="187,80,325,107"/>
 <area shape="rect" id="node5" title=" " alt="" coords="349,80,472,107"/>
-<area shape="rect" id="node6" title=" " alt="" coords="496,80,643,107"/>
+<area shape="rect" id="node6" title=" " alt="" coords="496,80,619,107"/>
+<area shape="rect" id="node7" title=" " alt="" coords="643,80,789,107"/>
 </map>
