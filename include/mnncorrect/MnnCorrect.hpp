@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include "AutomaticOrder.hpp"
-#include "InputOrder.hpp"
+#include "CustomOrder.hpp"
 #include "restore_order.hpp"
 #include "knncolle/knncolle.hpp"
 
@@ -136,10 +136,12 @@ public:
      *
      * @return A reference to this `MnnCorrect` object.
      *
-     * If `true`, the largest batch is used as the reference and other batches are successively merged onto it.
+     * If `true` and `order` is not supplied in `run()`, the largest batch is used as the reference and other batches are successively merged onto it.
      * At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.
      *
-     * If `false`, the supplied order of batches (or order of batch IDs) is used directly.
+     * If `false` and `order` is not supplied, the supplied order of batches (or order of batch IDs) is used directly.
+     *
+     * If `order` is supplied, this setting is ignored and the specified order is always used.
      */
     MnnCorrect& set_automatic_order(bool a = Defaults::automatic_order) {
         automatic_order = a;
@@ -205,20 +207,26 @@ private:
         return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
     }
 
-    Details run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
+    Details run_internal(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output, const int* order) {
         // Function name decays to a function pointer, should be callable by just doing builder(). 
         auto builder = (approximate ? approximate_builder : exact_builder);
 
-        if (automatic_order) {
-            AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
+        if (order == NULL) {
+            if (automatic_order) {
+                AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
+                runner.run(num_mads, robust_iterations, robust_trim);
+                return Details(runner.get_order(), runner.get_num_pairs());
+            } else {
+                std::vector<int> trivial_order(nobs.size());
+                std::iota(trivial_order.begin(), trivial_order.end(), 0);
+                CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, trivial_order.data());
+                runner.run(num_mads, robust_iterations, robust_trim);
+                return Details(std::move(trivial_order), runner.get_num_pairs());
+            }
+        } else {
+            CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, order);
             runner.run(num_mads, robust_iterations, robust_trim);
             return Details(runner.get_order(), runner.get_num_pairs());
-        } else {
-            InputOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
-            runner.run(num_mads, robust_iterations, robust_trim);
-            std::vector<int> order(nobs.size());
-            std::iota(order.begin(), order.end(), 0);
-            return Details(std::move(order), runner.get_num_pairs());
         }
     }
 
@@ -233,40 +241,52 @@ public:
      * Each entry points to a column-major dimension-by-observation array containing the uncorrected data for each batch.
      * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
      * This is used to store the corrected values from all batches.
+     * @param[in] order Pointer to an array of indices specifying the merge order.
+     * For example, the first entry contains the index of the batch in `batches` to be used as the reference,
+     * the second entry specifies the batch to be merged first, and so on.
+     * All entries should be unique and lie in $[0, N)$ where $N$ is the number of batches.
+     * If omitted, the setting of `set_automatic_order()` is used.
      *
      * @return `output` is filled contiguously with the corrected values from successive batches,
      * i.e., the first batch takes `nobs[0] * ndim` elements, the second batch takes the next `nobs[1] * ndim` elements and so on.
      * Filling is done column-major, i.e., values for the same observations are adjacent.
      * A `Details` object is returned containing statistics about the merge process.
      */
-    Details run(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output) {
-        auto stats = run_internal(ndim, nobs, batches, output);
+    Details run(int ndim, const std::vector<size_t>& nobs, const std::vector<const Float*>& batches, Float* output, const int* order = NULL) {
+        auto stats = run_internal(ndim, nobs, batches, output, order);
         restore_order(ndim, stats.merge_order, nobs, output);
         return stats;
     }
 
     /**
-     * A convenience overload to merge batches contained in the same array.
+     * A convenience overload to merge contiguous batches contained in the same array.
      *
      * @param ndim Number of dimensions.
      * @param nobs Vector of length equal to the number of batches.
      * Each entry contains the number of observations in each batch.
      * @param[in] input Pointer to a column-major dimension-by-observation array containing the uncorrected data for all batches.
-     * Observations from the same batch are assumed to be contiguous.
+     * Observations from the same batch are assumed to be contiguous,
+     * i.e., the first `nobs[0]` columns contain observations from the first batch,
+     * the next `nobs[1]` columns contain observations for the second batch, and so on.
      * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
      * This is used to store the corrected values from all batches.
+     * @param[in] order Pointer to an array of indices specifying the merge order.
+     * For example, the first entry contains the index of the batch in `nobs` to be used as the reference,
+     * the second entry specifies the batch to be merged first, and so on.
+     * All entries should be unique and lie in $[0, N)$ where $N$ is the number of batches.
+     * If omitted, the setting of `set_automatic_order()` is used.
      *
      * @return `output` is filled contiguously with the corrected values from successive batches.
      * A `Details` object is returned containing statistics about the merge process.
      */
-    Details run(int ndim, const std::vector<size_t>& nobs, const Float* input, Float* output) {
+    Details run(int ndim, const std::vector<size_t>& nobs, const Float* input, Float* output, const int* order = NULL) {
         std::vector<const Float*> batches;
         batches.reserve(nobs.size());
         for (auto n : nobs) {
             batches.push_back(input);
             input += n * ndim;
         }
-        return run(ndim, nobs, batches, output);
+        return run(ndim, nobs, batches, output, order);
     }
 
     /**
@@ -281,13 +301,18 @@ public:
      * IDs should be zero-indexed and lie within $[0, N)$ where $N$ is the number of unique batches.
      * @param[out] output Pointer to an array of length equal to the product of `ndim` with the sum of `nobs`.
      * This is used to store the corrected values from all batches.
+     * @param[in] order Pointer to an array specifying the merge order.
+     * Entries should correspond to levels of `batch`; the first entry specifies the batch to use as the reference,
+     * the second entry specifies the first batch to merge, and so on.
+     * All entries should be unique and lie in $[0, N)$ where $N$ is the number of batches.
+     * If omitted, the setting of `set_automatic_order()` is used.
      *
      * @return `output` is filled with the corrected values from successive batches.
      * The order of observations in `output` is the same as that in the `input` (i.e., not necessarily contiguous).
      * A `Details` object is returned containing statistics about the merge process.
      */
     template<typename Batch>
-    Details run(int ndim, size_t nobs, const Float* input, const Batch* batch, Float* output) {
+    Details run(int ndim, size_t nobs, const Float* input, const Batch* batch, Float* output, const int* order = NULL) {
         const Batch nbatches = (nobs ? *std::max_element(batch, batch + nobs) + 1 : 0);
         std::vector<size_t> sizes(nbatches);
         for (size_t o = 0; o < nobs; ++o) {
@@ -304,7 +329,7 @@ public:
            }
         }
         if (already_sorted) {
-            return run(ndim, sizes, input, output);
+            return run(ndim, sizes, input, output, order);
         }
 
         size_t accumulated = 0;
@@ -328,7 +353,7 @@ public:
             ++offset;
         }
 
-        auto stats = run_internal(ndim, sizes, ptrs, output);
+        auto stats = run_internal(ndim, sizes, ptrs, output, order);
         restore_order(ndim, stats.merge_order, sizes, batch, output);
         return stats;
     }

@@ -1,5 +1,5 @@
-#ifndef MNNCORRECT_INPUTORDER_HPP
-#define MNNCORRECT_INPUTORDER_HPP
+#ifndef MNNCORRECT_CUSTOMORDER_HPP
+#define MNNCORRECT_CUSTOMORDER_HPP
 
 #include "utils.hpp"
 #include "knncolle/knncolle.hpp"
@@ -13,16 +13,17 @@
 namespace mnncorrect {
 
 template<typename Index, typename Float, class Builder>
-class InputOrder {
+class CustomOrder {
 public:
-    InputOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k) :
+    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co) :
         ndim(nd), 
         nobs(std::move(no)), 
         batches(std::move(b)),
         indices(batches.size()),
         builder(bfun),
         num_neighbors(k),
-        corrected(c)
+        corrected(c),
+        order(co, co + batches.size())
     {
         if (nobs.size() != batches.size()) {
             throw std::runtime_error("length of 'no' and 'b' must be equal");
@@ -38,14 +39,16 @@ public:
         }
 
         // Picking the first batch to be our reference.
-        const size_t rnum = nobs[0];
-        const Float* rdata = batches[0];
+        auto first = order[0];
+        const size_t rnum = nobs[first];
+        const Float* rdata = batches[first];
         std::copy(rdata, rdata + ndim * rnum, corrected);
         ncorrected += rnum;
 
         if (nobs.size() > 1) {
-            neighbors_target = quick_find_nns(nobs[1], batches[1], indices[0].get(), num_neighbors);
-            neighbors_ref = quick_find_nns(rnum, rdata, indices[1].get(), num_neighbors);
+            auto second = order[1];
+            neighbors_target = quick_find_nns(nobs[second], batches[second], indices[first].get(), num_neighbors);
+            neighbors_ref = quick_find_nns(rnum, rdata, indices[second].get(), num_neighbors);
         }
 
         return;
@@ -53,20 +56,21 @@ public:
 
 protected:
     template<bool testing = false>
-    void update(size_t latest) {
+    void update(size_t position) {
+        auto latest = order[position];
         size_t lnum = nobs[latest]; 
         const Float* ldata = corrected + ncorrected * ndim;
         ncorrected += lnum;
 
-        auto next = latest + 1;
-        if (next == batches.size()) { 
+        ++position;
+        if (position == batches.size()) { 
             return;
         }
 
         // Updating all statistics with the latest batch added to the corrected reference.
         indices[latest] = builder(ndim, lnum, ldata);
-        const auto& lindex = indices[latest];
 
+        auto next = order[position];
         auto nxdata = batches[next];
         auto nxnum = nobs[next];
         const auto& nxdex = indices[next];
@@ -75,10 +79,11 @@ protected:
 
         // Progressively finding the best neighbors across the currently built batches.
         size_t previous_ncorrected = 0;
-        for (size_t prev = 0; prev < next; ++prev) {
+        for (size_t i = 0; i < position; ++i) {
+            auto prev = order[i];
             const auto& prevdex = indices[prev];
             
-            if (prev) {
+            if (i) {
                 #pragma omp parallel for
                 for (size_t n = 0; n < nxnum; ++n) {
                     auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
@@ -109,8 +114,8 @@ public:
     void run(Float nmads, int robust_iterations, double robust_trim) {
         for (size_t i = 1; i < batches.size(); ++i) {
             auto mnns = find_mutual_nns(neighbors_ref, neighbors_target);
-            auto tnum = nobs[i];
-            auto tdata = batches[i];
+            auto tnum = nobs[order[i]];
+            auto tdata = batches[order[i]];
 
             correct_target(
                 ndim, 
@@ -133,6 +138,8 @@ public:
 
     const auto& get_num_pairs() const { return num_pairs; }
 
+    const auto& get_order() const { return order; }
+
 protected:
     int ndim;
     std::vector<size_t> nobs;
@@ -146,6 +153,7 @@ protected:
 
     Float* corrected;
     size_t ncorrected = 0;
+    std::vector<int> order;
     std::vector<int> num_pairs;
 };
 
