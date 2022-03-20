@@ -2,12 +2,7 @@
 #include "mnncorrect/AutomaticOrder.hpp"
 #include <random>
 #include <algorithm>
-
-struct Builder {
-    std::shared_ptr<knncolle::Base<int, double> > operator()(int ndim, size_t nobs, const double* stuff) const {
-        return std::shared_ptr<knncolle::Base<int, double> >(new knncolle::VpTreeEuclidean<int, double>(ndim, nobs, stuff));
-    }
-};
+#include "order_utils.h"
 
 struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
     AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k) :
@@ -33,7 +28,7 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
     }
 
     void test_update(size_t latest) {
-        update(latest, 1000, true);
+        update(latest);
         return;
     }
 };
@@ -115,7 +110,6 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         auto chosen = coords.test_choose();
         EXPECT_FALSE(used[chosen.first]);
         used[chosen.first] = true;
-        size_t sofar = coords.get_ncorrected();
 
         // Check that the MNN pair indices are correct.
         const auto& m = chosen.second.matches;
@@ -127,7 +121,8 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
 
-        // Applying an update. We mock up some corrected data.
+        // Applying an update. We mock up some corrected data so that the builders work correctly.
+        size_t sofar = coords.get_ncorrected();
         double* fixed = output.data() + sofar * ndim;
         for (size_t s = 0; s < sizes[chosen.first]; ++s) {
             for (int d = 0; d < ndim; ++d) {
@@ -154,12 +149,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
                 auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
                 const auto& updated = rcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
-
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
-                }
+                compare_to_naive(naive, updated);
             }
         }
 
@@ -173,19 +163,9 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             for (size_t x = 0; x < sizes[r]; ++x) {
                 auto naive = ref_index.find_nearest_neighbors(current.data() + x * ndim, k);
                 const auto& updated = tcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
-
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
-                }
+                compare_to_naive(naive, updated);
             }
         }
-    }
-
-    EXPECT_EQ(sizes.size(), coords.get_num_pairs().size() + 1);
-    for (auto np : coords.get_num_pairs()) {
-        EXPECT_TRUE(np > 0);
     }
 }
 

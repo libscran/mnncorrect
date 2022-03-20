@@ -1,6 +1,7 @@
 #ifndef HELPER_FIND_MUTUAL_NNS_HPP
 #define HELPER_FIND_MUTUAL_NNS_HPP
 
+#include "mnncorrect/fuse_nn_results.hpp"
 #include "mnncorrect/find_mutual_nns.hpp"
 
 template<typename Index, typename Float>
@@ -14,8 +15,8 @@ mnncorrect::MnnPairs<Index> find_mutual_nns(
 {
     size_t nleft = left_index->nobs();
     size_t nright = right_index->nobs();
-    auto neighbors_of_left = mnncorrect::find_nns(nleft, left, right_index, k_left);
-    auto neighbors_of_right = mnncorrect::find_nns(nright, right, left_index, k_right);
+    auto neighbors_of_left = mnncorrect::quick_find_nns(nleft, left, right_index, k_left);
+    auto neighbors_of_right = mnncorrect::quick_find_nns(nright, right, left_index, k_right);
     return mnncorrect::find_mutual_nns<Index, Float>(neighbors_of_left, neighbors_of_right);
 }
 

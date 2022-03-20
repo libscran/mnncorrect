@@ -87,17 +87,6 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
     return output;
 }
 
-template<typename Index, typename Dist>
-NeighborSet<Index, Dist> find_nns(size_t n, const Dist* query, const knncolle::Base<Index, Dist>* index, int k) {
-    NeighborSet<Index, Dist> output(n);
-    int ndim = index->ndim();
-    #pragma omp parallel for
-    for (size_t l = 0; l < n; ++l) {
-        output[l] = index->find_nearest_neighbors(query + ndim * l, k);
-    }
-    return output;
-}
-
 }
 
 #endif

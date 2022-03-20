@@ -23,23 +23,31 @@ inline std::pair<std::vector<size_t>, size_t> define_offsets(const std::vector<i
 template<typename Float>
 void reorder(int ndim, size_t nobs, const std::vector<size_t>& reindex, Float* output) {
     std::vector<char> used(nobs);
+    std::vector<Float> buffer(ndim);
+
     for (size_t i = 0; i < nobs; ++i) {
         if (used[i]) {
             continue;
         }
 
         used[i] = true;
-        auto current = i;
         auto target = reindex[i];
-        while (target != i) {
-            auto cptr = output + current * ndim;
-            auto tptr = output + target * ndim;
-            for (int d = 0; d < ndim; ++d) {
-                std::swap(*(cptr + d), *(tptr + d));
+        if (target != i) {
+            // Moving the current vector into a buffer to free up 
+            // some space for the shuffling. This avoids the need
+            // to do a bunch of std::swap() calls.
+            auto current_ptr = output + i * ndim;
+            std::copy_n(current_ptr, ndim, buffer.data());
+
+            while (target != i) {
+                auto tptr = output + target * ndim;
+                std::copy_n(tptr, ndim, current_ptr);
+                used[target] = true;
+                current_ptr = tptr;
+                target = reindex[target];
             }
-            used[target] = true;
-            current = target;
-            target = reindex[target];
+
+            std::copy_n(buffer.data(), ndim, current_ptr);
         }
     }
 }
