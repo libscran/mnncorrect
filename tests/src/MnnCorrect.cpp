@@ -115,7 +115,7 @@ TEST_P(MnnCorrectTest, Iterative) {
     EXPECT_EQ(output, ref);
 }
 
-TEST_P(MnnCorrectTest, NonAutomatic) {
+TEST_P(MnnCorrectTest, Linear) {
     assemble(GetParam());
 
     // Running it all at once.
@@ -123,6 +123,11 @@ TEST_P(MnnCorrectTest, NonAutomatic) {
     mnnrun.set_num_neighbors(k).set_automatic_order(false);
     std::vector<double> output(nobs * ndim);
     auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+
+    // Checking that the order is as expected.
+    EXPECT_EQ(ordering.merge_order.size(), sizes.size());
+    EXPECT_EQ(ordering.merge_order[0], 0);
+    EXPECT_EQ(ordering.merge_order.back(), sizes.size() - 1);
 
     // Now trying to run it iteratively.
     size_t previous = 0;
@@ -143,6 +148,47 @@ TEST_P(MnnCorrectTest, NonAutomatic) {
         previous = i;
     }
 
+    EXPECT_EQ(output, ref);
+}
+
+TEST_P(MnnCorrectTest, Reverse) {
+    assemble(GetParam());
+
+    mnncorrect::MnnCorrect<> mnnrun;
+    mnnrun.set_num_neighbors(k).set_automatic_order(false);
+    std::vector<double> output(nobs * ndim);
+
+    std::vector<int> input_order(sizes.size());
+    std::iota(input_order.begin(), input_order.end(), 0);
+    std::reverse(input_order.begin(), input_order.end());
+    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data(), input_order.data());
+
+    // Checking that the order is as expected.
+    EXPECT_EQ(ordering.merge_order.size(), sizes.size());
+    EXPECT_EQ(ordering.merge_order[0], sizes.size() - 1);
+    EXPECT_EQ(ordering.merge_order.back(), 0);
+
+    // Now trying to run it iteratively.
+    size_t previous = sizes.size() - 1;
+    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
+    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
+    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+
+    for (size_t i = 1; i < sizes.size(); ++i) {
+        if (i != 1) {
+            std::copy(ref.begin(), ref.end(), buffer.begin());
+            ref_ptrs[0] = buffer.data();
+            ref_sizes[0] += sizes[previous];
+        }
+
+        size_t next = sizes.size() - i - 1;
+        ref_ptrs[1] = ptrs[next];
+        ref_sizes[1] = sizes[next];
+        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+        previous = next;
+    }
+
+    mnncorrect::restore_order(ndim, ordering.merge_order, sizes, ref.data());
     EXPECT_EQ(output, ref);
 }
 
