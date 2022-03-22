@@ -517,7 +517,7 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 </div><div class="memdoc">
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">i</td><td>Number of iterations to use for robustification.</td></tr>
+    <tr><td class="paramname">i</td><td>Number of iterations to use for robustification. At each iteration, the observations furthest from the mean are removed, and the mean is recomputed with the remaining observations.</td></tr>
   </table>
   </dd>
 </dl>
@@ -552,7 +552,7 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 </div><div class="memdoc">
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">t</td><td>Trimming proportion to use for robustification.</td></tr>
+    <tr><td class="paramname">t</td><td>Trimming proportion to use for robustification when computing the center of mass. The <code>t</code> proportion of observations with the largest distances from the mean vector are removed for the next iteration of the mean calculation.</td></tr>
   </table>
   </dd>
 </dl>
