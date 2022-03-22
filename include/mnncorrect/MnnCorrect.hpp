@@ -150,6 +150,7 @@ public:
 
     /**
      * @param i Number of iterations to use for robustification.
+     * At each iteration, the observations furthest from the mean are removed, and the mean is recomputed with the remaining observations.
      *
      * @return A reference to this `MnnCorrect` object.
      */
@@ -159,7 +160,8 @@ public:
     }
 
     /**
-     * @param t Trimming proportion to use for robustification.
+     * @param t Trimming proportion to use for robustification when computing the center of mass.
+     * The `t` proportion of observations with the largest distances from the mean vector are removed for the next iteration of the mean calculation.
      *
      * @return A reference to this `MnnCorrect` object.
      */
