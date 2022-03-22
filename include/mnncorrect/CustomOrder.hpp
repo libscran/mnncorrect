@@ -33,10 +33,22 @@ public:
             return;
         }
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp parallel for
         for (size_t b = 0; b < nobs.size(); ++b) {
+#else
+        MNNCORRECT_CUSTOM_PARALLEL(nobs.size(), [&](size_t start, size_t end) -> void {
+        for (size_t b = start; b < end; ++b) {
+#endif
+
             indices[b] = bfun(ndim, nobs[b], batches[b]);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
+#else
+        }
+        });
+#endif
 
         // Picking the first batch to be our reference.
         auto first = order[0];
@@ -84,25 +96,62 @@ protected:
             const auto& prevdex = indices[prev];
             
             if (i) {
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
                 #pragma omp parallel for
                 for (size_t n = 0; n < nxnum; ++n) {
+#else
+                MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
+                for (size_t n = start; n < end; ++n) {
+#endif
+
                     auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
                     fuse_nn_results(neighbors_target[n], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
                 }
+#else
+                }
+                });
+#endif
+
             } else {
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
                 #pragma omp parallel for
                 for (size_t n = 0; n < nxnum; ++n) {
+#else
+                MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
+                for (size_t n = start; n < end; ++n) {
+#endif
+
                     neighbors_target[n] = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
                 }
+#else
+                }
+                });
+#endif
             }
 
             auto prevnum = nobs[prev];
             auto prevdata = corrected + previous_ncorrected * ndim;
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             #pragma omp parallel for
             for (size_t p = 0; p < prevnum; ++p) {
+#else
+            MNNCORRECT_CUSTOM_PARALLEL(prevnum, [&](size_t start, size_t end) -> void {
+            for (size_t p = start; p < end; ++p) {
+#endif
+
                 neighbors_ref[previous_ncorrected + p] = nxdex->find_nearest_neighbors(prevdata + ndim * p, num_neighbors);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
+#else
+            }
+            });
+#endif
 
             previous_ncorrected += prevnum;
         }

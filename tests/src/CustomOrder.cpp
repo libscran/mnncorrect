@@ -1,4 +1,10 @@
 #include <gtest/gtest.h>
+
+// Must be before any mnncorrect includes.
+#ifdef TEST_MNNCORRECT_CUSTOM_PARALLEL
+#include "custom_parallel.h"
+#endif
+
 #include "mnncorrect/CustomOrder.hpp"
 #include "mnncorrect/find_mutual_nns.hpp"
 #include <random>

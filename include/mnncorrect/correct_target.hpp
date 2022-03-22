@@ -22,10 +22,23 @@ NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Floa
 
     auto index = bfun(ndim, in_mnn.size(), buffer);
     NeighborSet<Index, Float> output(nobs);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL    
     #pragma omp parallel for
     for (size_t o = 0; o < nobs; ++o) {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
+    for (size_t o = start; o < end; ++o) {
+#endif
+
         output[o] = index->find_nearest_neighbors(data + o * ndim, k);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
     }
+#else
+    }
+    });
+#endif
 
     return output;
 }
@@ -60,14 +73,32 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 template<typename Index, typename Float>
 void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit) {
     auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL    
     #pragma omp parallel
     {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t end) -> void {
+#endif
+
         RobustAverage<Index, Float> rbave(iterations, trim);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp for
         for (size_t g = 0; g < num_mnns; ++g) {
+#else
+        for (size_t g = start; g < end; ++g) {
+#endif
+
             rbave.run(ndim, inverted[g], data, buffer + g * ndim);
         }
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
     }
+#else
+    });
+#endif
+
     return;
 }
 
@@ -107,14 +138,23 @@ void correct_target(
     auto remap_ref = invert_indices(nref, uniq_ref);
     auto remap_target = invert_indices(ntarget, uniq_target);
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL    
     #pragma omp parallel
     {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(ntarget, [&](size_t start, size_t end) -> void {
+#endif
+
         std::vector<Float> corrections;
         corrections.reserve(ndim * 100); // just filling it with something to avoid initial allocations.
         RobustAverage<Index, Float> rbave(robust_iterations, robust_trim);
-        
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp for
         for (size_t t = 0; t < ntarget; ++t) {
+#else
+        for (size_t t = start; t < end; ++t) {
+#endif
             const auto& target_closest = mnn_target[t];
             corrections.clear();
             int ncorrections = 0;
@@ -141,7 +181,12 @@ void correct_target(
                 optr[d] += tptr[d];
             }
         }
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
     }
+#else
+    });
+#endif
 
     return;
 }

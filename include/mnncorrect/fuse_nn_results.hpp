@@ -11,10 +11,24 @@ template<typename Index, typename Dist>
 NeighborSet<Index, Dist> quick_find_nns(size_t n, const Dist* query, const knncolle::Base<Index, Dist>* index, int k) {
     NeighborSet<Index, Dist> output(n);
     int ndim = index->ndim();
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
     #pragma omp parallel for
     for (size_t l = 0; l < n; ++l) {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(n, [&](size_t start, size_t end) -> void {
+    for (size_t l = start; l < end; ++l) {
+#endif
+
         output[l] = index->find_nearest_neighbors(query + ndim * l, k);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
     }
+#else
+    }
+    });
+#endif
+
     return output;
 }
 

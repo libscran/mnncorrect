@@ -35,10 +35,22 @@ public:
             return;
         }
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp parallel for
         for (size_t b = 0; b < nobs.size(); ++b) {
+#else
+        MNNCORRECT_CUSTOM_PARALLEL(nobs.size(), [&](size_t start, size_t end) -> void {
+        for (size_t b = start; b < end; ++b) {
+#endif
+
             indices[b] = bfun(ndim, nobs[b], batches[b]);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
+#else
+        }
+        });
+#endif
 
         // Picking the largest batch to be our reference.
         size_t ref = std::max_element(nobs.begin(), nobs.end()) - nobs.begin();
@@ -82,20 +94,44 @@ protected:
             rneighbors.resize(ncorrected);
             const auto& tindex = indices[b];
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             #pragma omp parallel for
             for (size_t l = 0; l < lnum; ++l) {
+#else
+            MNNCORRECT_CUSTOM_PARALLEL(lnum, [&](size_t start, size_t end) -> void {
+            for (size_t l = start; l < end; ++l) {
+#endif
+
                 rneighbors[previous_ncorrected + l] = tindex->find_nearest_neighbors(ldata + ndim * l, num_neighbors);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
+#else
+            }
+            });
+#endif 
 
             const size_t tnum = nobs[b];
             const Float* tdata = batches[b];
             auto& tneighbors = neighbors_target[b];
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             #pragma omp parallel for
             for (size_t t = 0; t < tnum; ++t) {
+#else
+            MNNCORRECT_CUSTOM_PARALLEL(tnum, [&](size_t start, size_t end) -> void {
+            for (size_t t = start; t < end; ++t) {
+#endif
+
                 auto alt = lindex->find_nearest_neighbors(tdata + ndim * t, num_neighbors);
                 fuse_nn_results(tneighbors[t], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
+#else
+            }
+            });
+#endif
         }
 
         return;

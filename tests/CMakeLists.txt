@@ -34,7 +34,23 @@ if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(libtest PRIVATE --coverage)
 endif()
 
+add_executable(
+    custom_parallel
+    src/correct_target.cpp
+    src/AutomaticOrder.cpp
+    src/CustomOrder.cpp
+    src/MnnCorrect.cpp
+)
+
+target_link_libraries(
+    custom_parallel 
+    gtest_main
+    mnncorrect 
+)
+
+set_target_properties(custom_parallel PROPERTIES COMPILE_DEFINITIONS "TEST_MNNCORRECT_CUSTOM_PARALLEL")
+
 include(GoogleTest)
 gtest_discover_tests(libtest)
+gtest_discover_tests(custom_parallel)
 
-add_test(NAME qdtsne_tests COMMAND libtest)
