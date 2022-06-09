@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.4"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>mnncorrect: mnncorrect Directory Reference</title>
+<title>mnncorrect: mnncorrect/ReferencePolicy.hpp File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -68,19 +68,50 @@ $(function() {
 </div>
 </div><!-- top -->
 <div class="header">
-  <div class="headertitle"><div class="title">mnncorrect Directory Reference</div></div>
+  <div class="summary">
+<a href="#enum-members">Enumerations</a>  </div>
+  <div class="headertitle"><div class="title">ReferencePolicy.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Automatic choice for the reference batch.  
+<a href="#details">More...</a></p>
+
+<p><a href="ReferencePolicy_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="files" name="files"></a>
-Files</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="MnnCorrect_8hpp.html">MnnCorrect.hpp</a> <a href="MnnCorrect_8hpp_source.html">[code]</a></td></tr>
-<tr class="memdesc:MnnCorrect_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction using mutual nearest neighbors. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ReferencePolicy_8hpp.html">ReferencePolicy.hpp</a> <a href="ReferencePolicy_8hpp_source.html">[code]</a></td></tr>
-<tr class="memdesc:ReferencePolicy_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Automatic choice for the reference batch. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
+Enumerations</h2></td></tr>
+<tr class="memitem:ad6c4a54a9f9a0db1d5863fc99fb6af47"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ReferencePolicy_8hpp.html#ad6c4a54a9f9a0db1d5863fc99fb6af47">mnncorrect::ReferencePolicy</a> { <b>Input</b>
+, <b>MaxSize</b>
+, <b>MaxVariance</b>
+, <b>MaxRss</b>
+ }</td></tr>
+<tr class="separator:ad6c4a54a9f9a0db1d5863fc99fb6af47"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p >Automatic choice for the reference batch. </p>
+</div><h2 class="groupheader">Enumeration Type Documentation</h2>
+<a id="ad6c4a54a9f9a0db1d5863fc99fb6af47" name="ad6c4a54a9f9a0db1d5863fc99fb6af47"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad6c4a54a9f9a0db1d5863fc99fb6af47">&#9670;&nbsp;</a></span>ReferencePolicy</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="ReferencePolicy_8hpp.html#ad6c4a54a9f9a0db1d5863fc99fb6af47">mnncorrect::ReferencePolicy</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p >Policy for choosing the first reference batch with the automatic merging procedure.</p>
+<ul>
+<li><code>Input</code> will use the first supplied batch in the input order. This is useful in cases where one batch is known to contain most subpopulations and should be used as the reference, but there is no obvious ordering for the other batches.</li>
+<li><code>MaxSize</code> will use the largest batch (i.e., with the most observations). For historical reasons, this is the default - it does, at least, ensure that the initial reference has enough cells.</li>
+<li><code>MaxVariance</code> will use the batch with the greatest variance. This improves the likelihood of obtaining an reference that contains a diversity of subpopulations and thus is more likely to form sensible MNN pairs with subsequent batches.</li>
+<li><code>MaxRss</code> will use the batch with the greatest residual sum of squares (RSS). This is similar to <code>MaxVariance</code> but it puts more weight on batches with more cells, so as to avoid picking small batches with few cells and unstable population strcuture. </li>
+</ul>
+
+</div>
+</div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
