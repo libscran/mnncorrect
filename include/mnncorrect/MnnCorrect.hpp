@@ -78,6 +78,11 @@ public:
          * See `set_robust_trim()` for more details.
          */
         static constexpr double robust_trim = 0.25;
+
+        /**
+         * See `set_reference_policy()` for more details.
+         */
+        static constexpr ReferencePolicy reference_policy = MaxSize;
     };
 
 private:
@@ -88,6 +93,8 @@ private:
     bool approximate = Defaults::approximate;
 
     bool automatic_order = Defaults::automatic_order;
+
+    ReferencePolicy reference_policy = Defaults::reference_policy;
 
     int robust_iterations = Defaults::robust_iterations;
 
@@ -145,6 +152,19 @@ public:
      */
     MnnCorrect& set_automatic_order(bool a = Defaults::automatic_order) {
         automatic_order = a;
+        return *this;
+    }
+
+    /**
+     * @param r The policy to use to choose the reference batch when `set_automatic_order()` is `true`.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     *
+     * This setting only has an effect when an automatic merge order is used.
+     * See the `ReferencePolicy` documentation for more details on the available choices.
+     */
+    MnnCorrect& set_reference_policy(ReferencePolicy r = Defaults::reference_policy) {
+        reference_policy = r;
         return *this;
     }
 
@@ -215,7 +235,7 @@ private:
 
         if (order == NULL) {
             if (automatic_order) {
-                AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors);
+                AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, reference_policy);
                 runner.run(num_mads, robust_iterations, robust_trim);
                 return Details(runner.get_order(), runner.get_num_pairs());
             } else {

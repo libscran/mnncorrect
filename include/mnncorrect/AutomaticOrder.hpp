@@ -6,18 +6,47 @@
 #include "find_mutual_nns.hpp"
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
+#include "ReferencePolicy.hpp"
 
 #include <algorithm>
 #include <set>
 #include <stdexcept>
 #include <memory>
+#include <vector>
 
 namespace mnncorrect {
+
+template<typename Float>
+Float compute_total_variance(int nd, size_t n, const Float* ptr, bool as_rss) {
+    std::vector<Float> mean(nd);
+    Float total = 0;
+    for (size_t i = 0; i < n; ++i) {
+        auto mIt = mean.begin();
+        for (int d = 0; d < nd; ++d, ++mIt, ++ptr) {
+            const double delta=*ptr - *mIt;
+            *mIt += delta/(i + 1);
+            total += delta*(*ptr - *mIt);
+        }
+    }
+    if (!as_rss) {
+        total /= n - 1;
+    }
+    return total;
+}
+
+template<typename Float>
+std::vector<Float> compute_total_variance(int nd, const std::vector<size_t>& no, const std::vector<const Float*>& batch, bool as_rss) {
+    std::vector<Float> vars(no.size());
+    for (size_t b = 0; b < no.size(); ++b) {
+        vars[b] = compute_total_variance<Float>(nd, no[b], batch[b], as_rss);
+    }
+    return vars;
+}
 
 template<typename Index, typename Float, class Builder>
 class AutomaticOrder {
 public:
-    AutomaticOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k) :
+    AutomaticOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, ReferencePolicy first) :
         ndim(nd), 
         nobs(std::move(no)), 
         batches(std::move(b)),
@@ -52,8 +81,19 @@ public:
         });
 #endif
 
-        // Picking the largest batch to be our reference.
-        size_t ref = std::max_element(nobs.begin(), nobs.end()) - nobs.begin();
+        // Different policies to pick the first batch. The default is to use
+        // the first input batch, so first == Input is already covered.
+        size_t ref = 0;
+        if (first == MaxSize) {
+            ref = std::max_element(nobs.begin(), nobs.end()) - nobs.begin();
+        } else if (first == MaxVariance) {
+            auto vars = compute_total_variance(ndim, nobs, batches, false);
+            ref = std::max_element(vars.begin(), vars.end()) - vars.begin();
+        } else if (first == MaxRss) {
+            auto vars = compute_total_variance(ndim, nobs, batches, true);
+            ref = std::max_element(vars.begin(), vars.end()) - vars.begin();
+        }
+
         const size_t rnum = nobs[ref];
         const Float* rdata = batches[ref];
         std::copy(rdata, rdata + ndim * rnum, corrected);
