@@ -1,9 +1,6 @@
 #include <gtest/gtest.h>
 
-// Must be before any mnncorrect includes.
-#ifdef TEST_MNNCORRECT_CUSTOM_PARALLEL
-#include "custom_parallel.h"
-#endif
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
 
 #include "mnncorrect/MnnCorrect.hpp"
 #include <random>
@@ -86,6 +83,13 @@ TEST_P(MnnCorrectTest, Basic) {
     }
     std::vector<double> corrected(output.begin() + offset * ndim, output.begin() + (offset + sizes[refbatch]) * ndim);
     EXPECT_EQ(original, corrected);
+
+    // Same results when multiple threads are in use.
+    mnnrun.set_num_threads(3);
+    std::vector<double> par_output(nobs * ndim);
+    auto par_ordering = mnnrun.run(ndim, sizes, ptrs, par_output.data());
+    EXPECT_EQ(par_ordering.merge_order, ordering.merge_order);
+    EXPECT_EQ(par_output, output);
 }
 
 TEST_P(MnnCorrectTest, Iterative) {

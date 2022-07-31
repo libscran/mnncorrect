@@ -1,4 +1,7 @@
 #include "gtest/gtest.h"
+
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
+
 #include "mnncorrect/RobustAverage.hpp"
 #include "aarand/aarand.hpp"
 #include <vector>

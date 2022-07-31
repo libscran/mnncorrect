@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
+
 #include <random>
 #include <vector>
 #include <algorithm>
@@ -90,6 +92,13 @@ TEST_P(FindMutualNNsTest, Check) {
         auto rIt = ref.matches.find(x.first);
         ASSERT_TRUE(rIt != ref.matches.end());
         EXPECT_EQ(rIt->second, x.second);
+    }
+
+    // Same result in parallel.
+    auto par = find_mutual_nns<int>(left.data(), right.data(), &left_index, &right_index, k1, k2, /* nthreads = */ 3);
+    EXPECT_EQ(obs.matches.size(), par.matches.size());
+    for (size_t i = 0; i < obs.matches.size(); ++i) {
+        EXPECT_EQ(obs.matches[i], par.matches[i]);
     }
 }
 

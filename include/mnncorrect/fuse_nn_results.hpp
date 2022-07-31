@@ -8,12 +8,12 @@
 namespace mnncorrect {
 
 template<typename Index, typename Dist>
-NeighborSet<Index, Dist> quick_find_nns(size_t n, const Dist* query, const knncolle::Base<Index, Dist>* index, int k) {
+NeighborSet<Index, Dist> quick_find_nns(size_t n, const Dist* query, const knncolle::Base<Index, Dist>* index, int k, int nthreads) {
     NeighborSet<Index, Dist> output(n);
     int ndim = index->ndim();
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(nthreads)
     for (size_t l = 0; l < n; ++l) {
 #else
     MNNCORRECT_CUSTOM_PARALLEL(n, [&](size_t start, size_t end) -> void {
@@ -26,7 +26,7 @@ NeighborSet<Index, Dist> quick_find_nns(size_t n, const Dist* query, const knnco
     }
 #else
     }
-    });
+    }, nthreads);
 #endif
 
     return output;
