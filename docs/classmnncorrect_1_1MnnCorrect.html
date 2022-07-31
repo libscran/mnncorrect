@@ -106,6 +106,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a06edf42b962df693d51ef5d986141735"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a866645cfd68a249ad550f73f7b87b67d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a866645cfd68a249ad550f73f7b87b67d">set_robust_trim</a> (double t=<a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ac776c7e34a88f4cef47c6ce53c936fba">Defaults::robust_trim</a>)</td></tr>
 <tr class="separator:a866645cfd68a249ad550f73f7b87b67d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94ca84f936ea36ca7a47cfe73530be87"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a94ca84f936ea36ca7a47cfe73530be87">set_num_threads</a> (int n=<a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ae065e7d42f366755d4efc2b6d34b0a84">Defaults::num_threads</a>)</td></tr>
+<tr class="separator:a94ca84f936ea36ca7a47cfe73530be87"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a89af13dc9d3016788abf70de9b707f70"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html">Details</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a89af13dc9d3016788abf70de9b707f70">run</a> (int ndim, const std::vector&lt; size_t &gt; &amp;nobs, const std::vector&lt; const Float * &gt; &amp;batches, Float *output, const int *order=NULL)</td></tr>
 <tr class="separator:a89af13dc9d3016788abf70de9b707f70"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a010dfa065b986930ae6fb4abcb65fb56"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html">Details</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a010dfa065b986930ae6fb4abcb65fb56">run</a> (int ndim, const std::vector&lt; size_t &gt; &amp;nobs, const Float *input, Float *output, const int *order=NULL)</td></tr>
@@ -489,6 +491,48 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>A reference to this <code><a class="el" href="classmnncorrect_1_1MnnCorrect.html" title="Batch correction using mutual nearest neighbors.">MnnCorrect</a></code> object.</dd></dl>
 <p>This parameter is used to define the MNN pairs at the start. Larger values increase the number of MNN pairs and improve the stability of the correction, at the cost of reduced resolution of matching subpopulations across batches. The number of neighbors is also used to identify the closest MNN pairs when computing the average correction vector for each target observation. Again, this improves stability at the cost of resolution for local variations in the correction vectors. </p>
+
+</div>
+</div>
+<a id="a94ca84f936ea36ca7a47cfe73530be87" name="a94ca84f936ea36ca7a47cfe73530be87"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a94ca84f936ea36ca7a47cfe73530be87">&#9670;&nbsp;</a></span>set_num_threads()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Index  = int, typename Float  = double&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp; <a class="el" href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect</a>&lt; Index, Float &gt;::set_num_threads </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>n</em> = <code><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ae065e7d42f366755d4efc2b6d34b0a84">Defaults::num_threads</a></code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">n</td><td>Number of threads to use.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A reference to this <code><a class="el" href="classmnncorrect_1_1MnnCorrect.html" title="Batch correction using mutual nearest neighbors.">MnnCorrect</a></code> object.</dd></dl>
+<p>By default, <b>mnncorrect</b> uses OpenMP to implement parallelization. However, the <code>MNNCORRECT_CUSTOM_PARALLEL</code> macro can be set to a function that specifies a custom parallelization scheme. This function should be a template that accept three arguments:</p>
+<ul>
+<li><code>njobs</code>, an integer specifying the number of jobs.</li>
+<li><code>fun</code>, a lambda that accepts two arguments, <code>start</code> and <code>end</code>.</li>
+<li><code>nthreads</code>, an integer specifying the number of threads to use.</li>
+</ul>
+<p >The function should split <code>[0, njobs)</code> into any number of contiguous, non-overlapping intervals, and call <code>fun</code> on each interval, possibly in different threads. The details of the splitting and evaluation are left to the discretion of the developer defining the macro. The function should only return once all evaluations of <code>fun</code> are complete. </p>
 
 </div>
 </div>
