@@ -15,7 +15,7 @@ namespace mnncorrect {
 template<typename Index, typename Float, class Builder>
 class CustomOrder {
 public:
-    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co) :
+    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co, int nt) :
         ndim(nd), 
         nobs(std::move(no)), 
         batches(std::move(b)),
@@ -23,7 +23,8 @@ public:
         builder(bfun),
         num_neighbors(k),
         corrected(c),
-        order(co, co + batches.size())
+        order(co, co + batches.size()),
+        nthreads(nt)
     {
         if (nobs.size() != batches.size()) {
             throw std::runtime_error("length of 'no' and 'b' must be equal");
@@ -34,7 +35,7 @@ public:
         }
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(nthreads)
         for (size_t b = 0; b < nobs.size(); ++b) {
 #else
         MNNCORRECT_CUSTOM_PARALLEL(nobs.size(), [&](size_t start, size_t end) -> void {
@@ -47,7 +48,7 @@ public:
         }
 #else
         }
-        });
+        }, nthreads);
 #endif
 
         // Picking the first batch to be our reference.
@@ -59,8 +60,8 @@ public:
 
         if (nobs.size() > 1) {
             auto second = order[1];
-            neighbors_target = quick_find_nns(nobs[second], batches[second], indices[first].get(), num_neighbors);
-            neighbors_ref = quick_find_nns(rnum, rdata, indices[second].get(), num_neighbors);
+            neighbors_target = quick_find_nns(nobs[second], batches[second], indices[first].get(), num_neighbors, nthreads);
+            neighbors_ref = quick_find_nns(rnum, rdata, indices[second].get(), num_neighbors, nthreads);
         }
 
         return;
@@ -97,7 +98,7 @@ protected:
             
             if (i) {
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(nthreads)
                 for (size_t n = 0; n < nxnum; ++n) {
 #else
                 MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
@@ -111,12 +112,12 @@ protected:
                 }
 #else
                 }
-                });
+                }, nthreads);
 #endif
 
             } else {
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(nthreads)
                 for (size_t n = 0; n < nxnum; ++n) {
 #else
                 MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
@@ -129,7 +130,7 @@ protected:
                 }
 #else
                 }
-                });
+                }, nthreads);
 #endif
             }
 
@@ -137,7 +138,7 @@ protected:
             auto prevdata = corrected + previous_ncorrected * ndim;
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(nthreads)
             for (size_t p = 0; p < prevnum; ++p) {
 #else
             MNNCORRECT_CUSTOM_PARALLEL(prevnum, [&](size_t start, size_t end) -> void {
@@ -150,7 +151,7 @@ protected:
             }
 #else
             }
-            });
+            }, nthreads);
 #endif
 
             previous_ncorrected += prevnum;
@@ -178,7 +179,8 @@ public:
                 nmads,
                 robust_iterations,
                 robust_trim,
-                corrected + ncorrected * ndim);
+                corrected + ncorrected * ndim,
+                nthreads);
 
             update(i);
             num_pairs.push_back(mnns.num_pairs);
@@ -204,6 +206,8 @@ protected:
     size_t ncorrected = 0;
     std::vector<int> order;
     std::vector<int> num_pairs;
+
+    int nthreads;
 };
 
 }

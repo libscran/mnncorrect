@@ -34,23 +34,15 @@ if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(libtest PRIVATE --coverage)
 endif()
 
-add_executable(
-    custom_parallel
-    src/correct_target.cpp
-    src/AutomaticOrder.cpp
-    src/CustomOrder.cpp
-    src/MnnCorrect.cpp
-)
+set(USE_OPENMP OFF CACHE BOOL "Compile with OpenMP support")
+set(USE_CUSTOM_PARALLEL OFF CACHE BOOL "Compile with custom parallelization")
 
-target_link_libraries(
-    custom_parallel 
-    gtest_main
-    mnncorrect 
-)
-
-set_target_properties(custom_parallel PROPERTIES COMPILE_DEFINITIONS "TEST_MNNCORRECT_CUSTOM_PARALLEL")
+if (USE_OPENMP)
+    find_package(OpenMP)
+    target_link_libraries(libtest OpenMP::OpenMP_CXX)
+elseif(USE_CUSTOM_PARALLEL)
+    target_compile_definitions(libtest PRIVATE TEST_CUSTOM_PARALLEL)
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(libtest)
-gtest_discover_tests(custom_parallel)
-

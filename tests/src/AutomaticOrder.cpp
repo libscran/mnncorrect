@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 // Must be before any mnncorrect includes.
-#ifdef TEST_MNNCORRECT_CUSTOM_PARALLEL
+#ifdef TEST_CUSTOM_PARALLEL
 #include "custom_parallel.h"
 #endif
 
@@ -55,8 +55,8 @@ TEST(AutomaticOrder, RunningVariances) {
 struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
     static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::MaxSize;
 
-    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, mnncorrect::ReferencePolicy first = default_policy) :
-        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, first) {}
+    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, mnncorrect::ReferencePolicy first = default_policy, int nthreads = 1) :
+        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, first, nthreads) {}
 
     const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_ref () const { 
         return neighbors_ref;
@@ -153,6 +153,9 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     std::vector<char> used(sizes.size());
     used[coords.get_order()[0]] = true;
 
+    std::vector<double> par_output(output.size());
+    AutomaticOrder2 par_coords(ndim, sizes, ptrs, par_output.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 3);
+
     std::mt19937_64 rng(123456);
     std::normal_distribution<> dist;
 
@@ -216,7 +219,16 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
                 compare_to_naive(naive, updated);
             }
         }
+
+        // Doing the same for the parallelized run.
+        EXPECT_EQ(par_coords.test_choose().first, chosen.first);
+        double* par_fixed = par_output.data() + sofar * ndim;
+        std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed);
+        par_coords.test_update(chosen.first);
     }
+
+    // Same results when run in parallel.
+    EXPECT_EQ(output, par_output);
 }
 
 TEST_P(AutomaticOrderTest, DifferentPolicies) {
@@ -279,7 +291,6 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
         }
     }
 }
-
 
 INSTANTIATE_TEST_CASE_P(
     AutomaticOrder,
