@@ -1,9 +1,6 @@
 #include <gtest/gtest.h>
 
-// Must be before any mnncorrect includes.
-#ifdef TEST_CUSTOM_PARALLEL
-#include "custom_parallel.h"
-#endif
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
 
 #include "mnncorrect/AutomaticOrder.hpp"
 #include <random>

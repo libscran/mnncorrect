@@ -1,5 +1,6 @@
 #ifndef CUSTOM_PARALLEL_H
 #define CUSTOM_PARALLEL_H
+#ifdef TEST_CUSTOM_PARALLEL
 
 #include <cmath>
 #include <vector>
@@ -26,4 +27,5 @@ void parallelize(size_t n, Function f, size_t nthreads) {
 }
 
 #define MNNCORRECT_CUSTOM_PARALLEL parallelize
+#endif
 #endif

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
+
 #include <random>
 #include <vector>
 #include <algorithm>
