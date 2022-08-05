@@ -70,8 +70,23 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
         return remaining; 
     }
 
-    auto test_choose(){
-        return choose();        
+    auto test_choose() const {
+        return choose();
+    }
+
+    // The parallelized chooser is very complicated, so we test it against
+    // the naive serial chooser, just in case.
+    auto simple_choose() const {
+        mnncorrect::MnnPairs<int> output;
+        size_t chosen = 0;
+        for (auto b : remaining) {
+            auto tmp = mnncorrect::find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
+            if (tmp.num_pairs > output.num_pairs) {
+                output = std::move(tmp);
+                chosen = b;
+            }
+        }
+       return std::pair<size_t, mnncorrect::MnnPairs<int> >(chosen, std::move(output));
     }
 
     void test_update(size_t latest) {
@@ -171,6 +186,11 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
 
+        auto simpler = coords.simple_choose();
+        EXPECT_EQ(chosen.first, simpler.first);
+        EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
+        EXPECT_EQ(chosen.second.matches, simpler.second.matches);
+
         // Applying an update. We mock up some corrected data so that the builders work correctly.
         size_t sofar = coords.get_ncorrected();
         double* fixed = output.data() + sofar * ndim;
@@ -218,7 +238,11 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         }
 
         // Doing the same for the parallelized run.
-        EXPECT_EQ(par_coords.test_choose().first, chosen.first);
+        auto par_chosen = par_coords.test_choose();
+        EXPECT_EQ(par_chosen.first, chosen.first);
+        EXPECT_EQ(chosen.second.num_pairs, par_chosen.second.num_pairs);
+        EXPECT_EQ(chosen.second.matches, par_chosen.second.matches);
+
         double* par_fixed = par_output.data() + sofar * ndim;
         std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed);
         par_coords.test_update(chosen.first);

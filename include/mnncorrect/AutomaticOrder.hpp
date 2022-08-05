@@ -179,16 +179,73 @@ protected:
     }
 
     std::pair<size_t, MnnPairs<Index> > choose() const {
-        MnnPairs<Index> output;
-        size_t chosen = 0;
-        for (auto b : remaining) {
-            auto tmp = find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
-            if (tmp.num_pairs > output.num_pairs) {
-                output = std::move(tmp);
-                chosen = b;
+        // Splitting up the remaining batches across threads. The idea is that
+        // each thread reports the maximum among its assigned batches, and then
+        // we compare the number of MNN pairs across the per-thread maxima.
+        size_t nremaining = remaining.size();
+        size_t per_thread = std::ceil(static_cast<double>(nremaining) / nthreads);
+
+        std::vector<decltype(remaining.begin())> starts;
+        size_t counter = 0;
+        for (auto it = remaining.begin(); it != remaining.end(); ++it) {
+            counter %= per_thread;
+            if (counter == 0) {
+                starts.push_back(it);
+            }
+            ++counter;
+        }
+
+        size_t actual_nthreads = starts.size(); // avoid having to check for threads that don't do any work.
+        std::vector<MnnPairs<Index> > collected(actual_nthreads);
+        std::vector<size_t> best(actual_nthreads);
+
+        starts.push_back(remaining.end()); // to easily check for the terminator in the last thread.
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        #pragma omp parallel for num_threads(actual_nthreads)
+        for (int t = 0; t < actual_nthreads; ++t) {
+#else
+        // This should be a trivial allocation when njobs = nthreads.
+        MNNCORRECT_CUSTOM_PARALLEL(actual_nthreads, [&](size_t start, size_t end) -> void {
+        for (int t = start; t < end; ++t) {
+#endif
+
+            // Within each thread, scanning for the maximum among the allocated batches.
+            auto startIt = starts[t], endIt = starts[t + 1];
+
+            MnnPairs<Index> best_pairs;
+            size_t chosen = *startIt;
+
+            while (startIt != endIt) {
+                auto b = *startIt;
+                auto tmp = find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
+                if (tmp.num_pairs > best_pairs.num_pairs) {
+                    best_pairs = std::move(tmp);
+                    chosen = b;
+                }
+                ++startIt;
+            }
+
+            collected[t] = std::move(best_pairs);
+            best[t] = chosen;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        }
+#else
+        }
+        }, actual_nthreads);
+#endif
+
+        // Scanning across threads for the maximum. (We assume that results
+        // from at least one thread are available.) 
+        size_t best_index = 0;
+        for (int t = 1; t < actual_nthreads; ++t) {
+            if (collected[t].num_pairs > collected[best_index].num_pairs) {
+                best_index = t;
             }
         }
-        return std::pair<size_t, MnnPairs<Index> >(chosen, std::move(output));
+
+        return std::pair<size_t, MnnPairs<Index> >(best[best_index], std::move(collected[best_index]));
     }
 
 public:
