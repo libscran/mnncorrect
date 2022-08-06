@@ -50,8 +50,10 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
 
     std::vector<std::vector<Index> > neighbors_of_left(nleft);
     for (Index l = 0; l < nleft; ++l) {
+        const auto& curleft = left[l];
         auto& storage = neighbors_of_left[l];
-        for (const auto& f : left[l]) {
+        storage.reserve(curleft.size());
+        for (const auto& f : curleft) {
             storage.push_back(f.first);
         }
         std::sort(storage.begin(), storage.end());

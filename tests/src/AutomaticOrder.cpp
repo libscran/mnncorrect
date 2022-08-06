@@ -90,7 +90,7 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
     }
 
     void test_update(size_t latest) {
-        update(latest);
+        update<false>(latest);
         return;
     }
 };

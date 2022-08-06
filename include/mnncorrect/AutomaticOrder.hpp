@@ -113,6 +113,7 @@ public:
     }
 
 protected:
+    template<bool purge = true>
     void update(size_t latest) {
         size_t lnum = nobs[latest]; 
         const Float* ldata = corrected + ncorrected * ndim;
@@ -121,14 +122,18 @@ protected:
         auto previous_ncorrected = ncorrected;
         ncorrected += lnum;
 
+        if constexpr(purge) { // try to free some memory if there are many batches.
+            neighbors_ref[latest].clear();
+            neighbors_ref[latest].shrink_to_fit(); 
+            indices[latest].reset();
+        }
+
         remaining.erase(latest);
         if (remaining.empty()) {
             return;
         }
 
-        // Updating all statistics with the latest batch added to the corrected reference.
-        indices[latest] = builder(ndim, lnum, ldata);
-        const auto& lindex = indices[latest];
+        auto lindex = builder(ndim, lnum, ldata);
 
         for (auto b : remaining){
             auto& rneighbors = neighbors_ref[b];
