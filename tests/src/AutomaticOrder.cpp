@@ -165,8 +165,14 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     std::vector<char> used(sizes.size());
     used[coords.get_order()[0]] = true;
 
-    std::vector<double> par_output(output.size());
-    AutomaticOrder2 par_coords(ndim, sizes, ptrs, par_output.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 3);
+    // Compare to multi-threaded versions, using 2 or 3 threads.
+    // We need to check this a bit more carefully because the
+    // multithreading inside the AutomaticOrder class is wild.
+    std::vector<double> par_output2(output.size());
+    AutomaticOrder2 par_coords2(ndim, sizes, ptrs, par_output2.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 2);
+
+    std::vector<double> par_output3(output.size());
+    AutomaticOrder2 par_coords3(ndim, sizes, ptrs, par_output3.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 3);
 
     std::mt19937_64 rng(123456);
     std::normal_distribution<> dist;
@@ -237,19 +243,33 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
 
-        // Doing the same for the parallelized run.
-        auto par_chosen = par_coords.test_choose();
-        EXPECT_EQ(par_chosen.first, chosen.first);
-        EXPECT_EQ(chosen.second.num_pairs, par_chosen.second.num_pairs);
-        EXPECT_EQ(chosen.second.matches, par_chosen.second.matches);
+        // Doing the same for the parallelized runners.
+        {
+            auto par_chosen2 = par_coords2.test_choose();
+            EXPECT_EQ(par_chosen2.first, chosen.first);
+            EXPECT_EQ(chosen.second.num_pairs, par_chosen2.second.num_pairs);
+            EXPECT_EQ(chosen.second.matches, par_chosen2.second.matches);
 
-        double* par_fixed = par_output.data() + sofar * ndim;
-        std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed);
-        par_coords.test_update(chosen.first);
+            double* par_fixed2 = par_output2.data() + sofar * ndim;
+            std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed2);
+            par_coords2.test_update(chosen.first);
+        }
+
+        {
+            auto par_chosen3 = par_coords3.test_choose();
+            EXPECT_EQ(par_chosen3.first, chosen.first);
+            EXPECT_EQ(chosen.second.num_pairs, par_chosen3.second.num_pairs);
+            EXPECT_EQ(chosen.second.matches, par_chosen3.second.matches);
+
+            double* par_fixed3 = par_output3.data() + sofar * ndim;
+            std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed3);
+            par_coords3.test_update(chosen.first);
+        }
     }
 
     // Same results when run in parallel.
-    EXPECT_EQ(output, par_output);
+    EXPECT_EQ(output, par_output2);
+    EXPECT_EQ(output, par_output3);
 }
 
 TEST_P(AutomaticOrderTest, DifferentPolicies) {
@@ -323,7 +343,8 @@ INSTANTIATE_TEST_CASE_P(
             std::vector<size_t>{10, 20},        
             std::vector<size_t>{10, 20, 30}, 
             std::vector<size_t>{100, 50, 80}, 
-            std::vector<size_t>{50, 30, 100, 90} 
+            std::vector<size_t>{50, 30, 100, 90},
+            std::vector<size_t>{50, 40, 30, 20, 10}
         )
     )
 );

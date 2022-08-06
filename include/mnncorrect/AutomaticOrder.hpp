@@ -191,6 +191,9 @@ protected:
             counter %= per_thread;
             if (counter == 0) {
                 starts.push_back(it);
+                if (starts.size() == static_cast<size_t>(nthreads)) {
+                    break;
+                }
             }
             ++counter;
         }
