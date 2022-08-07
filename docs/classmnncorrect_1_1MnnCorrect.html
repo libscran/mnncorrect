@@ -106,6 +106,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a06edf42b962df693d51ef5d986141735"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a866645cfd68a249ad550f73f7b87b67d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a866645cfd68a249ad550f73f7b87b67d">set_robust_trim</a> (double t=<a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ac776c7e34a88f4cef47c6ce53c936fba">Defaults::robust_trim</a>)</td></tr>
 <tr class="separator:a866645cfd68a249ad550f73f7b87b67d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af325d93c5f76c448d3cb79622aa558d3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#af325d93c5f76c448d3cb79622aa558d3">set_mass_cap</a> (size_t c=<a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#a179d9c58273e3cce896b88b3e3bb78a6">Defaults::mass_cap</a>)</td></tr>
+<tr class="separator:af325d93c5f76c448d3cb79622aa558d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a94ca84f936ea36ca7a47cfe73530be87"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a94ca84f936ea36ca7a47cfe73530be87">set_num_threads</a> (int n=<a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ae065e7d42f366755d4efc2b6d34b0a84">Defaults::num_threads</a>)</td></tr>
 <tr class="separator:a94ca84f936ea36ca7a47cfe73530be87"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a89af13dc9d3016788abf70de9b707f70"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html">Details</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a89af13dc9d3016788abf70de9b707f70">run</a> (int ndim, const std::vector&lt; size_t &gt; &amp;nobs, const std::vector&lt; const Float * &gt; &amp;batches, Float *output, const int *order=NULL)</td></tr>
@@ -420,6 +422,41 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 <p>If <code>true</code> and <code>order</code> is not supplied in <code><a class="el" href="classmnncorrect_1_1MnnCorrect.html#a89af13dc9d3016788abf70de9b707f70">run()</a></code>, the largest batch is used as the reference and other batches are successively merged onto it. At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.</p>
 <p >If <code>false</code> and <code>order</code> is not supplied, the supplied order of batches (or order of batch IDs) is used directly.</p>
 <p >If <code>order</code> is supplied, this setting is ignored and the specified order is always used. </p>
+
+</div>
+</div>
+<a id="af325d93c5f76c448d3cb79622aa558d3" name="af325d93c5f76c448d3cb79622aa558d3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af325d93c5f76c448d3cb79622aa558d3">&#9670;&nbsp;</a></span>set_mass_cap()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Index  = int, typename Float  = double&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a> &amp; <a class="el" href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect</a>&lt; Index, Float &gt;::set_mass_cap </td>
+          <td>(</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>c</em> = <code><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Defaults.html#a179d9c58273e3cce896b88b3e3bb78a6">Defaults::mass_cap</a></code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">c</td><td>Cap on the number of observations used to compute the center of mass for each MNN-involved observation. The dataset is effectively downsampled to <code>c</code> observations for this calculation, which improves speed at the cost of some precision.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A reference to this <code><a class="el" href="classmnncorrect_1_1MnnCorrect.html" title="Batch correction using mutual nearest neighbors.">MnnCorrect</a></code> object. </dd></dl>
 
 </div>
 </div>
