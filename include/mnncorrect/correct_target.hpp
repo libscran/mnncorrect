@@ -75,7 +75,13 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 
     // Pooling all distances together.
     std::vector<Float> all_distances;
-    all_distances.reserve(found.size() * found[0].size());
+    {
+        size_t full_size = 0;
+        for (const auto& f : found) {
+            full_size += f.size();
+        }
+        all_distances.reserve(full_size);
+    }
     for (const auto& f : found) {
         for (const auto& x : f) {
             all_distances.push_back(x.second);
