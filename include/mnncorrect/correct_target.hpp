@@ -73,6 +73,7 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 template<typename Index, typename Float>
 void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit, int nthreads) {
     auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
+    RobustAverage<Index, Float> rbave(iterations, trim);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL    
     #pragma omp parallel num_threads(nthreads)
@@ -81,7 +82,7 @@ void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, 
     MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t end) -> void {
 #endif
 
-        RobustAverage<Index, Float> rbave(iterations, trim);
+        std::vector<std::pair<Float, Index> > deltas;
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp for
@@ -90,7 +91,7 @@ void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, 
         for (size_t g = start; g < end; ++g) {
 #endif
 
-            rbave.run(ndim, inverted[g], data, buffer + g * ndim);
+            rbave.run(ndim, inverted[g], data, buffer + g * ndim, deltas);
         }
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
@@ -139,6 +140,8 @@ void correct_target(
     auto remap_ref = invert_indices(nref, uniq_ref);
     auto remap_target = invert_indices(ntarget, uniq_target);
 
+    RobustAverage<Index, Float> rbave(robust_iterations, robust_trim);
+
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
     #pragma omp parallel num_threads(nthreads)
     {
@@ -148,7 +151,7 @@ void correct_target(
 
         std::vector<Float> corrections;
         corrections.reserve(ndim * 100); // just filling it with something to avoid initial allocations.
-        RobustAverage<Index, Float> rbave(robust_iterations, robust_trim);
+        std::vector<std::pair<Float, Index> > deltas;
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         #pragma omp for
@@ -174,7 +177,7 @@ void correct_target(
             }
 
             auto optr = output + t * ndim;
-            rbave.run(ndim, ncorrections, corrections.data(), optr);
+            rbave.run(ndim, ncorrections, corrections.data(), optr, deltas);
 
             // Actually applying the correction.
             auto tptr = target + t * ndim;

@@ -34,31 +34,34 @@ NeighborSet<Index, Dist> quick_find_nns(size_t n, const Dist* query, const knnco
 
 template<typename Index, typename Dist>
 void fuse_nn_results(std::vector<std::pair<Index, Dist> >& base, const std::vector<std::pair<Index, Dist> >& alt, size_t num_neighbors, Index offset = 0) {
-    auto last = base;
-    base.clear();
-    auto lIt = last.begin();
+    std::vector<std::pair<Index, Dist> > replacement;
+    replacement.reserve(num_neighbors);
+
+    auto bIt = base.begin();
     auto aIt = alt.begin();
-    while (base.size() < num_neighbors) {
-        if (lIt != last.end() && aIt != alt.end()) {
-            if (lIt->second > aIt->second) {
-                base.push_back(*aIt);
-                base.back().first += offset;
+    while (replacement.size() < num_neighbors) {
+        if (bIt != base.end() && aIt != alt.end()) {
+            if (bIt->second > aIt->second) {
+                replacement.push_back(*aIt);
+                replacement.back().first += offset;
                 ++aIt;
             } else {
-                base.push_back(*lIt);
-                ++lIt;
+                replacement.push_back(*bIt);
+                ++bIt;
             }
-        } else if (lIt != last.end()) {
-            base.push_back(*lIt);
-            ++lIt;
+        } else if (bIt != base.end()) {
+            replacement.push_back(*bIt);
+            ++bIt;
         } else if (aIt != alt.end()) {
-            base.push_back(*aIt);
-            base.back().first += offset;
+            replacement.push_back(*aIt);
+            replacement.back().first += offset;
             ++aIt;
         } else {
             break;
         }
     }
+
+    base = std::move(replacement);
 }
 
 }

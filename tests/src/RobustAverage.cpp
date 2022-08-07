@@ -52,6 +52,27 @@ TEST(RobustAverageTest, Basic) {
     }
 }
 
+TEST(RobustAverageTest, Persistence) {
+    std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
+
+    std::vector<std::pair<double, int> > deltas;
+    deltas.emplace_back(0.9, 1);
+    deltas.emplace_back(0.99, 10);
+    deltas.emplace_back(0.9999, -5);
+    deltas.emplace_back(0.01, 100);
+    deltas.emplace_back(0.05, 6);
+
+    mnncorrect::RobustAverage<int, double> test(0, 0.25);
+    double ref;
+    test.run(1, data.size(), data.data(), &ref);
+
+    // Gunk in the delta buffer is of no consequence.
+    double output;
+    test.run(1, data.size(), data.data(), &output, deltas);
+
+    EXPECT_EQ(ref, output);
+}
+
 TEST(RobustAverageTest, EdgeCases) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 

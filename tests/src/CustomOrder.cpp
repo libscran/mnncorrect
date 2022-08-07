@@ -24,7 +24,7 @@ struct CustomOrder2 : public mnncorrect::CustomOrder<int, double, Builder> {
     }
 
     void test_update(size_t latest) {
-        update<true>(latest);
+        update(latest);
         return;
     }
 };

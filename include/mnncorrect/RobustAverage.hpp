@@ -46,7 +46,7 @@ private:
     double trim;
 
     template<class Function>
-    void run(int ndim, size_t npts, Function indfun, const Float* data, Float* output) {
+    void run(int ndim, size_t npts, Function indfun, const Float* data, Float* output, std::vector<std::pair<Float, Index> >& deltas) const {
         std::fill(output, output + ndim, 0);
         for (size_t i = 0; i < npts; ++i) {
             auto dptr = data + indfun(i) * ndim;
@@ -125,18 +125,27 @@ private:
     }
 
 public:
-    void run(int ndim, size_t npts, const Float* data, Float* output) {
-        run(ndim, npts, [](size_t i) -> size_t { return i; }, data, output);
+    void run(int ndim, size_t npts, const Float* data, Float* output, std::vector<std::pair<Float, Index> >& deltas) const {
+        run(ndim, npts, [](size_t i) -> size_t { return i; }, data, output, deltas);
         return;
     }
 
-    void run(int ndim, const std::vector<Index>& indices, const Float* data, Float* output) {
-        run(ndim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output);
+    void run(int ndim, const std::vector<Index>& indices, const Float* data, Float* output, std::vector<std::pair<Float, Index> >& deltas) const {
+        run(ndim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output, deltas);
         return;
     }
 
-private:
-    std::vector<std::pair<Float, Index> > deltas;
+    void run(int ndim, size_t npts, const Float* data, Float* output) const {
+        std::vector<std::pair<Float, Index> > deltas;
+        run(ndim, npts, data, output, deltas);
+        return;
+    }
+
+    void run(int ndim, const std::vector<Index>& indices, const Float* data, Float* output) const {
+        std::vector<std::pair<Float, Index> > deltas;
+        run(ndim, indices, data, output, deltas);
+        return;
+    }
 };
 
 }

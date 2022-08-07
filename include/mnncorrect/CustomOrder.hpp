@@ -68,7 +68,6 @@ public:
     }
 
 protected:
-    template<bool testing = false>
     void update(size_t position) {
         auto latest = order[position];
         size_t lnum = nobs[latest]; 
