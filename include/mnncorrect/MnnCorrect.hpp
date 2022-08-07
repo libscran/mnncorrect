@@ -85,6 +85,11 @@ public:
         static constexpr ReferencePolicy reference_policy = MaxSize;
 
         /**
+         * See `set_mass_cap()` for more details.
+         */
+        static constexpr size_t mass_cap = -1;
+
+        /**
          * See `set_num_threads()` for more details.
          */
         static constexpr int num_threads = 1;
@@ -104,6 +109,8 @@ private:
     int robust_iterations = Defaults::robust_iterations;
 
     double robust_trim = Defaults::robust_trim;
+
+    size_t nobs_cap = Defaults::mass_cap;
 
     int nthreads = Defaults::num_threads;
 
@@ -198,6 +205,17 @@ public:
     }
 
     /**
+     * @param c Cap on the number of observations used to compute the center of mass for each MNN-involved observation.
+     * The dataset is effectively downsampled to `c` observations for this calculation, which improves speed at the cost of some precision.
+     *
+     * @return A reference to this `MnnCorrect` object.
+     */
+    MnnCorrect& set_mass_cap(size_t c = Defaults::mass_cap) {
+        nobs_cap = c;
+        return *this;
+    }
+
+    /**
      * @param n Number of threads to use.
      * 
      * @return A reference to this `MnnCorrect` object.
@@ -264,18 +282,18 @@ private:
 
         if (order == NULL) {
             if (automatic_order) {
-                AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, reference_policy, nthreads);
+                AutomaticOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, reference_policy, nobs_cap, nthreads);
                 runner.run(num_mads, robust_iterations, robust_trim);
                 return Details(runner.get_order(), runner.get_num_pairs());
             } else {
                 std::vector<int> trivial_order(nobs.size());
                 std::iota(trivial_order.begin(), trivial_order.end(), 0);
-                CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, trivial_order.data(), nthreads);
+                CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, trivial_order.data(), nobs_cap, nthreads);
                 runner.run(num_mads, robust_iterations, robust_trim);
                 return Details(std::move(trivial_order), runner.get_num_pairs());
             }
         } else {
-            CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, order, nthreads);
+            CustomOrder<Index, Float, decltype(builder)> runner(ndim, nobs, batches, output, builder, num_neighbors, order, nobs_cap, nthreads);
             runner.run(num_mads, robust_iterations, robust_trim);
             return Details(runner.get_order(), runner.get_num_pairs());
         }

@@ -52,8 +52,8 @@ TEST(AutomaticOrder, RunningVariances) {
 struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
     static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::MaxSize;
 
-    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, mnncorrect::ReferencePolicy first = default_policy, int nthreads = 1) :
-        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, first, nthreads) {}
+    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, mnncorrect::ReferencePolicy first = default_policy, size_t cap = -1, int nthreads = 1) :
+        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, first, cap, nthreads) {}
 
     const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_ref () const { 
         return neighbors_ref;
@@ -169,10 +169,10 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     // We need to check this a bit more carefully because the
     // multithreading inside the AutomaticOrder class is wild.
     std::vector<double> par_output2(output.size());
-    AutomaticOrder2 par_coords2(ndim, sizes, ptrs, par_output2.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 2);
+    AutomaticOrder2 par_coords2(ndim, sizes, ptrs, par_output2.data(), k, AutomaticOrder2::default_policy, /* cap = */ -1, /* nthreads = */ 2);
 
     std::vector<double> par_output3(output.size());
-    AutomaticOrder2 par_coords3(ndim, sizes, ptrs, par_output3.data(), k, AutomaticOrder2::default_policy, /* nthreads = */ 3);
+    AutomaticOrder2 par_coords3(ndim, sizes, ptrs, par_output3.data(), k, AutomaticOrder2::default_policy, /* cap = */ -1, /* nthreads = */ 3);
 
     std::mt19937_64 rng(123456);
     std::normal_distribution<> dist;

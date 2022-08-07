@@ -13,7 +13,7 @@
 namespace mnncorrect {
 
 template<typename Index, typename Float, class Builder>
-NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Builder bfun, int k, Float* buffer, int nthreads) {
+NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Builder bfun, int k, Float* buffer, size_t nobs_cap, int nthreads) {
     for (size_t f = 0; f < in_mnn.size(); ++f) {
         auto current = in_mnn[f];
         auto curdata = data + current * ndim;
@@ -23,22 +23,46 @@ NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Floa
     auto index = bfun(ndim, in_mnn.size(), buffer);
     NeighborSet<Index, Float> output(nobs);
 
+    if (nobs_cap >= nobs) {
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-    #pragma omp parallel for num_threads(nthreads)
-    for (size_t o = 0; o < nobs; ++o) {
+        #pragma omp parallel for num_threads(nthreads)
+        for (size_t o = 0; o < nobs; ++o) {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
-    for (size_t o = start; o < end; ++o) {
+        MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
+        for (size_t o = start; o < end; ++o) {
 #endif
 
-        output[o] = index->find_nearest_neighbors(data + o * ndim, k);
+            output[o] = index->find_nearest_neighbors(data + o * ndim, k);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-    }
+        }
 #else
-    }
-    }, nthreads);
+        }
+        }, nthreads);
 #endif
+    } else {
+        // The gap guaranteed to be > 1 here, so there's no chance of jobs
+        // overlapping if we apply any type of truncation or rounding.
+        double gap = static_cast<double>(nobs) / nobs_cap; 
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        #pragma omp parallel for num_threads(nthreads)
+        for (size_t o_ = 0; o_ < nobs_cap; ++o_) {
+#else
+        MNNCORRECT_CUSTOM_PARALLEL(nobs_cap, [&](size_t start, size_t end) -> void {
+        for (size_t o_ = start; o_ < end; ++o_) {
+#endif
+
+            int o = gap * o_; // truncation
+            output[o] = index->find_nearest_neighbors(data + o * ndim, k);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        }
+#else
+        }
+        }, nthreads);
+#endif
+    }
 
     return output;
 }
@@ -115,8 +139,9 @@ void correct_target(
     int k, 
     Float nmads,
     int robust_iterations,
-    double robust_trim, // yes, this is a double. Doesn't really matter given where we're using it.
+    double robust_trim, // yes, this is a double, not a Float. Doesn't really matter given where we're using it.
     Float* output,
+    size_t nobs_cap,
     int nthreads) 
 {
     auto uniq_ref = unique_left(pairings);
@@ -124,11 +149,11 @@ void correct_target(
 
     // Determine the expected width to use. 
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
-    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data(), nthreads);
+    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data(), nobs_cap, nthreads);
     Float limit_closest_ref = limit_from_closest_distances(mnn_ref, nmads);
 
     std::vector<Float> buffer_target(uniq_target.size() * ndim);
-    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data(), nthreads);
+    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data(), nobs_cap, nthreads);
     Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
 
     // Computing the centers of mass, stored in the buffers.

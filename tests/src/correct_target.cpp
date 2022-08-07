@@ -9,12 +9,12 @@
 #include <random>
 
 template<typename Index, typename Float>
-mnncorrect::NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer, int nthreads = 1) {
+mnncorrect::NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer, size_t cap = -1, int nthreads = 1) {
     typedef knncolle::Base<Index, Float> knncolleBase;
     auto builder = [](int nd, size_t no, const Float* d) -> auto { 
         return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d));
     };
-    return mnncorrect::identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer, nthreads);
+    return mnncorrect::identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer, cap, nthreads);
 }
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
@@ -69,7 +69,7 @@ TEST_P(CorrectTargetTest, IdentifyClosestMnns) {
     }
 
     // Same results in parallel.
-    auto par_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data(), /* nthreads = */ 3);
+    auto par_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data(), /* cap = */ -1, /* nthreads = */ 3);
     EXPECT_EQ(self_mnn.size(), par_mnn.size());
     for (size_t i = 0; i < self_mnn.size(); ++i) {
         EXPECT_EQ(self_mnn[i], par_mnn[i]);
@@ -157,7 +157,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
 }
 
 template<typename Index, typename Float>
-void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const mnncorrect::MnnPairs<Index>& pairings, int k, Float* output, int nthreads = 1) {
+void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const mnncorrect::MnnPairs<Index>& pairings, int k, Float* output, size_t cap = -1, int nthreads = 1) {
     typedef knncolle::Base<Index, Float> knncolleBase;
     auto builder = [](int nd, size_t no, const Float* d) -> auto { 
         return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
@@ -166,7 +166,7 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
     const double nmads = 3;
     const int iterations = 2;
     const double trim = 0.2;
-    mnncorrect::correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, iterations, trim, output, nthreads);
+    mnncorrect::correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, iterations, trim, output, cap, nthreads);
     return;
 }
 
@@ -197,7 +197,7 @@ TEST_P(CorrectTargetTest, Correction) {
 
     // Same result with multiple threads.
     std::vector<double> par_buffer(nright * ndim);
-    correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, par_buffer.data(), /* nthreads = */ 3);
+    correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, par_buffer.data(), /* cap = */ -1, /* nthreads = */ 3);
 }
 
 INSTANTIATE_TEST_CASE_P(
