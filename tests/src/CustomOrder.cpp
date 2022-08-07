@@ -9,8 +9,8 @@
 #include "order_utils.h"
 
 struct CustomOrder2 : public mnncorrect::CustomOrder<int, double, Builder> {
-    CustomOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, const int* co, int nthreads = 1) :
-        CustomOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, co, nthreads) {}
+    CustomOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, const int* co, size_t cap = -1, int nthreads = 1) :
+        CustomOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, co, cap, nthreads) {}
 
     const mnncorrect::NeighborSet<int, double>& get_neighbors_ref () const { 
         return neighbors_ref;
@@ -92,7 +92,7 @@ TEST_P(CustomOrderTest, CheckUpdateSimple) {
     CustomOrder2 coords(ndim, sizes, ptrs, output.data(), k, forward.data());
 
     std::vector<double> par_output(output.size());
-    CustomOrder2 par_coords(ndim, sizes, ptrs, par_output.data(), k, forward.data(), /* nthreads = */ 3);
+    CustomOrder2 par_coords(ndim, sizes, ptrs, par_output.data(), k, forward.data(), /* cap = */ -1, /* nthreads = */ 3);
 
     std::mt19937_64 rng(123456);
     std::normal_distribution<> dist;

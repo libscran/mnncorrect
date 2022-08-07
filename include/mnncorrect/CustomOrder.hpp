@@ -15,7 +15,7 @@ namespace mnncorrect {
 template<typename Index, typename Float, class Builder>
 class CustomOrder {
 public:
-    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co, int nt) :
+    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co, size_t no_cap, int nt) :
         ndim(nd), 
         nobs(std::move(no)), 
         batches(std::move(b)),
@@ -24,6 +24,7 @@ public:
         num_neighbors(k),
         corrected(c),
         order(co, co + batches.size()),
+        nobs_cap(no_cap),
         nthreads(nt)
     {
         if (nobs.size() != batches.size()) {
@@ -179,6 +180,7 @@ public:
                 robust_iterations,
                 robust_trim,
                 corrected + ncorrected * ndim,
+                nobs_cap,
                 nthreads);
 
             update(i);
@@ -206,6 +208,7 @@ protected:
     std::vector<int> order;
     std::vector<int> num_pairs;
 
+    size_t nobs_cap;
     int nthreads;
 };
 

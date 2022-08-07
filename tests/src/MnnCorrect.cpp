@@ -13,10 +13,6 @@ protected:
 
     template<class Param>
     void assemble(Param param) {
-        // Simulating values.
-        std::mt19937_64 rng(42);
-        std::normal_distribution<> dist;
-
         ndim = std::get<0>(param);
         k = std::get<1>(param);
         sizes = std::get<2>(param);
@@ -24,6 +20,10 @@ protected:
         nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
         data.resize(nobs * ndim);
         ptrs.resize(sizes.size());
+
+        // Simulating values.
+        std::mt19937_64 rng(nobs / k);
+        std::normal_distribution<> dist;
 
         auto ptr = data.data();
         for (size_t b = 0; b < sizes.size(); ++b) {
@@ -241,6 +241,32 @@ TEST_P(MnnCorrectTest, OtherInputs) {
     auto ordering3 = mnnrun.run(ndim, nobs, copy.data(), batch.data(), output3.data());
     EXPECT_EQ(ref, output3);
     EXPECT_EQ(ordering.merge_order, ordering3.merge_order);
+}
+
+TEST_P(MnnCorrectTest, OtherParams) {
+    assemble(GetParam());
+
+    mnncorrect::MnnCorrect<> mnnrun;
+    mnnrun.set_num_neighbors(k);
+    std::vector<double> output(nobs * ndim);
+    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+
+    // Trying different options to check they have some effect.    
+    {
+        std::vector<double> output2(nobs * ndim);
+        mnnrun.set_mass_cap(50);
+        auto ordering = mnnrun.run(ndim, sizes, ptrs, output2.data());
+        EXPECT_NE(output2, output);
+        mnnrun.set_mass_cap(mnncorrect::MnnCorrect<>::Defaults::mass_cap);
+    }
+
+    {
+        std::vector<double> output2(nobs * ndim);
+        mnnrun.set_robust_trim(0);
+        auto ordering = mnnrun.run(ndim, sizes, ptrs, output2.data());
+        EXPECT_NE(output2, output);
+        mnnrun.set_mass_cap(mnncorrect::MnnCorrect<>::Defaults::robust_trim);
+    }
 }
 
 INSTANTIATE_TEST_CASE_P(

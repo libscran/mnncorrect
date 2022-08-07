@@ -9,12 +9,12 @@
 #include <random>
 
 template<typename Index, typename Float>
-mnncorrect::NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer, int nthreads = 1) {
+mnncorrect::NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer, size_t cap = -1, int nthreads = 1) {
     typedef knncolle::Base<Index, Float> knncolleBase;
     auto builder = [](int nd, size_t no, const Float* d) -> auto { 
         return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d));
     };
-    return mnncorrect::identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer, nthreads);
+    return mnncorrect::identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer, cap, nthreads);
 }
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
@@ -69,10 +69,54 @@ TEST_P(CorrectTargetTest, IdentifyClosestMnns) {
     }
 
     // Same results in parallel.
-    auto par_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data(), /* nthreads = */ 3);
+    auto par_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data(), /* cap = */ -1, /* nthreads = */ 3);
     EXPECT_EQ(self_mnn.size(), par_mnn.size());
     for (size_t i = 0; i < self_mnn.size(); ++i) {
         EXPECT_EQ(self_mnn[i], par_mnn[i]);
+    }
+}
+
+TEST_P(CorrectTargetTest, IdentifyClosestMnnsCapped) {
+    assemble(GetParam());
+
+    auto right_mnn = mnncorrect::unique_right(pairings);
+    std::vector<double> buffer(right_mnn.size() * ndim);
+    auto self_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data());
+
+    std::vector<double> buffer2(right_mnn.size() * ndim);
+    size_t ncap = 20;
+    EXPECT_TRUE(ncap < nright);
+    auto self_mnn2 = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer2.data(), ncap);
+
+    {
+        EXPECT_EQ(buffer, buffer2);
+        size_t obs_ncap = 0;
+        for (size_t c = 0; c < self_mnn2.size(); ++c) {
+            if (!self_mnn2[c].empty()) {
+                EXPECT_EQ(self_mnn[c], self_mnn2[c]);
+                ++obs_ncap;
+            }
+        }
+        EXPECT_EQ(obs_ncap, ncap);
+
+        // Remaining steps run without issue.
+        double limit = mnncorrect::limit_from_closest_distances(self_mnn2, 3.0);
+        EXPECT_TRUE(limit > 0);
+        auto inverted = mnncorrect::invert_neighbors(right_mnn.size(), self_mnn2, limit);
+        EXPECT_EQ(inverted.size(), right_mnn.size());
+    }
+
+    // Same results in parallel.
+    {
+        auto par_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer.data(), 100, /* nthreads = */ 3);
+        size_t obs_ncap = 0;
+        for (size_t c = 0; c < self_mnn2.size(); ++c) {
+            if (!self_mnn2[c].empty()) {
+                EXPECT_EQ(par_mnn[c], self_mnn2[c]);
+                ++obs_ncap;
+            }
+        }
+        EXPECT_EQ(obs_ncap, ncap);
     }
 }
 
@@ -116,12 +160,12 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     {
         auto self_mnn = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left.data());
         double limit = mnncorrect::limit_from_closest_distances(self_mnn);
-        mnncorrect::compute_center_of_mass(ndim, left_mnn.size(), self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
 
         // Same results in parallel.
         {
             std::vector<double> par_buffer_left(left_mnn.size() * ndim);
-            mnncorrect::compute_center_of_mass(ndim, left_mnn.size(), self_mnn, left.data(), par_buffer_left.data(), iterations, trim, limit, /* nthreads = */ 3);
+            mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), par_buffer_left.data(), iterations, trim, limit, /* nthreads = */ 3);
             EXPECT_EQ(par_buffer_left, buffer_left);
         }
     }
@@ -131,7 +175,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     {
         auto self_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer_right.data());
         double limit = mnncorrect::limit_from_closest_distances(self_mnn);
-        mnncorrect::compute_center_of_mass(ndim, right_mnn.size(), self_mnn, right.data(), buffer_right.data(), iterations, trim, limit, nthreads);
+        mnncorrect::compute_center_of_mass(ndim, right_mnn, self_mnn, right.data(), buffer_right.data(), iterations, trim, limit, nthreads);
     }
 
     // Checking that the centroids are all around about the expectations.
@@ -156,8 +200,50 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     }
 }
 
+TEST_P(CorrectTargetTest, CenterOfMassCapped) {
+    assemble(GetParam());
+
+    const int iterations = 2;
+    const double trim = 0.2;
+    const int nthreads = 1;
+
+    auto left_mnn = mnncorrect::unique_left(pairings);
+    std::vector<double> buffer_left(left_mnn.size() * ndim);
+
+    // Reference value.
+    {
+        auto self_mnn = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left.data());
+        double limit = mnncorrect::limit_from_closest_distances(self_mnn);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
+    }
+
+    // Forcing a cap to get different results.
+    {
+        std::vector<double> buffer_left2(left_mnn.size() * ndim);
+        auto self_mnn2 = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left2.data(), 50);
+        double limit2 = mnncorrect::limit_from_closest_distances(self_mnn2);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn2, left.data(), buffer_left2.data(), iterations, trim, limit2, nthreads);
+        EXPECT_NE(buffer_left, buffer_left2);
+    }
+
+    // Checking what happens when the cap is onerous.
+    {
+        std::vector<double> buffer_left2(left_mnn.size() * ndim);
+        auto self_mnn2 = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left2.data(), 0);
+        double limit2 = mnncorrect::limit_from_closest_distances(self_mnn2);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn2, left.data(), buffer_left2.data(), iterations, trim, limit2, nthreads);
+
+        std::vector<double> expected;
+        for (auto x : left_mnn) {
+            auto it = left.data() + x * ndim;
+            expected.insert(expected.end(), it, it + ndim);
+        }
+        EXPECT_EQ(expected, buffer_left2);
+    }
+}
+
 template<typename Index, typename Float>
-void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const mnncorrect::MnnPairs<Index>& pairings, int k, Float* output, int nthreads = 1) {
+void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, const Float* target, const mnncorrect::MnnPairs<Index>& pairings, int k, Float* output, size_t cap = -1, int nthreads = 1) {
     typedef knncolle::Base<Index, Float> knncolleBase;
     auto builder = [](int nd, size_t no, const Float* d) -> auto { 
         return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d)); 
@@ -166,7 +252,7 @@ void correct_target(int ndim, size_t nref, const Float* ref, size_t ntarget, con
     const double nmads = 3;
     const int iterations = 2;
     const double trim = 0.2;
-    mnncorrect::correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, iterations, trim, output, nthreads);
+    mnncorrect::correct_target(ndim, nref, ref, ntarget, target, pairings, builder, k, nmads, iterations, trim, output, cap, nthreads);
     return;
 }
 
@@ -197,7 +283,13 @@ TEST_P(CorrectTargetTest, Correction) {
 
     // Same result with multiple threads.
     std::vector<double> par_buffer(nright * ndim);
-    correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, par_buffer.data(), /* nthreads = */ 3);
+    correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, par_buffer.data(), /* cap = */ -1, /* nthreads = */ 3);
+    EXPECT_EQ(par_buffer, buffer);
+
+    // Different results with a cap.
+    std::vector<double> cap_buffer(nright * ndim);
+    correct_target(ndim, nleft, left.data(), nright, right.data(), pairings, k, cap_buffer.data(), /* cap = */ 50);
+    EXPECT_NE(cap_buffer, buffer);
 }
 
 INSTANTIATE_TEST_CASE_P(
