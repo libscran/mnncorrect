@@ -48,26 +48,30 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
     Index nleft = left.size();
     Index nright = right.size();
 
-    std::vector<std::vector<Index> > neighbors_of_left(nleft);
-    for (Index l = 0; l < nleft; ++l) {
-        const auto& curleft = left[l];
-        auto& storage = neighbors_of_left[l];
-        storage.reserve(curleft.size());
-        for (const auto& f : curleft) {
-            storage.push_back(f.first);
-        }
-        std::sort(storage.begin(), storage.end());
-    }
-
     MnnPairs<Index> output(nright);
+    std::vector<std::vector<Index> > neighbors_of_left(nleft);
     std::vector<size_t> last(nleft);
+
     for (Index r = 0; r < nright; ++r) {
         const auto& mine = right[r];
         std::vector<Index> holder;
 
         for (auto left_pair : mine) {
             auto left_neighbor = left_pair.first;
-            const auto& other = neighbors_of_left[left_neighbor];
+            auto& other = neighbors_of_left[left_neighbor];
+
+            if (other.empty()) {
+                // Only instantiate this when needed.
+                const auto& curleft = left[left_neighbor];
+                if (curleft.size()) {
+                    other.reserve(curleft.size());
+                    for (const auto& f : curleft) {
+                        other.push_back(f.first);
+                    }
+                    std::sort(other.begin(), other.end());
+                }
+            }
+
             auto& position = last[left_neighbor];
 
             for (; position < other.size(); ++position) {
