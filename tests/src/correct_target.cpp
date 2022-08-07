@@ -160,12 +160,12 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     {
         auto self_mnn = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left.data());
         double limit = mnncorrect::limit_from_closest_distances(self_mnn);
-        mnncorrect::compute_center_of_mass(ndim, left_mnn.size(), self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
 
         // Same results in parallel.
         {
             std::vector<double> par_buffer_left(left_mnn.size() * ndim);
-            mnncorrect::compute_center_of_mass(ndim, left_mnn.size(), self_mnn, left.data(), par_buffer_left.data(), iterations, trim, limit, /* nthreads = */ 3);
+            mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), par_buffer_left.data(), iterations, trim, limit, /* nthreads = */ 3);
             EXPECT_EQ(par_buffer_left, buffer_left);
         }
     }
@@ -175,7 +175,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     {
         auto self_mnn = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer_right.data());
         double limit = mnncorrect::limit_from_closest_distances(self_mnn);
-        mnncorrect::compute_center_of_mass(ndim, right_mnn.size(), self_mnn, right.data(), buffer_right.data(), iterations, trim, limit, nthreads);
+        mnncorrect::compute_center_of_mass(ndim, right_mnn, self_mnn, right.data(), buffer_right.data(), iterations, trim, limit, nthreads);
     }
 
     // Checking that the centroids are all around about the expectations.
@@ -197,6 +197,48 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     }
     for (auto m : right_means) {
         EXPECT_TRUE(std::abs(m / right_mnn.size() - 5) < 0.5);
+    }
+}
+
+TEST_P(CorrectTargetTest, CenterOfMassCapped) {
+    assemble(GetParam());
+
+    const int iterations = 2;
+    const double trim = 0.2;
+    const int nthreads = 1;
+
+    auto left_mnn = mnncorrect::unique_left(pairings);
+    std::vector<double> buffer_left(left_mnn.size() * ndim);
+
+    // Reference value.
+    {
+        auto self_mnn = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left.data());
+        double limit = mnncorrect::limit_from_closest_distances(self_mnn);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn, left.data(), buffer_left.data(), iterations, trim, limit, nthreads);
+    }
+
+    // Forcing a cap to get different results.
+    {
+        std::vector<double> buffer_left2(left_mnn.size() * ndim);
+        auto self_mnn2 = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left2.data(), 50);
+        double limit2 = mnncorrect::limit_from_closest_distances(self_mnn2);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn2, left.data(), buffer_left2.data(), iterations, trim, limit2, nthreads);
+        EXPECT_NE(buffer_left, buffer_left2);
+    }
+
+    // Checking what happens when the cap is onerous.
+    {
+        std::vector<double> buffer_left2(left_mnn.size() * ndim);
+        auto self_mnn2 = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left2.data(), 0);
+        double limit2 = mnncorrect::limit_from_closest_distances(self_mnn2);
+        mnncorrect::compute_center_of_mass(ndim, left_mnn, self_mnn2, left.data(), buffer_left2.data(), iterations, trim, limit2, nthreads);
+
+        std::vector<double> expected;
+        for (auto x : left_mnn) {
+            auto it = left.data() + x * ndim;
+            expected.insert(expected.end(), it, it + ndim);
+        }
+        EXPECT_EQ(expected, buffer_left2);
     }
 }
 

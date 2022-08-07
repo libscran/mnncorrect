@@ -101,7 +101,8 @@ Float limit_from_closest_distances(const NeighborSet<Index, Float>& found, Float
 }
 
 template<typename Index, typename Float>
-void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit, int nthreads) {
+void compute_center_of_mass(int ndim, const std::vector<Index>& mnn_ids, const NeighborSet<Index, Float>& closest_mnn, const Float* data, Float* buffer, int iterations, double trim, Float limit, int nthreads) {
+    auto num_mnns = mnn_ids.size();
     auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
     RobustAverage<Index, Float> rbave(iterations, trim);
 
@@ -121,7 +122,20 @@ void compute_center_of_mass(int ndim, size_t num_mnns, const NeighborSet<Index, 
         for (size_t g = start; g < end; ++g) {
 #endif
 
-            rbave.run(ndim, inverted[g], data, buffer + g * ndim, deltas);
+            // Usually, the MNN is always included in its own neighbor list.
+            // However, this may not be the case if a cap is applied. We don't
+            // want to force it into the neighbor list, because that biases the
+            // subsample towards the MNN (thus causing kissing effects). So, in
+            // the unfortunate case when the MNN's neighbor list is empty, we
+            // fall back to just setting the center of mass to the MNN itself.
+            const auto& inv = inverted[g];
+            auto output = buffer + g * ndim;
+            if (inv.empty()) {
+                auto ptr = data + mnn_ids[g] * ndim;
+                std::copy(ptr, ptr + ndim, output);
+            } else {
+                rbave.run(ndim, inv, data, output, deltas);
+            }
         }
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
@@ -163,8 +177,8 @@ void correct_target(
     Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
 
     // Computing the centers of mass, stored in the buffers.
-    compute_center_of_mass(ndim, uniq_ref.size(), mnn_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref, nthreads);
-    compute_center_of_mass(ndim, uniq_target.size(), mnn_target, target, buffer_target.data(), robust_iterations, robust_trim, limit_closest_target, nthreads);
+    compute_center_of_mass(ndim, uniq_ref, mnn_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref, nthreads);
+    compute_center_of_mass(ndim, uniq_target, mnn_target, target, buffer_target.data(), robust_iterations, robust_trim, limit_closest_target, nthreads);
 
     // Computing the correction vector for each target point, 
     // And then applying it to the target data.
