@@ -10,11 +10,9 @@
 
 template<typename Index, typename Float>
 mnncorrect::NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, int k, Float* buffer, size_t cap = -1, int nthreads = 1) {
-    typedef knncolle::Base<Index, Float> knncolleBase;
-    auto builder = [](int nd, size_t no, const Float* d) -> auto { 
-        return std::shared_ptr<knncolleBase>(new knncolle::VpTreeEuclidean<Index, Float>(nd, no, d));
-    };
-    return mnncorrect::identify_closest_mnn(ndim, nobs, data, in_mnn, builder, k, buffer, cap, nthreads);
+    mnncorrect::subset_to_mnns(ndim, nobs, data, in_mnn, buffer);
+    std::shared_ptr<knncolle::Base<Index, Float> > index(new knncolle::VpTreeEuclidean<Index, Float>(ndim, in_mnn.size(), buffer));
+    return mnncorrect::identify_closest_mnn(ndim, nobs, data, index.get(), k, cap, nthreads);
 }
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {

@@ -9,18 +9,21 @@
 
 #include <algorithm>
 #include <vector>
+#include <memory>
 
 namespace mnncorrect {
 
-template<typename Index, typename Float, class Builder>
-NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Builder bfun, int k, Float* buffer, size_t nobs_cap, int nthreads) {
+template<typename Index, typename Float> 
+void subset_to_mnns(int ndim, size_t nobs, const Float* data, const std::vector<Index>& in_mnn, Float* buffer) {
     for (size_t f = 0; f < in_mnn.size(); ++f) {
         auto current = in_mnn[f];
         auto curdata = data + current * ndim;
         std::copy(curdata, curdata + ndim, buffer + f * ndim);
     }
+}
 
-    auto index = bfun(ndim, in_mnn.size(), buffer);
+template<typename Index, typename Float>
+NeighborSet<Index, Float> identify_closest_mnn(int ndim, size_t nobs, const Float* data, const knncolle::Base<Index, Float>* index, int k, size_t nobs_cap, int nthreads) {
     NeighborSet<Index, Float> output(nobs);
 
     if (nobs_cap >= nobs) {
@@ -167,14 +170,62 @@ void correct_target(
     auto uniq_ref = unique_left(pairings);
     auto uniq_target = unique_right(pairings);
 
-    // Determine the expected width to use. 
+    // Identify the closest MNN, with parallelized index building.
     std::vector<Float> buffer_ref(uniq_ref.size() * ndim);
-    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, uniq_ref, bfun, k, buffer_ref.data(), nobs_cap, nthreads);
-    Float limit_closest_ref = limit_from_closest_distances(mnn_ref, nmads);
-
     std::vector<Float> buffer_target(uniq_target.size() * ndim);
-    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, uniq_target, bfun, k, buffer_target.data(), nobs_cap, nthreads);
-    Float limit_closest_target = limit_from_closest_distances(mnn_target, nmads);
+    std::shared_ptr<knncolle::Base<Index, Float> > index_ref, index_target;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+    #pragma omp parallel for num_threads(nthreads)
+    for (int opt = 0; opt < 2; ++opt) {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(2, [&](int start, int end) -> void {
+    for (int opt = start; opt < end; ++opt) {
+#endif
+
+        auto nobs = (opt == 0 ? nref : ntarget);
+        auto obs_ptr = (opt == 0 ? ref : target);
+        const auto& uniq = (opt == 0 ? uniq_ref : uniq_target);
+        auto& buffer = (opt == 0 ? buffer_ref : buffer_target);
+        auto& index = (opt == 0 ? index_ref : index_target);
+
+        subset_to_mnns(ndim, nobs, obs_ptr, uniq, buffer.data());
+        index = bfun(ndim, uniq.size(), buffer.data());
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+    }
+#else
+    }
+    }, nthreads);
+#endif
+
+    auto mnn_ref = identify_closest_mnn(ndim, nref, ref, index_ref.get(), k, nobs_cap, nthreads);
+    index_ref.reset();
+
+    auto mnn_target = identify_closest_mnn(ndim, ntarget, target, index_target.get(), k, nobs_cap, nthreads);
+    index_target.reset();
+
+    // Determine the expected width to use, again in parallel. 
+    Float limit_closest_ref, limit_closest_target;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+    #pragma omp parallel for num_threads(nthreads)
+    for (int opt = 0; opt < 2; ++opt) {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(2, [&](int start, int end) -> void {
+    for (int opt = start; opt < end; ++opt) {
+#endif
+
+        auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
+        const auto& mnn = (opt == 0 ? mnn_ref : mnn_target);
+        limit = limit_from_closest_distances(mnn, nmads);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+    }
+#else
+    }
+    }, nthreads);
+#endif
 
     // Computing the centers of mass, stored in the buffers.
     compute_center_of_mass(ndim, uniq_ref, mnn_ref, ref, buffer_ref.data(), robust_iterations, robust_trim, limit_closest_ref, nthreads);
