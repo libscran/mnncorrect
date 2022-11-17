@@ -184,7 +184,8 @@ protected:
         return;
     }
 
-    std::pair<size_t, MnnPairs<Index> > choose() const {
+protected:
+    std::pair<size_t, MnnPairs<Index> > choose() {
         // Splitting up the remaining batches across threads. The idea is that
         // each thread reports the maximum among its assigned batches, and then
         // we compare the number of MNN pairs across the per-thread maxima.
@@ -227,7 +228,42 @@ protected:
 
             while (startIt != endIt) {
                 auto b = *startIt;
-                auto tmp = find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
+                auto& nnref = neighbors_ref[b];
+                auto tmp = find_mutual_nns(nnref, neighbors_target[b]);
+
+                /* If a cell in the reference set is not in an MNN pair with
+                 * unmerged batches at iteration X, it can never be in an MNN
+                 * pair at iteration X+1 or later. This is based on the fact
+                 * that the corrected coordinates of that cell will not change
+                 * across iterations, nor do the coordinates of the uncorrected
+                 * batches; and the only change across iterations is the
+                 * addition of cells from the newly corrected batches, which
+                 * would not cause the non-MNN cell in the existing reference
+                 * to suddenly become an MNN (and if anything, would compete in
+                 * the NN search).
+                 *
+                 * As such, we can free the memory stores for those never-MNN
+                 * cells, which should substantially lower memory consumption
+                 * when there are many batches. 
+                 */
+                {
+                    std::vector<unsigned char> present(nnref.size());
+                    for (const auto& x : tmp.matches) {
+                        for (auto y : x.second) {
+                            present[y] = 1;
+                        }
+                    }
+
+                    for (Index i = 0, end = nnref.size(); i < end; ++i) {
+                        auto& current = nnref[i];
+                        if (!present[i] && !current.empty()) {
+                            current.clear();
+                            current.shrink_to_fit();
+                        }
+                    }
+                }
+
+                // Now, deciding if it's the best.
                 if (tmp.num_pairs > best_pairs.num_pairs) {
                     best_pairs = std::move(tmp);
                     chosen = b;
@@ -248,7 +284,7 @@ protected:
         // Scanning across threads for the maximum. (We assume that results
         // from at least one thread are available.) 
         size_t best_index = 0;
-        for (int t = 1; t < actual_nthreads; ++t) {
+        for (size_t t = 1; t < actual_nthreads; ++t) {
             if (collected[t].num_pairs > collected[best_index].num_pairs) {
                 best_index = t;
             }

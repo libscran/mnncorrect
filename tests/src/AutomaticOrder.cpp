@@ -120,7 +120,7 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
         return remaining; 
     }
 
-    auto test_choose() const {
+    auto test_choose() {
         return choose();
     }
 
@@ -215,6 +215,9 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     std::vector<char> used(sizes.size());
     used[coords.get_order()[0]] = true;
 
+    // Creating a copy that doesn't mutate the neighbor sets upon calling test_choose().
+    AutomaticOrder2 ref_coords(ndim, sizes, ptrs, output.data(), k);
+
     // Compare to multi-threaded versions, using 2 or 3 threads.
     // We need to check this a bit more carefully because the
     // multithreading inside the AutomaticOrder class is wild.
@@ -247,6 +250,11 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
         EXPECT_EQ(chosen.second.matches, simpler.second.matches);
 
+        auto ref_simpler = ref_coords.simple_choose(); // Also comparing to a version that does not call the mutating choose(). 
+        EXPECT_EQ(chosen.first, simpler.first);
+        EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
+        EXPECT_EQ(chosen.second.matches, simpler.second.matches);
+
         // Applying an update. We mock up some corrected data so that the builders work correctly.
         size_t sofar = coords.get_ncorrected();
         double* fixed = output.data() + sofar * ndim;
@@ -256,6 +264,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
         coords.test_update(chosen.first);
+        ref_coords.test_update(chosen.first);
 
         // Check that the update works as expected.
         const auto& remaining = coords.get_remaining();
@@ -272,7 +281,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[r], data[r].data());
             EXPECT_EQ(rcurrent.size(), coords.get_ncorrected());
 
-            for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
+            for (size_t x = sofar; x < coords.get_ncorrected(); ++x) {
                 auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
                 const auto& updated = rcurrent[x];
                 compare_to_naive(naive, updated);
