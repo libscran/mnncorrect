@@ -82,7 +82,7 @@ public:
         /**
          * See `set_reference_policy()` for more details.
          */
-        static constexpr ReferencePolicy reference_policy = MaxSize;
+        static constexpr ReferencePolicy reference_policy = MaxRss;
 
         /**
          * See `set_mass_cap()` for more details.

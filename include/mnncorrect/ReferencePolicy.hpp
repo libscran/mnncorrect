@@ -16,7 +16,8 @@ namespace mnncorrect {
  *   This is useful in cases where one batch is known to contain most subpopulations and should be used as the reference,
  *   but there is no obvious ordering for the other batches.
  * - `MaxSize` will use the largest batch (i.e., with the most observations).
- *   For historical reasons, this is the default - it does, at least, ensure that the initial reference has enough cells.
+ *   This is simple to compute and was the previous default;
+ *   it does, at least, ensure that the initial reference has enough cells for stable correction.
  * - `MaxVariance` will use the batch with the greatest variance.
  *   This improves the likelihood of obtaining an reference that contains a diversity of subpopulations
  *   and thus is more likely to form sensible MNN pairs with subsequent batches.
