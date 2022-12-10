@@ -6,9 +6,6 @@ common <- intersect(rownames(sceG), rownames(sceM))
 combined <- cbind(assay(sceG)[common,], assay(sceM)[common,])
 block <- rep(c("Grun", "Muraro"), c(ncol(sceG), ncol(sceM)))
 
-saveRDS(list(combined, batch), file="args.rds")
-# X <- readRDS("args.rds"); combined <- X[[1]]; block <- X[[2]]
-
 ########################
 # Preamble of scran.chan::quickMergedAnalysis
 
