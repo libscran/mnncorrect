@@ -18,24 +18,23 @@ target_include_directories(mnncorrect INTERFACE
 target_compile_features(mnncorrect INTERFACE cxx_std_17)
 
 # Dependencies
-option(KNNCOLLE_FETCH_EXTERN "Automatically fetch mnncorrect's external dependencies." ON)
-if(KNNCOLLE_FETCH_EXTERN)
+option(MNNCORRECT_FETCH_EXTERN "Automatically fetch mnncorrect's external dependencies." ON)
+if(MNNCORRECT_FETCH_EXTERN)
     add_subdirectory(extern)
 else()
     find_package(knncolle_knncolle 2.0.0 CONFIG REQUIRED)
-    find_package(ltla_aarand 1.0.0 CONFIG REQUIRED)
 endif()
 
 target_link_libraries(mnncorrect INTERFACE knncolle::knncolle ltla::aarand)
 
 # Tests
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    option(KNNCOLLE_TESTS "Build mnncorrect's test suite." ON)
+    option(MNNCORRECT_TESTS "Build mnncorrect's test suite." ON)
 else()
-    option(KNNCOLLE_TESTS "Build mnncorrect's test suite." OFF)
+    option(MNNCORRECT_TESTS "Build mnncorrect's test suite." OFF)
 endif()
 
-if(KNNCOLLE_TESTS)
+if(MNNCORRECT_TESTS)
     include(CTest)
     if(BUILD_TESTING)
         add_subdirectory(tests)
