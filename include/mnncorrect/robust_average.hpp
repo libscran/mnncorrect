@@ -163,24 +163,12 @@ void robust_average(Dim_ num_dim, Index_ num_pts, const Float_* data, Float_* ou
     robust_average(num_dim, num_pts, [](Index_ i) -> Index_ { return i; }, data, output, deltas, options);
 }
 
-template<typename Dim_, typename Index_, typename Float_>
-void robust_average(Dim_ num_dim, Index_ num_pts, const Float_* data, Float_* output, const RobustAverageOptions& options) {
-    std::vector<std::pair<Float_, Index_> > deltas;
-    robust_average(num_dim, num_pts, data, output, deltas, options);
-}
-
 // Using size_t under the hood here, as 'indices' may contain duplicates from
 // the inverted neighbors; this causes 'indices.size()' to possibly exceed the
 // capacity of the 'Index_' type.
 template<typename Dim_, typename Index_, typename Float_>
 void robust_average(Dim_ num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
     robust_average(num_dim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output, deltas, options);
-}
-
-template<typename Dim_, typename Index_, typename Float_>
-void robust_average(Dim_ num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, const RobustAverageOptions& options) {
-    std::vector<std::pair<Float_, size_t> > deltas;
-    robust_average(num_dim, indices, data, output, deltas, options);
 }
 
 }

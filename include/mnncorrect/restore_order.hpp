@@ -7,9 +7,9 @@
 
 namespace mnncorrect {
 
-namespace restore {
+namespace internal {
 
-inline std::pair<std::vector<size_t>, size_t> define_offsets(const std::vector<int>& merge_order, const std::vector<size_t>& sizes) {
+inline std::pair<std::vector<size_t>, size_t> define_merge_order_offsets(const std::vector<int>& merge_order, const std::vector<size_t>& sizes) {
     size_t nbatches = merge_order.size();
     size_t accumulated = 0;
     std::vector<size_t> offsets(nbatches);
@@ -20,10 +20,11 @@ inline std::pair<std::vector<size_t>, size_t> define_offsets(const std::vector<i
     return std::make_pair(std::move(offsets), accumulated);
 }
 
-template<typename Float>
-void reorder(int ndim, size_t nobs, const std::vector<size_t>& reindex, Float* output) {
-    std::vector<char> used(nobs);
-    std::vector<Float> buffer(ndim);
+template<typename Dim_, typename Float_>
+void reorder_data(Dim_ ndim, size_t nobs, const std::vector<size_t>& reindex, Float_* output) {
+    std::vector<unsigned char> used(nobs);
+    size_t long_ndim = ndim; // cast to size_t to avoid overflow in pointer arithmetic.
+    std::vector<Float_> buffer(long_ndim);
 
     for (size_t i = 0; i < nobs; ++i) {
         if (used[i]) {
@@ -36,11 +37,11 @@ void reorder(int ndim, size_t nobs, const std::vector<size_t>& reindex, Float* o
             // Moving the current vector into a buffer to free up 
             // some space for the shuffling. This avoids the need
             // to do a bunch of std::swap() calls.
-            auto current_ptr = output + i * ndim;
+            auto current_ptr = output + i * long_ndim;
             std::copy_n(current_ptr, ndim, buffer.data());
 
             while (target != i) {
-                auto tptr = output + target * ndim;
+                auto tptr = output + target * long_ndim;
                 std::copy_n(tptr, ndim, current_ptr);
                 used[target] = true;
                 current_ptr = tptr;
@@ -52,11 +53,9 @@ void reorder(int ndim, size_t nobs, const std::vector<size_t>& reindex, Float* o
     }
 }
 
-}
-
-template<typename Float>
-void restore_order(int ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, Float* output) {
-    auto offset_out = restore::define_offsets(merge_order, sizes);
+template<typename Dim_, typename Float_>
+void restore_order(Dim_ ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, Float_* output) {
+    auto offset_out = define_merge_order_offsets(merge_order, sizes);
     const auto& offsets = offset_out.first;
     size_t nobs = offset_out.second;
     size_t nbatches = offsets.size();
@@ -68,13 +67,13 @@ void restore_order(int ndim, const std::vector<int>& merge_order, const std::vec
         ptr += sizes[b];
     }
 
-    restore::reorder(ndim, nobs, reindex, output);
+    reorder_data(ndim, nobs, reindex, output);
     return;    
 }
 
-template<typename Float, typename Batch>
-void restore_order(int ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, const Batch* batch, Float* output) {
-    auto offset_out = restore::define_offsets(merge_order, sizes);
+template<typename Dim_, typename Float_, typename Batch>
+void restore_order(Dim_ ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, const Batch* batch, Float_* output) {
+    auto offset_out = define_merge_order_offsets(merge_order, sizes);
     auto& offsets = offset_out.first;
     size_t nobs = offset_out.second;
 
@@ -85,8 +84,10 @@ void restore_order(int ndim, const std::vector<int>& merge_order, const std::vec
         ++off;
     }
 
-    restore::reorder(ndim, nobs, reindex, output);
+    reorder_data(ndim, nobs, reindex, output);
     return;
+}
+
 }
 
 }
