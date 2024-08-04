@@ -16,30 +16,39 @@
 
 namespace mnncorrect {
 
-template<typename Float>
-Float compute_total_variance(int nd, size_t n, const Float* ptr, bool as_rss) {
-    std::vector<Float> mean(nd);
-    Float total = 0;
-    for (size_t i = 0; i < n; ++i) {
-        auto mIt = mean.begin();
-        for (int d = 0; d < nd; ++d, ++mIt, ++ptr) {
-            const double delta=*ptr - *mIt;
-            *mIt += delta/(i + 1);
-            total += delta*(*ptr - *mIt);
+namespace internal {
+
+template<typename Dim_, typename Index_, typename Float_>
+Float_ compute_total_variance(Dim_ num_dim, Index_ num_obs, const Float_* values, std::vector<Float_>& mbuffer, bool as_rss) {
+    std::fill(mbuffer.begin(), mbuffer.end(), 0);
+
+    Float_ total = 0;
+    for (Index_ i = 0; i < num_obs; ++i) {
+        for (Dim_ d = 0; d < num_dim; ++d) {
+            auto curval = ptr[d];
+            auto& curmean = mbuffer[d];
+            Float_ delta = ptr[d] - curmean;
+            curmean += delta/(i + 1);
+            total += delta * (curval -  curmean);
         }
     }
+
     if (!as_rss) {
         total /= n - 1;
     }
     return total;
 }
 
-template<typename Float>
-std::vector<Float> compute_total_variance(int nd, const std::vector<size_t>& no, const std::vector<const Float*>& batch, bool as_rss) {
-    std::vector<Float> vars(no.size());
-    for (size_t b = 0; b < no.size(); ++b) {
-        vars[b] = compute_total_variance<Float>(nd, no[b], batch[b], as_rss);
+template<typename Dim_, typename Index_, typename Float_>
+std::vector<Float_> compute_total_variance(Dim_ num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& values, bool as_rss) {
+    size_t num_batches = values.size();
+    std::vector<Float_> vars(num_batches);
+
+    std::vector<Float_> mean_buffer(num_dim);
+    for (size_t b = 0; b < num_batches; ++b) {
+        vars[b] = compute_total_variance<Float>(num_dim, num_obs[b], values[b], mean_buffer, as_rss);
     }
+
     return vars;
 }
 
@@ -346,6 +355,8 @@ protected:
     size_t nobs_cap;
     int nthreads;
 };
+
+}
 
 }
 

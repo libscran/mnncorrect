@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "scran_tests/scran_tests.hpp"
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
@@ -9,15 +9,22 @@
 
 class RestoreOrderTest : public ::testing::TestWithParam<std::tuple<std::vector<int>, std::vector<size_t> > > {
 protected:
-    template<class Param>
-    void assemble(Param param) {
-        merge_order = std::get<0>(param);
-        sizes = std::get<1>(param);
+    static size_t init(size_t batch, size_t index) {
+        return (batch + 1) * (index + 1);
+    } 
+};
 
-        size_t nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
-        data.resize(nobs * ndim);
+TEST_P(RestoreOrderTest, Simple) {
+    auto param = GetParam();
+    auto merge_order = std::get<0>(param);
+    auto sizes = std::get<1>(param);
 
-        // Creating a mock permuted dataset.
+    int ndim = 5;
+    size_t nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
+    std::vector<double> data(nobs * ndim);
+
+    // Creating a mock permuted dataset.
+    {
         auto ptr = data.data();
         for (auto b : merge_order) {
             for (size_t i = 0; i < sizes[b]; ++i) {
@@ -25,23 +32,9 @@ protected:
                 ptr += ndim;
             }
         }
-
-        return;
     }
 
-    size_t init(size_t batch, size_t index) {
-        return (batch + 1) * (index + 1);
-    } 
-
-    int ndim = 5;
-    std::vector<int> merge_order;
-    std::vector<size_t> sizes;
-    std::vector<double> data;
-};
-
-TEST_P(RestoreOrderTest, Simple) {
-    assemble(GetParam());
-    mnncorrect::restore_order(ndim, merge_order, sizes, data.data());
+    mnncorrect::internal::restore_order(ndim, merge_order, sizes, data.data());
 
     const double* ptr = data.data();
     for (size_t b = 0; b < sizes.size(); ++b) {
@@ -56,10 +49,26 @@ TEST_P(RestoreOrderTest, Simple) {
 }
 
 TEST_P(RestoreOrderTest, Batch) {
-    assemble(GetParam());
+    auto param = GetParam();
+    auto merge_order = std::get<0>(param);
+    auto sizes = std::get<1>(param);
+
+    int ndim = 5;
+    size_t nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
+    std::vector<double> data(nobs * ndim);
+
+    // Creating a mock permuted dataset.
+    {
+        auto ptr = data.data();
+        for (auto b : merge_order) {
+            for (size_t i = 0; i < sizes[b]; ++i) {
+                std::iota(ptr, ptr + ndim, init(b, i));
+                ptr += ndim;
+            }
+        }
+    }
 
     // Creating a mock batch permutation.
-    size_t nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     std::vector<int> batch(nobs);
     auto bIt = batch.begin();
     for (size_t b = 0; b < sizes.size(); ++b) {
@@ -68,7 +77,7 @@ TEST_P(RestoreOrderTest, Batch) {
     }
     std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * sizes.size())); // just varying the seed a bit.
 
-    mnncorrect::restore_order(ndim, merge_order, sizes, batch.data(), data.data());
+    mnncorrect::internal::restore_order(ndim, merge_order, sizes, batch.data(), data.data());
 
     const double* ptr = data.data();
     std::vector<size_t> sofar(sizes.size());
@@ -93,5 +102,3 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(std::vector<int>{2, 1, 3, 0}, std::vector<size_t>{ 5, 2, 9, 4 })
     )
 );
-
-
