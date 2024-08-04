@@ -16,8 +16,8 @@ using NeighborSet = std::vector<std::vector<std::pair<Index_, Distance_> > >;
 template<typename Index_, typename Distance_>
 std::vector<std::vector<Index_> > invert_neighbors(size_t n, const NeighborSet<Index_, Distance_>& neighbors, Distance_ limit) {
     std::vector<std::vector<Index_> > output(n);
-    const size_t num_neighbors = neighbors.size();
-    for (size_t i = 0; i < num_neighbors; ++i) {
+    const Index_ num_neighbors = neighbors.size();
+    for (Index_ i = 0; i < num_neighbors; ++i) {
         for (const auto& x : neighbors[i]) {
             if (x.second <= limit) {
                 output[x.first].push_back(i);
