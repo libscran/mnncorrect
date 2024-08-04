@@ -1,9 +1,9 @@
-#include "gtest/gtest.h"
+#include "scran_tests/scran_tests.hpp"
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
-#include "mnncorrect/RobustAverage.hpp"
-#include "aarand/aarand.hpp"
+#include "mnncorrect/robust_average.hpp"
+
 #include <vector>
 #include <numeric>
 #include <random>
@@ -13,41 +13,36 @@ TEST(RobustAverageTest, Basic) {
 
     // Simple mean if there are no robustness iterations.
     {
-        mnncorrect::RobustAverage<int, double> test(0, 0.25);
         double output;
-        test.run(1, data.size(), data.data(), &output);
-        EXPECT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(0, 0.25));
+        EXPECT_FLOAT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
     }
 
     // Keeping the mean of the closest three observations to the first mean.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0.3);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.3));
         EXPECT_FLOAT_EQ(output, (0.5 + 0.2 + 0.12) / 3.0);
     }
 
     // This can be iterated, in which case the closest three observations changes.
     {
-        mnncorrect::RobustAverage<int, double> test(2, 0.3);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(2, 0.3));
         EXPECT_FLOAT_EQ(output, (0.1 + 0.2 + 0.12) / 3.0);
     }
 
     // With a trim of 0.25, we remove exactly one observation, as we keep the value at the third quartile.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0.25);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.25));
         EXPECT_FLOAT_EQ(output, (0.1 + 0.5 + 0.2 + 0.12) / 4.0);
     }
 
     // With a trim of 0.5, we make sure we keep the median.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0.5);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.5));
         EXPECT_FLOAT_EQ(output, (0.5 + 0.2 + 0.12) / 3.0);
     }
 }
@@ -55,20 +50,20 @@ TEST(RobustAverageTest, Basic) {
 TEST(RobustAverageTest, Persistence) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 
-    std::vector<std::pair<double, int> > deltas;
+    std::vector<std::pair<double, size_t> > deltas;
     deltas.emplace_back(0.9, 1);
     deltas.emplace_back(0.99, 10);
     deltas.emplace_back(0.9999, -5);
     deltas.emplace_back(0.01, 100);
     deltas.emplace_back(0.05, 6);
 
-    mnncorrect::RobustAverage<int, double> test(0, 0.25);
     double ref;
-    test.run(1, data.size(), data.data(), &ref);
+    mnncorrect::internal::RobustAverageOptions raopt(0, 0.25);
+    mnncorrect::internal::robust_average(1, data.size(), data.data(), &ref, raopt);
 
     // Gunk in the delta buffer is of no consequence.
     double output;
-    test.run(1, data.size(), data.data(), &output, deltas);
+    mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, deltas, raopt);
 
     EXPECT_EQ(ref, output);
 }
@@ -78,31 +73,28 @@ TEST(RobustAverageTest, EdgeCases) {
 
     // Taking the average if the trim is zero.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output,  mnncorrect::internal::RobustAverageOptions(1, 0));
         EXPECT_FLOAT_EQ(output, std::accumulate(data.begin(), data.end(), 0.0)/data.size());
     }
 
     // With a trim of 1, we keep the closest observation only.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 1);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 1));
         EXPECT_FLOAT_EQ(output, 0.5);
     }
 
     // Doing the right things with only one observation.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 1);
         double output;
-        test.run(1, 1, data.data(), &output);
+        mnncorrect::internal::robust_average(1, 1, data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 1));
         EXPECT_FLOAT_EQ(output, 0.1);
     }
+
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0);
         double output;
-        test.run(1, 1, data.data(), &output);
+        mnncorrect::internal::robust_average(1, 1, data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0));
         EXPECT_FLOAT_EQ(output, 0.1);
     }
 }
@@ -112,17 +104,15 @@ TEST(RobustAverageTest, Ties) {
 
     // This should remove the furthest element, but as it's tied, we don't remove anything.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0.1);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.1));
         EXPECT_FLOAT_EQ(output, 3);
     }
 
     // This should remove 3 elements, but we only remove the furthest 2 due to the tie.
     {
-        mnncorrect::RobustAverage<int, double> test(1, 0.6);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.6));
         EXPECT_FLOAT_EQ(output, 3);
     }
 
@@ -131,59 +121,48 @@ TEST(RobustAverageTest, Ties) {
     // tolerance mechanisms are working correctly.
     {
         std::vector<double> data { .28376783287177263475, .43984537534872874 };
-        mnncorrect::RobustAverage<int, double> test(1, 0.5);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.5));
         EXPECT_FLOAT_EQ(output, (data[0] + data[1]) / 2);
     }
     
     {
         std::vector<double> data { 0.6363161874823, 10.2347625487411981 };
-        mnncorrect::RobustAverage<int, double> test(1, 0.5);
         double output;
-        test.run(1, data.size(), data.data(), &output);
+        mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, mnncorrect::internal::RobustAverageOptions(1, 0.5));
         EXPECT_FLOAT_EQ(output, (data[0] + data[1]) / 2);
     }
 }
 
-class RobustAverageTest : public ::testing::TestWithParam<std::tuple<int, int, double> > {
-protected:
-    template<class Param>
-    void assemble(Param param, int ndim) {
-        nobs = std::get<0>(param);
-        iterations = std::get<1>(param);
-        trim = std::get<2>(param);
-
-        std::mt19937_64 rng(nobs);
-        data.resize(nobs* ndim);
-        for (auto& l : data) {
-            l = aarand::standard_normal(rng).first;
-        }
-    }
-
-    size_t nobs;
-    int iterations;
-    double trim;
-    std::vector<double> data;
-};
+class RobustAverageTest : public ::testing::TestWithParam<std::tuple<int, int, double> > {};
 
 TEST_P(RobustAverageTest, Multidimensional) {
-    assemble(GetParam(), 1);
+    auto param = GetParam();
+    size_t nobs = std::get<0>(param);
+    int iterations = std::get<1>(param);
+    double trim = std::get<2>(param);
+
+    auto data = scran_tests::simulate_vector(nobs, [&]{
+        scran_tests::SimulationParameters opt;
+        opt.seed = nobs * trim + iterations;
+        return opt;
+    }());
+
+    mnncorrect::internal::RobustAverageOptions opt(iterations, trim);
 
     int ndim = 3;
-    std::vector<double> copy (ndim * nobs);
-    for (int i = 0; i < nobs; ++i) {
+    std::vector<double> copy(ndim * nobs);
+    for (size_t i = 0; i < nobs; ++i) {
         for (int d = 0; d < ndim; ++d) {
             copy[d + i * ndim] = data[i] + d;
         }
     }
 
-    mnncorrect::RobustAverage<int, double> test(iterations, trim);
     double output;
-    test.run(1, nobs, data.data(), &output);
+    mnncorrect::internal::robust_average(1, nobs, data.data(), &output, opt);
 
     std::vector<double> output_vector(ndim);
-    test.run(ndim, nobs, copy.data(), output_vector.data());
+    mnncorrect::internal::robust_average(ndim, nobs, copy.data(), output_vector.data(), opt);
 
     for (int d = 0; d < ndim; ++d) {
         EXPECT_FLOAT_EQ(output_vector[d], output +d);
@@ -191,19 +170,29 @@ TEST_P(RobustAverageTest, Multidimensional) {
 }
 
 TEST_P(RobustAverageTest, Indexed) {
+    auto param = GetParam();
+    size_t nobs = std::get<0>(param);
+    int iterations = std::get<1>(param);
+    double trim = std::get<2>(param);
+
     int ndim = 5;
-    assemble(GetParam(), ndim);
+    auto data = scran_tests::simulate_vector(nobs * ndim, [&]{
+        scran_tests::SimulationParameters opt;
+        opt.seed = nobs * trim + iterations;
+        return opt;
+    }());
 
     // Indexed calculation.
-    std::mt19937_64 rng(nobs * iterations * trim);
+    std::mt19937_64 rng(nobs * trim + iterations);
+    std::uniform_int_distribution dist(0, static_cast<int>(nobs) - 1);
     std::vector<int> indices;
-    for (int i = 0; i < nobs; ++i) {
-        indices.push_back(aarand::discrete_uniform(rng, nobs));
+    for (size_t i = 0; i < nobs; ++i) {
+        indices.push_back(dist(rng));
     }
 
-    mnncorrect::RobustAverage<int, double> test(iterations, trim);
+    mnncorrect::internal::RobustAverageOptions raopt(iterations, trim);
     std::vector<double> output(ndim);
-    test.run(ndim, indices, data.data(), output.data()); 
+    mnncorrect::internal::robust_average(ndim, indices, data.data(), output.data(), raopt); 
 
     // Reference calculation.
     std::vector<double> copy(ndim * indices.size());
@@ -213,7 +202,7 @@ TEST_P(RobustAverageTest, Indexed) {
     }
 
     std::vector<double> output2(ndim);
-    test.run(ndim, indices.size(), copy.data(), output2.data()); 
+    mnncorrect::internal::robust_average(ndim, indices.size(), copy.data(), output2.data(), raopt); 
     EXPECT_EQ(output, output2);
 }
 
@@ -226,5 +215,3 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(0.1, 0.3) // trim proportion.
     )
 );
-
-
