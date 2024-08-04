@@ -5,19 +5,63 @@ project(mnncorrect
     DESCRIPTION "MNN correction in C++"
     LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
+# Library
 add_library(mnncorrect INTERFACE)
+add_library(libscran::mnncorrect ALIAS mnncorrect)
 
-target_include_directories(mnncorrect INTERFACE include/)
+target_include_directories(mnncorrect INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/mnncorrect>)
+target_compile_features(mnncorrect INTERFACE cxx_std_17)
 
-add_subdirectory(extern)
+# Dependencies
+option(KNNCOLLE_FETCH_EXTERN "Automatically fetch mnncorrect's external dependencies." ON)
+if(KNNCOLLE_FETCH_EXTERN)
+    add_subdirectory(extern)
+else()
+    find_package(knncolle_knncolle 2.0.0 CONFIG REQUIRED)
+    find_package(ltla_aarand 1.0.0 CONFIG REQUIRED)
+endif()
 
-target_link_libraries(mnncorrect INTERFACE knncolle aarand)
+target_link_libraries(mnncorrect INTERFACE knncolle::knncolle ltla::aarand)
 
+# Tests
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    option(KNNCOLLE_TESTS "Build mnncorrect's test suite." ON)
+else()
+    option(KNNCOLLE_TESTS "Build mnncorrect's test suite." OFF)
+endif()
+
+if(KNNCOLLE_TESTS)
     include(CTest)
     if(BUILD_TESTING)
         add_subdirectory(tests)
-    endif()
+    endif() 
 endif()
+
+# Install
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mnncorrect)
+
+install(TARGETS mnncorrect
+    EXPORT mnncorrectTargets)
+
+install(EXPORT mnncorrectTargets
+    FILE libscran_mnncorrectTargets.cmake
+    NAMESPACE libscran::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libscran_mnncorrect)
+
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/libscran_mnncorrectConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libscran_mnncorrect)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/libscran_mnncorrectConfigVersion.cmake"
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libscran_mnncorrectConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/libscran_mnncorrectConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libscran_mnncorrect)
