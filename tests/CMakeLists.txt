@@ -23,7 +23,7 @@ macro(create_test name)
 #        src/AutomaticOrder.cpp
 #        src/CustomOrder.cpp
 #        src/restore_order.cpp
-#        src/utils.cpp
+        src/utils.cpp
 #        src/MnnCorrect.cpp
     )
 
