@@ -21,8 +21,7 @@ TEST(QuickFindNns, Basic) {
         return sparams;
     }());
 
-    knncolle::VptreeBuilder builder;
-    auto prebuilt = builder.build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC, contents.data()));
+    auto prebuilt = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC, contents.data()));
     int k = 5;
     auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt, /* k = */ k, /* num_threads = */ 1);
     ASSERT_EQ(output.size(), NC);

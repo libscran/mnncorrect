@@ -53,7 +53,7 @@ TEST(Utils, InvertNeighbors) {
 TEST(Utils, InvertIndices) {
     {
         std::vector<int> u { 0, 2, 3, 4};
-        auto inv = mnncorrect::internal::invert_indices(5, u, -1);
+        auto inv = mnncorrect::internal::invert_indices(5, u);
         std::vector<int> expected{ 0, -1, 1, 2, 3 };
         EXPECT_EQ(inv, expected);
     }
@@ -61,7 +61,7 @@ TEST(Utils, InvertIndices) {
     // Works out of order.
     {
         std::vector<int> u { 5, 2, 8 };
-        auto inv = mnncorrect::internal::invert_indices(10, u, -1);
+        auto inv = mnncorrect::internal::invert_indices(10, u);
         std::vector<int> expected{ -1, -1, 1, -1, -1, 0, -1, -1, 2, -1 };
         EXPECT_EQ(inv, expected);
     }

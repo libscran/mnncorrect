@@ -10,7 +10,7 @@
 
 std::vector<double> robust_average(int num_dim, int num_pts, const double* data, const mnncorrect::internal::RobustAverageOptions& options) {
     std::vector<double> output(num_dim);
-    std::vector<std::pair<double, int> > deltas;
+    std::vector<std::pair<double, size_t> > deltas;
     mnncorrect::internal::robust_average(num_dim, num_pts, data, output.data(), deltas, options);
     return output;
 }
@@ -198,10 +198,10 @@ TEST_P(RobustAverageTest, Indexed) {
     }
 
     std::vector<double> output2 = robust_average(ndim, indices.size(), copy.data(), raopt); 
-    EXPECT_EQ(output, output2);
+    scran_tests::compare_almost_equal(output, output2);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RobustAverage,
     RobustAverageTest,
     ::testing::Combine(

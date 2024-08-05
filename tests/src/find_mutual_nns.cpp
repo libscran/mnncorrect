@@ -69,8 +69,8 @@ TEST_P(FindMutualNNsTest, Check) {
     }());
 
     // Reference calculation here.
-    auto left_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix(ndim, nleft, left.data()));
-    auto right_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix(ndim, nright, right.data()));
+    auto left_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, nleft, left.data()));
+    auto right_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, nright, right.data()));
     auto neighbors_of_left = mnncorrect::internal::quick_find_nns(nleft, left.data(), *right_index, k1, /* nthreads = */ 1);
     auto neighbors_of_right = mnncorrect::internal::quick_find_nns(nright, right.data(), *left_index, k2, /* nthreads = */ 1);
     auto ref = compute_reference(neighbors_of_left, neighbors_of_right);
@@ -101,7 +101,7 @@ TEST_P(FindMutualNNsTest, Check) {
     EXPECT_TRUE(ur.size() && *std::max_element(ur.begin(), ur.end()) < nright);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     FindMutualNNs,
     FindMutualNNsTest,
     ::testing::Combine(
@@ -111,5 +111,3 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(10, 50)  // second k
     )
 );
-
-

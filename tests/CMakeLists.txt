@@ -20,7 +20,7 @@ macro(create_test name)
         src/fuse_nn_results.cpp
         src/find_mutual_nns.cpp
         src/robust_average.cpp
-#        src/correct_target.cpp
+        src/correct_target.cpp
 #        src/AutomaticOrder.cpp
 #        src/CustomOrder.cpp
         src/restore_order.cpp

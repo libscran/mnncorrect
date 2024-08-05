@@ -28,8 +28,8 @@ std::vector<std::vector<Index_> > invert_neighbors(size_t n, const NeighborSet<I
 }
 
 template<typename Index_>
-std::vector<Index_> invert_indices(size_t n, const std::vector<Index_>& uniq, Index_ placeholder) {
-    std::vector<Index_> output(n, placeholder);
+std::vector<Index_> invert_indices(size_t n, const std::vector<Index_>& uniq) {
+    std::vector<Index_> output(n, static_cast<Index_>(-1)); // we don't check this anyway.
     Index_ num_uniq = uniq.size();
     for (Index_ u = 0; u < num_uniq; ++u) {
         output[uniq[u]] = u;

@@ -19,36 +19,37 @@ NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* quer
     #pragma omp parallel num_threads(nthreads)
 #endif
     {
-    std::vector<Index_> indices;
-    std::vector<Distance_> distances;
-    auto searcher = index.initialize();
-#ifdef _OPENMP
-    #pragma omp for
-#endif
-    for (size_t l = 0; l < nobs; ++l) {
 #else
     MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
-    std::vector<Index_> indices;
-    std::vector<Distance_> distances;
-    auto searcher = index.initialize();
-    for (size_t l = start; l < end; ++l) {
 #endif
 
-        searcher->search(query + ndim * l, k, &indices, &distances);
-        size_t found = indices.size();
-
-        auto& curout = output[l];
-        curout.clear();
-        curout.reserve(found);
-        for (size_t i = 0; i < found; ++i) {
-            curout.emplace_back(indices[i], distances[i]);
-        }
+        std::vector<Index_> indices;
+        std::vector<Distance_> distances;
+        auto searcher = index.initialize();
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-    }
+#ifdef _OPENMP
+        #pragma omp for
+#endif
+        for (size_t l = 0; l < nobs; ++l) {
+#else
+        for (size_t l = start; l < end; ++l) {
+#endif
+
+            searcher->search(query + ndim * l, k, &indices, &distances);
+            size_t found = indices.size();
+            auto& curout = output[l];
+            curout.clear();
+            curout.reserve(found);
+            for (size_t i = 0; i < found; ++i) {
+                curout.emplace_back(indices[i], distances[i]);
+            }
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        }
     }
 #else
-    }
+        }
     }, nthreads);
 #endif
 

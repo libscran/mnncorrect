@@ -54,8 +54,8 @@ private:
     double trim;
 };
 
-template<typename Dim_, typename Index_, class Function_, typename Float_>
-void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_* data, Float_* output, std::vector<std::pair<Float_, Index_> >& deltas, const RobustAverageOptions& options) {
+template<class Function_, typename Float_>
+void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
     const auto iterations = options.get_iterations();
     const auto trim = options.get_trim();
 
@@ -65,12 +65,12 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
         return;
     }
 
-    for (Index_ i = 0; i < num_pts; ++i) {
+    for (size_t i = 0; i < num_pts; ++i) {
         const auto dptr = data + static_cast<size_t>(indfun(i)) * long_ndim; // cast to size_t to avoid overflow.
 #ifdef _OPENMP        
         #pragma omp simd
 #endif
-        for (Dim_ d = 0; d < num_dim; ++d) {
+        for (size_t d = 0; d < num_dim; ++d) {
             output[d] += dptr[d];
         }
     }
@@ -79,7 +79,7 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
 #ifdef _OPENMP        
     #pragma omp simd
 #endif
-    for (Dim_ d = 0; d < num_dim; ++d) {
+    for (size_t d = 0; d < num_dim; ++d) {
         output[d] *= denom;
     }
 
@@ -88,18 +88,16 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
     // so we already spent one observation defining the boundaries.
     const Float_ threshold = (num_pts - 1) * (1.0 - trim);
 
-    // And now iterating.
     deltas.reserve(num_pts);
-
     for (int it = 0; it < iterations; ++it) {
         deltas.clear();
 
-        for (Index_ i = 0; i < num_pts; ++i) {
+        for (size_t i = 0; i < num_pts; ++i) {
             auto j = indfun(i);
             const auto dptr = data + static_cast<size_t>(j) * long_ndim; // cast to avoid overflow.
 
             Float_ d2 = 0;
-            for (Dim_ d = 0; d < num_dim; ++d) {
+            for (size_t d = 0; d < num_dim; ++d) {
                 Float_ diff = output[d] - dptr[d];
                 d2 += diff * diff;
             }
@@ -120,7 +118,7 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
         // quantile of the current observation in the loop. The exception
         // is if the threshold interrupts some ties, in which case all of
         // them are retained to avoid arbitrary ordering effects.
-        for (Index_ x = 1; x < num_pts; ++x) {
+        for (size_t x = 1; x < num_pts; ++x) {
 
             // When considering ties, we need to account for numerical
             // imprecision in the distance calculations. We do so by
@@ -141,7 +139,7 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
 #ifdef _OPENMP        
             #pragma omp simd
 #endif
-            for (Dim_ d = 0; d < num_dim; ++d) {
+            for (size_t d = 0; d < num_dim; ++d) {
                 output[d] += dptr[d];
             }
 
@@ -152,22 +150,25 @@ void robust_average(Dim_ num_dim, Index_ num_pts, Function_ indfun, const Float_
 #ifdef _OPENMP        
         #pragma omp simd
 #endif
-        for (Dim_ d = 0; d < num_dim; ++d) {
+        for (size_t d = 0; d < num_dim; ++d) {
             output[d] *= denom;
         }
     }
 }
 
-template<typename Dim_, typename Index_, typename Float_>
-void robust_average(Dim_ num_dim, Index_ num_pts, const Float_* data, Float_* output, std::vector<std::pair<Float_, Index_> >& deltas, const RobustAverageOptions& options) {
-    robust_average(num_dim, num_pts, [](Index_ i) -> Index_ { return i; }, data, output, deltas, options);
+// Using 'size_t' as this function is called in 'correct_target()' with the
+// number of MNN pairs being used as the 'num_pts', and that might exceed the
+// actual number of observations.
+template<typename Float_>
+void robust_average(size_t num_dim, size_t num_pts, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
+    robust_average(num_dim, num_pts, [](size_t i) -> size_t { return i; }, data, output, deltas, options);
 }
 
-// Using size_t under the hood here, as 'indices' may contain duplicates from
-// the inverted neighbors; this causes 'indices.size()' to possibly exceed the
+// Using size_t for 'num_obs', as 'indices' may contain duplicates from the
+// inverted neighbors; this causes 'indices.size()' to possibly exceed the
 // capacity of the 'Index_' type.
-template<typename Dim_, typename Index_, typename Float_>
-void robust_average(Dim_ num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
+template<typename Index_, typename Float_>
+void robust_average(size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
     robust_average(num_dim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output, deltas, options);
 }
 
