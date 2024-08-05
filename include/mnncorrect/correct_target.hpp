@@ -64,13 +64,7 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
 
             size_t o = gap * o_; // truncation
             searcher->search(data + o * ndim, k, &indices, &distances);
-            size_t found = indices.size();
-            auto& curout = output[o];
-            curout.clear();
-            curout.reserve(found);
-            for (size_t i = 0; i < found; ++i) {
-                curout.emplace_back(indices[i], distances[i]);
-            }
+            fill_pair_vector(indices, distances, output[o]);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         }

@@ -21,7 +21,7 @@ macro(create_test name)
         src/find_mutual_nns.cpp
         src/robust_average.cpp
         src/correct_target.cpp
-#        src/AutomaticOrder.cpp
+        src/AutomaticOrder.cpp
 #        src/CustomOrder.cpp
         src/restore_order.cpp
         src/utils.cpp
@@ -47,7 +47,7 @@ endmacro()
 create_test(libtest)
 
 create_test(cuspartest)
-target_compile_definitions(libtest PRIVATE TEST_CUSTOM_PARALLEL)
+target_compile_definitions(cuspartest PRIVATE TEST_CUSTOM_PARALLEL)
 
 find_package(OpenMP)
 if (OpenMP_FOUND)

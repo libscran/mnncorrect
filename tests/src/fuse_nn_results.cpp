@@ -103,3 +103,51 @@ TEST(FuseNnResults, Basic) {
         EXPECT_EQ(output, expected);
     }
 }
+
+class FuseNnResultsTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
+
+TEST_P(FuseNnResultsTest, FuseNnResults) {
+    auto param = GetParam();
+    auto nleft = std::get<0>(param);
+    auto nright = std::get<1>(param);
+    auto nkeep = std::get<2>(param);
+
+    std::mt19937_64 rng(nleft * nright + nkeep);
+    std::normal_distribution ndist;
+    std::uniform_int_distribution udist(0, 10000000);
+    auto comp = [](const auto& l, const auto& r) -> bool { return l.second < r.second; };
+
+    std::vector<std::pair<int, double> > base;
+    for (int l = 0; l < nleft; ++l) {
+        base.emplace_back(udist(rng), ndist(rng));
+    }
+    std::sort(base.begin(), base.end(), comp);
+
+    std::vector<std::pair<int, double> > alt;
+    for (int r = 0; r < nright; ++r) {
+        alt.emplace_back(udist(rng), ndist(rng));
+    }
+    std::sort(alt.begin(), alt.end(), comp);
+    
+    auto ref = base;
+    ref.insert(ref.end(), alt.begin(), alt.end());
+    std::sort(ref.begin(), ref.end(), comp);
+    if (static_cast<size_t>(nkeep) < ref.size()) {
+        ref.resize(nkeep);
+    }
+
+    std::vector<std::pair<int, double> > output;
+    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output);
+    EXPECT_EQ(ref, output);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    FuseNnResults,
+    FuseNnResultsTest,
+    ::testing::Combine(
+        ::testing::Values(1, 5, 10), // left
+        ::testing::Values(1, 5, 10), // right
+        ::testing::Values(1, 5, 10) // number to keep
+    )
+);
+

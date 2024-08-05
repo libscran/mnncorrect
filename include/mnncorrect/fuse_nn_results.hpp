@@ -9,6 +9,16 @@ namespace mnncorrect {
 
 namespace internal {
 
+template<typename Index_, typename Distance_>
+void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Distance_>& distances, std::vector<std::pair<Index_, Distance_> >& output) {
+    size_t found = indices.size();
+    output.clear();
+    output.reserve(found);
+    for (size_t i = 0; i < found; ++i) {
+        output.emplace_back(indices[i], distances[i]);
+    }
+}
+
 template<typename Dim_, typename Index_, typename Distance_>
 NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuilt<Dim_, Index_, Distance_>& index, int k, [[maybe_unused]] int nthreads) {
     NeighborSet<Index_, Distance_> output(nobs);
@@ -37,13 +47,7 @@ NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* quer
 #endif
 
             searcher->search(query + ndim * l, k, &indices, &distances);
-            size_t found = indices.size();
-            auto& curout = output[l];
-            curout.clear();
-            curout.reserve(found);
-            for (size_t i = 0; i < found; ++i) {
-                curout.emplace_back(indices[i], distances[i]);
-            }
+            fill_pair_vector(indices, distances, output[l]);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
