@@ -1,18 +1,19 @@
-#ifndef MNNCORRECT_AUTOMATICORDER_HPP
-#define MNNCORRECT_AUTOMATICORDER_HPP
+#ifndef MNNCORRECT_AUTOMATIC_ORDER_HPP
+#define MNNCORRECT_AUTOMATIC_ORDER_HPP
+
+#include <algorithm>
+#include <unordered_set>
+#include <stdexcept>
+#include <memory>
+#include <vector>
+
+#include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "knncolle/knncolle.hpp"
 #include "find_mutual_nns.hpp"
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
 #include "ReferencePolicy.hpp"
-
-#include <algorithm>
-#include <set>
-#include <stdexcept>
-#include <memory>
-#include <vector>
 
 namespace mnncorrect {
 
@@ -174,7 +175,7 @@ protected:
     size_t my_ncorrected = 0;
 
     std::vector<size_t> my_order;
-    std::set<size_t> my_remaining;
+    std::unordered_set<size_t> my_remaining;
     std::vector<size_t> my_num_pairs;
 
     size_t my_nobs_cap;
@@ -301,7 +302,7 @@ protected:
         partitions.reserve(my_nthreads + 1);
 
         size_t counter = 0;
-        for (auto it = my_remaining.begin(); it != my_remaining.end(); ++it) { // sets don't have random access iterators, so we ned to manually iterate.
+        for (auto it = my_remaining.begin(); it != my_remaining.end(); ++it) { // hashsets don't have random access iterators, so we ned to manually iterate.
             if (counter == 0) {
                 partitions.push_back(it);
                 if (partitions.size() == static_cast<size_t>(my_nthreads)) {

@@ -49,10 +49,10 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, d
     template<typename ... Args_>
     AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, int, double>(std::forward<Args_>(args)...) {}
 
-    const std::vector<mnncorrect::internal::NeighborSet<int, double> >& get_neighbors_ref () const { 
+    const auto& get_neighbors_ref () const { 
         return my_neighbors_ref;
     }
-    const std::vector<mnncorrect::internal::NeighborSet<int, double> >& get_neighbors_target () const { 
+    const auto& get_neighbors_target () const { 
         return my_neighbors_target;
     }
 
@@ -60,7 +60,7 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, d
         return my_ncorrected;
     }
 
-    const std::set<size_t>& get_remaining () const { 
+    const auto& get_remaining () const { 
         return my_remaining; 
     }
 
