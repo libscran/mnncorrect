@@ -346,20 +346,21 @@ protected:
                     auto& nnref = my_neighbors_ref[b];
                     auto tmp = find_mutual_nns(nnref, my_neighbors_target[b]);
 
-                    /* If a cell in the reference set is not in an MNN pair with
-                     * unmerged batches at iteration X, it can never be in an MNN
-                     * pair at iteration X+1 or later. This is based on the fact
-                     * that the corrected coordinates of that cell will not change
-                     * across iterations, nor do the coordinates of the uncorrected
-                     * batches; and the only change across iterations is the
-                     * addition of cells from the newly corrected batches, which
-                     * would not cause the non-MNN cell in the existing reference
-                     * to suddenly become an MNN (and if anything, would compete in
-                     * the NN search).
+                    /* If a cell in the reference set is not in an MNN pair
+                     * with an unmerged batch at iteration X, it can never be
+                     * in an MNN pair at iteration X+1 or later. This is based
+                     * on the fact that the corrected coordinates of that cell
+                     * will not change across iterations, nor do the
+                     * coordinates of the uncorrected batch; and the only
+                     * change across iterations is the addition of cells from
+                     * the newly corrected batches to the reference, which
+                     * would not cause the non-MNN cell in the existing
+                     * reference to suddenly become an MNN (and if anything,
+                     * would compete in the NN search).
                      *
-                     * As such, we can free the memory stores for those never-MNN
-                     * cells, which should substantially lower memory consumption
-                     * when there are many batches. 
+                     * As such, we can free the memory stores for those
+                     * never-MNN cells, which should substantially lower memory
+                     * consumption when there are many batches. 
                      */
                     {
                         std::vector<unsigned char> present(nnref.size());
