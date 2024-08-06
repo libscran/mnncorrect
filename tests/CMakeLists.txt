@@ -22,7 +22,7 @@ macro(create_test name)
         src/robust_average.cpp
         src/correct_target.cpp
         src/AutomaticOrder.cpp
-#        src/CustomOrder.cpp
+        src/CustomOrder.cpp
         src/restore_order.cpp
         src/utils.cpp
 #        src/MnnCorrect.cpp

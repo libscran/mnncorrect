@@ -74,13 +74,12 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, d
     }
 };
 
-class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t> > > {
 protected:
     void SetUp() {
         auto param = GetParam();
-        ndim = std::get<0>(param);
-        k = std::get<1>(param);
-        sizes = std::get<2>(param);
+        k = std::get<0>(param);
+        sizes = std::get<1>(param);
 
         data.resize(sizes.size());
         ptrs.resize(sizes.size());
@@ -98,7 +97,7 @@ protected:
         total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
     }
 
-    int ndim, k;
+    int ndim = 5, k;
     std::vector<size_t> sizes;
     std::vector<std::vector<double> > data;
     std::vector<const double*> ptrs;
@@ -232,10 +231,10 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             return sparams;
         }());
 
+        size_t output_offset = ndim * sofar;
         for (size_t i = 0; i < all_coords.size(); ++i) {
-            auto& coords = all_coords[i];
-            std::copy(corrected.begin(), corrected.end(), all_output[i].data() + ndim * coords.get_ncorrected());
-            coords.test_update(simpler.first);
+            std::copy(corrected.begin(), corrected.end(), all_output[i].data() + output_offset);
+            all_coords[i].test_update(simpler.first);
         }
 
         // Check that the update works as expected.
@@ -380,7 +379,6 @@ INSTANTIATE_TEST_SUITE_P(
     AutomaticOrder,
     AutomaticOrderTest,
     ::testing::Combine(
-        ::testing::Values(5), // Number of dimensions
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
             std::vector<size_t>{10, 20},        

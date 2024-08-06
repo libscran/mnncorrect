@@ -2,25 +2,27 @@
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
+#include "scran_tests/scran_tests.hpp"
+#include "knncolle/knncolle.hpp"
+
 #include "mnncorrect/CustomOrder.hpp"
 #include "mnncorrect/find_mutual_nns.hpp"
 #include <random>
 #include <algorithm>
-#include "order_utils.h"
 
-struct CustomOrder2 : public mnncorrect::CustomOrder<int, double, Builder> {
-    CustomOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, const int* co, size_t cap = -1, int nthreads = 1) :
-        CustomOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, co, cap, nthreads) {}
+struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, int, double> {
+    template<typename ... Args_>
+    CustomOrder2(Args_&& ... args) : mnncorrect::internal::CustomOrder<int, int, double>(std::forward<Args_>(args)...) {}
 
-    const mnncorrect::NeighborSet<int, double>& get_neighbors_ref () const { 
-        return neighbors_ref;
+    const auto& get_neighbors_ref () const { 
+        return my_neighbors_ref;
     }
-    const mnncorrect::NeighborSet<int, double>& get_neighbors_target () const { 
-        return neighbors_target;
+    const auto& get_neighbors_target () const { 
+        return my_neighbors_target;
     }
 
     size_t get_ncorrected() const { 
-        return ncorrected;
+        return my_ncorrected;
     }
 
     void test_update(size_t latest) {
@@ -29,230 +31,176 @@ struct CustomOrder2 : public mnncorrect::CustomOrder<int, double, Builder> {
     }
 };
 
-class CustomOrderTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class CustomOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t>, bool> > {
 protected:
-    template<class Param>
-    void assemble(Param param) {
-        // Simulating values.
-        std::mt19937_64 rng(42);
-        std::normal_distribution<> dist;
-
-        ndim = std::get<0>(param);
-        k = std::get<1>(param);
-        sizes = std::get<2>(param);
+    void SetUp() {
+        auto param = GetParam();
+        k = std::get<0>(param);
+        sizes = std::get<1>(param);
+        reversed = std::get<2>(param);
 
         data.resize(sizes.size());
         ptrs.resize(sizes.size());
         for (size_t b = 0; b < sizes.size(); ++b) {
-            for (size_t s = 0; s < sizes[b]; ++s) {
-                for (int d = 0; d < ndim; ++d) {
-                    data[b].push_back(dist(rng));
-                }
-            }
+            data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+                scran_tests::SimulationParameters sparams;
+                sparams.lower = -2;
+                sparams.upper = 2;
+                sparams.seed = 42 + ndim * 10 + k * 100 + sizes[b];
+                return sparams;
+            }());
             ptrs[b] = data[b].data();
         }
 
-        size_t total_size = std::accumulate(sizes.begin(), sizes.end(), 0);
-        output.resize(total_size * ndim);
-        return;
+        total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
     }
 
-    int ndim, k;
+    int ndim = 5, k;
     std::vector<size_t> sizes;
+    bool reversed;
     std::vector<std::vector<double> > data;
     std::vector<const double*> ptrs;
-    std::vector<double> output;
+    int total_size;
+
+public:
+    static void compare_to_naive(const std::vector<int>& indices, const std::vector<double>& distances, const std::vector<std::pair<int, double> >& updated) {
+        size_t n = indices.size();
+        ASSERT_EQ(n, updated.size());
+        for (size_t i = 0; i < n; ++i) {
+            EXPECT_EQ(indices[i], updated[i].first);
+            EXPECT_EQ(distances[i], updated[i].second);
+        }
+    }
 };
 
-TEST_P(CustomOrderTest, CheckInitializationSimple) {
-    assemble(GetParam());
+TEST_P(CustomOrderTest, CheckInitialization) {
+    std::vector<int> ordering(sizes.size());
+    std::iota(ordering.begin(), ordering.end(), 0);
+    if (reversed) {
+        std::reverse(ordering.begin(), ordering.end());
+    }
 
-    std::vector<int> forward(sizes.size());
-    std::iota(forward.begin(), forward.end(), 0);
-    CustomOrder2 coords(ndim, sizes, ptrs, output.data(), k, forward.data());
+    std::vector<double> output(total_size);
+    CustomOrder2 coords(
+        ndim,
+        sizes,
+        ptrs,
+        output.data(),
+        std::make_unique<knncolle::VptreeBuilder<> >(),
+        /* num_neighbors = */ k,
+        /* order = */ ordering.data(),
+        /* nobs_cap = */ -1,
+        /* nthreads = */ 1
+    );
 
     size_t ncorrected = coords.get_ncorrected();
-    EXPECT_EQ(ncorrected, sizes[0]);
-    EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[0]);
+    EXPECT_EQ(ncorrected, sizes[ordering[0]]);
+    EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[ordering[0]]);
 
     const auto& rneighbors = coords.get_neighbors_ref();
     EXPECT_EQ(rneighbors.size(), ncorrected);
     EXPECT_EQ(rneighbors[0].size(), k);
 
     const auto& lneighbors = coords.get_neighbors_target();
-    EXPECT_EQ(lneighbors.size(), sizes[1]);
+    EXPECT_EQ(lneighbors.size(), sizes[ordering[1]]);
     EXPECT_EQ(lneighbors[0].size(), k);
 }
 
-TEST_P(CustomOrderTest, CheckUpdateSimple) {
-    assemble(GetParam());
+TEST_P(CustomOrderTest, CheckUpdate) {
+    std::vector<int> ordering(sizes.size());
+    std::iota(ordering.begin(), ordering.end(), 0);
+    if (reversed) {
+        std::reverse(ordering.begin(), ordering.end());
+    }
 
-    std::vector<int> forward(sizes.size());
-    std::iota(forward.begin(), forward.end(), 0);
-    CustomOrder2 coords(ndim, sizes, ptrs, output.data(), k, forward.data());
+    std::vector<CustomOrder2> all_coords;
+    all_coords.reserve(2);
+    std::vector<std::vector<double> > all_output;
+    all_output.reserve(2);
 
-    std::vector<double> par_output(output.size());
-    CustomOrder2 par_coords(ndim, sizes, ptrs, par_output.data(), k, forward.data(), /* cap = */ -1, /* nthreads = */ 3);
-
-    std::mt19937_64 rng(123456);
-    std::normal_distribution<> dist;
+    for (size_t t = 1; t <= 3; t += 2) {
+        all_output.emplace_back(total_size);
+        all_coords.emplace_back(
+            ndim,
+            sizes,
+            ptrs,
+            all_output.back().data(),
+            std::make_unique<knncolle::VptreeBuilder<> >(),
+            /* num_neighbors = */ k,
+            /* order = */ ordering.data(),
+            /* nobs_cap = */ -1,
+            /* nthreads = */ t
+        );
+    }
 
     for (size_t b = 1; b < sizes.size(); ++b) {
-        auto mnns = mnncorrect::find_mutual_nns(coords.get_neighbors_ref(), coords.get_neighbors_target());
-
-        // Check that the MNN pair indices are correct.
-        const auto& m = mnns.matches;
-        EXPECT_TRUE(m.size() > 0);
-        for (const auto& x : m) {
-            EXPECT_TRUE(x.first < sizes[b]);
-            for (const auto& y : x.second) {
-                EXPECT_TRUE(y < coords.get_ncorrected());
-            }
-        }
+        auto& coords0 = all_coords[0];
+        size_t sofar = coords0.get_ncorrected();
+        auto current = ordering[b];
+        size_t cursize = sizes[current];
 
         // Applying an update. We mock up some corrected data so that the builders work correctly.
-        size_t sofar = coords.get_ncorrected();
-        double* fixed = output.data() + sofar * ndim;
-        for (size_t s = 0; s < sizes[b]; ++s) {
-            for (int d = 0; d < ndim; ++d) {
-                fixed[s * ndim + d] = dist(rng);
-            }
+        auto corrected = scran_tests::simulate_vector(cursize * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 6942 + b + ndim * k;
+            return sparams;
+        }());
+
+        size_t output_offset = ndim * sofar;
+        for (size_t i = 0; i < all_coords.size(); ++i) {
+            std::copy(corrected.begin(), corrected.end(), all_output[i].data() + output_offset);
+            all_coords[i].test_update(b);
         }
-        coords.test_update(b);
 
-        // Check that the update works as expected.
-        EXPECT_EQ(sofar + sizes[b], coords.get_ncorrected());
+        // Check that the update to the neighbors works as expected.
+        size_t new_sofar = coords0.get_ncorrected();
+        EXPECT_EQ(sofar + cursize, new_sofar);
 
-        auto next = b + 1;
-        if (next != sizes.size()) {
-            const auto& rneighbors = coords.get_neighbors_ref();
-            knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[next], data[next].data());
+        if (b + 1 != sizes.size()) {
+            auto next = ordering[b + 1];
+            std::vector<int> indices;
+            std::vector<double> distances;
 
-            for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
-                auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
-                const auto& updated = rneighbors[x];
-                compare_to_naive(naive, updated);
-            }
-
-            const auto& tneighbors = coords.get_neighbors_target();
             const auto& tdata = data[next];
-            EXPECT_EQ(tneighbors.size(), sizes[next]);
-            knncolle::VpTreeEuclidean<int, double> ref_index(ndim, coords.get_ncorrected(), output.data());
+            size_t tnum = sizes[next];
 
-            for (size_t x = 0; x < sizes[next]; ++x) {
-                auto naive = ref_index.find_nearest_neighbors(tdata.data() + x * ndim, k);
-                const auto& updated = tneighbors[x];
-                compare_to_naive(naive, updated);
+            const auto& rneighbors = coords0.get_neighbors_ref();
+            EXPECT_EQ(rneighbors.size(), new_sofar);
+
+            auto target_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, tnum, tdata.data()));
+            auto target_searcher = target_index->initialize();
+            for (size_t x = 0; x < new_sofar; ++x) {
+                target_searcher->search(all_output[0].data() + x * ndim, k, &indices, &distances);
+                compare_to_naive(indices, distances, rneighbors[x]);
+            }
+
+            const auto& tneighbors = coords0.get_neighbors_target();
+            EXPECT_EQ(tneighbors.size(), tnum);
+
+            auto ref_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
+            auto ref_searcher = ref_index->initialize();
+            for (size_t x = 0; x < tnum; ++x) {
+                ref_searcher->search(tdata.data() + x * ndim, k, &indices, &distances);
+                compare_to_naive(indices, distances, tneighbors[x]);
             }
         }
-
-        // Doing the same for the parallelized run.
-        double* par_fixed = par_output.data() + sofar * ndim;
-        std::copy(fixed, fixed + sizes[b] * ndim, par_fixed);
-        par_coords.test_update(b);
     }
 
     // Same results when run in parallel.
-    EXPECT_EQ(output, par_output);
+    EXPECT_EQ(all_output[0], all_output[1]);
 }
 
-TEST_P(CustomOrderTest, CheckInitializationReverse) {
-    assemble(GetParam());
-
-    // Checking it all works in reverse.
-    std::vector<int> reverse(sizes.size());
-    std::iota(reverse.begin(), reverse.end(), 0);
-    std::reverse(reverse.begin(), reverse.end());
-    CustomOrder2 coords(ndim, sizes, ptrs, output.data(), k, reverse.data());
-
-    size_t ncorrected = coords.get_ncorrected();
-    EXPECT_EQ(ncorrected, sizes.back());
-    EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data.back());
-
-    const auto& rneighbors = coords.get_neighbors_ref();
-    EXPECT_EQ(rneighbors.size(), ncorrected);
-    EXPECT_EQ(rneighbors[0].size(), k);
-
-    const auto& lneighbors = coords.get_neighbors_target();
-    EXPECT_EQ(lneighbors.size(), sizes[reverse.size() - 2]);
-    EXPECT_EQ(lneighbors[0].size(), k);
-}
-
-TEST_P(CustomOrderTest, CheckUpdateReverse) {
-    assemble(GetParam());
-
-    // Checking it all works in reverse.
-    std::vector<int> reverse(sizes.size());
-    std::iota(reverse.begin(), reverse.end(), 0);
-    std::reverse(reverse.begin(), reverse.end());
-    CustomOrder2 coords(ndim, sizes, ptrs, output.data(), k, reverse.data());
-
-    std::mt19937_64 rng(654321);
-    std::normal_distribution<> dist;
-
-    for (size_t b = 1; b < sizes.size(); ++b) {
-        auto actual = sizes.size() - b - 1;
-        auto mnns = mnncorrect::find_mutual_nns(coords.get_neighbors_ref(), coords.get_neighbors_target());
-
-        // Check that the MNN pair indices are correct.
-        const auto& m = mnns.matches;
-        EXPECT_TRUE(m.size() > 0);
-        for (const auto& x : m) {
-            EXPECT_TRUE(x.first < sizes[actual]);
-            for (const auto& y : x.second) {
-                EXPECT_TRUE(y < coords.get_ncorrected());
-            }
-        }
-
-        // Applying an update. We mock up some corrected data so that the builders work correctly.
-        size_t sofar = coords.get_ncorrected();
-        double* fixed = output.data() + sofar * ndim;
-        for (size_t s = 0; s < sizes[actual]; ++s) {
-            for (int d = 0; d < ndim; ++d) {
-                fixed[s * ndim + d] = dist(rng);
-            }
-        }
-        coords.test_update(b);
-
-        // Check that the update works as expected.
-        EXPECT_EQ(sofar + sizes[actual], coords.get_ncorrected());
-
-        if (actual > 0) {
-            auto next = actual - 1;
-            const auto& rneighbors = coords.get_neighbors_ref();
-            knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[next], data[next].data());
-
-            for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
-                auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
-                const auto& updated = rneighbors[x];
-                compare_to_naive(naive, updated);
-            }
-
-            const auto& tneighbors = coords.get_neighbors_target();
-            const auto& tdata = data[next];
-            EXPECT_EQ(tneighbors.size(), sizes[next]);
-            knncolle::VpTreeEuclidean<int, double> ref_index(ndim, coords.get_ncorrected(), output.data());
-
-            for (size_t x = 0; x < sizes[next]; ++x) {
-                auto naive = ref_index.find_nearest_neighbors(tdata.data() + x * ndim, k);
-                const auto& updated = tneighbors[x];
-                compare_to_naive(naive, updated);
-            }
-        }
-    }
-}
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CustomOrder,
     CustomOrderTest,
     ::testing::Combine(
-        ::testing::Values(5), // Number of dimensions
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
             std::vector<size_t>{10, 20},        
             std::vector<size_t>{10, 20, 30}, 
             std::vector<size_t>{100, 50, 80}, 
             std::vector<size_t>{50, 30, 100, 90} 
-        )
+        ),
+        ::testing::Values(false, true) // whether to use the reverse order
     )
 );

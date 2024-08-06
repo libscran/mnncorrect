@@ -1,216 +1,261 @@
-#ifndef MNNCORRECT_CUSTOMORDER_HPP
-#define MNNCORRECT_CUSTOMORDER_HPP
+#ifndef MNNCORRECT_CUSTOM_ORDER_HPP
+#define MNNCORRECT_CUSTOM_ORDER_HPP
+
+#include <algorithm>
+#include <unordered_set>
+#include <stdexcept>
+
+#include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "knncolle/knncolle.hpp"
 #include "find_mutual_nns.hpp"
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
-#include <algorithm>
-#include <set>
-#include <stdexcept>
 
 namespace mnncorrect {
 
-template<typename Index, typename Float, class Builder>
+namespace internal {
+
+template<typename Dim_, typename Index_, typename Float_>
 class CustomOrder {
 public:
-    CustomOrder(int nd, std::vector<size_t> no, std::vector<const Float*> b, Float* c, Builder bfun, int k, const int* co, size_t no_cap, int nt) :
-        ndim(nd), 
-        nobs(std::move(no)), 
-        batches(std::move(b)),
-        indices(batches.size()),
-        builder(bfun),
-        num_neighbors(k),
-        corrected(c),
-        order(co, co + batches.size()),
-        nobs_cap(no_cap),
-        nthreads(nt)
+    template<typename Order_>
+    CustomOrder(
+        size_t ndim, 
+        std::vector<size_t> nobs,
+        std::vector<const Float_*> batches,
+        Float_* corrected,
+        std::unique_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > builder,
+        int num_neighbors,
+        const Order_* order,
+        size_t nobs_cap,
+        int nthreads) 
+    :
+        my_ndim(ndim), 
+        my_nobs(std::move(nobs)), 
+        my_batches(std::move(batches)),
+        my_builder(std::move(builder)),
+        my_indices(my_batches.size()),
+        my_num_neighbors(num_neighbors),
+        my_corrected(corrected),
+        my_order(order, order + my_batches.size()),
+        my_nobs_cap(nobs_cap),
+        my_nthreads(nthreads)
     {
-        if (nobs.size() != batches.size()) {
+        size_t nbatches = my_nobs.size();
+        if (nbatches != my_batches.size()) {
             throw std::runtime_error("length of 'no' and 'b' must be equal");
         }
-
-        if (!nobs.size()) {
+        if (nbatches == 0) {
             return;
         }
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-        #pragma omp parallel for num_threads(nthreads)
-        for (size_t b = 0; b < nobs.size(); ++b) {
+#ifdef _OPENMP
+        #pragma omp parallel num_threads(my_nthreads)
+#endif
+        {
+#ifdef _OPENMP
+            #pragma omp for
+#endif
+            for (size_t b = 0; b < nbatches; ++b) {
 #else
-        MNNCORRECT_CUSTOM_PARALLEL(nobs.size(), [&](size_t start, size_t end) -> void {
-        for (size_t b = start; b < end; ++b) {
+        MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t end) -> void {
+            for (size_t b = start; b < end; ++b) {
 #endif
 
-            indices[b] = bfun(ndim, nobs[b], batches[b]);
+                my_indices[b] = my_builder->build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, my_nobs[b], my_batches[b]));
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
+            }
         }
 #else
-        }
-        }, nthreads);
+            }
+        }, my_nthreads);
 #endif
 
         // Picking the first batch to be our reference.
-        auto first = order[0];
-        const size_t rnum = nobs[first];
-        const Float* rdata = batches[first];
-        std::copy(rdata, rdata + ndim * rnum, corrected);
-        ncorrected += rnum;
+        auto first = my_order[0];
+        const size_t rnum = my_nobs[first];
+        const Float_* rdata = my_batches[first];
+        std::copy(rdata, rdata + my_ndim * rnum, corrected);
+        my_ncorrected += rnum;
 
-        if (nobs.size() > 1) {
-            auto second = order[1];
-            neighbors_target = quick_find_nns(nobs[second], batches[second], indices[first].get(), num_neighbors, nthreads);
-            neighbors_ref = quick_find_nns(rnum, rdata, indices[second].get(), num_neighbors, nthreads);
+        if (my_nobs.size() > 1) {
+            auto second = my_order[1];
+            my_neighbors_target = quick_find_nns(my_nobs[second], my_batches[second], *(my_indices[first]), my_num_neighbors, my_nthreads);
+            my_neighbors_ref = quick_find_nns(rnum, rdata, *(my_indices[second]), my_num_neighbors, my_nthreads);
         }
-
-        return;
     }
 
 protected:
+    int my_ndim;
+    std::vector<size_t> my_nobs;
+    std::vector<const Float_*> my_batches;
+
+    std::unique_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > my_builder;
+    std::vector<std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
+
+    int my_num_neighbors;
+    NeighborSet<Index_, Float_> my_neighbors_ref;
+    NeighborSet<Index_, Float_> my_neighbors_target;
+
+    Float_* my_corrected;
+    size_t my_ncorrected = 0;
+    std::vector<size_t> my_order;
+    std::vector<size_t> my_num_pairs;
+
+    size_t my_nobs_cap;
+    int my_nthreads;
+
+protected:
     void update(size_t position) {
-        auto latest = order[position];
-        size_t lnum = nobs[latest]; 
-        const Float* ldata = corrected + ncorrected * ndim;
-        ncorrected += lnum;
+        auto latest = my_order[position];
+        size_t lnum = my_nobs[latest]; 
+        const Float_* ldata = my_corrected + my_ncorrected * my_ndim;
+        my_ncorrected += lnum;
 
         ++position;
-        if (position == batches.size()) { 
+        if (position == my_batches.size()) { 
             return;
         }
 
         // Updating all statistics with the latest batch added to the corrected reference.
-        indices[latest] = builder(ndim, lnum, ldata);
+        my_indices[latest] = my_builder->build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, lnum, ldata));
 
-        auto next = order[position];
-        auto nxdata = batches[next];
-        auto nxnum = nobs[next];
-        const auto& nxdex = indices[next];
-        neighbors_ref.resize(ncorrected);
-        neighbors_target.resize(nxnum);
+        auto next = my_order[position];
+        auto next_data = my_batches[next];
+        auto next_num = my_nobs[next];
+        const auto& next_index = my_indices[next];
+        my_neighbors_ref.resize(my_ncorrected);
 
         // Progressively finding the best neighbors across the currently built batches.
         size_t previous_ncorrected = 0;
         for (size_t i = 0; i < position; ++i) {
-            auto prev = order[i];
-            const auto& prevdex = indices[prev];
-            
-            if (i) {
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                #pragma omp parallel for num_threads(nthreads)
-                for (size_t n = 0; n < nxnum; ++n) {
-#else
-                MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
-                for (size_t n = start; n < end; ++n) {
-#endif
+            auto prev = my_order[i];
+            const auto& prev_index = my_indices[prev];
 
-                    auto alt = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
-                    fuse_nn_results(neighbors_target[n], alt, num_neighbors, static_cast<Index>(previous_ncorrected));
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                }
-#else
-                }
-                }, nthreads);
-#endif
-
+            if (i == 0) {
+                my_neighbors_target = quick_find_nns(next_num, next_data, *prev_index, my_num_neighbors, my_nthreads);
             } else {
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
-                #pragma omp parallel for num_threads(nthreads)
-                for (size_t n = 0; n < nxnum; ++n) {
+#ifdef _OPENMP
+                #pragma omp parallel num_threads(nthreads)
+#endif
+                {
 #else
                 MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
-                for (size_t n = start; n < end; ++n) {
 #endif
 
-                    neighbors_target[n] = prevdex->find_nearest_neighbors(nxdata + ndim * n, num_neighbors);
+                    std::vector<Index_> indices;
+                    std::vector<Float_> distances;
+                    auto prev_searcher = prev_index->initialize();
+                    std::vector<std::pair<Index_, Float_> > search_buffer, fuse_buffer;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+                    #pragma omp for
+#endif
+                    for (size_t n = 0; n < next_num; ++n) {
+#else
+                    for (size_t n = start; n < end; ++n) {
+#endif
+
+                        auto next_ptr = next_data + my_ndim * n; // already size_t's, no need to cast to avoid overflow.
+                        prev_searcher->search(next_ptr, my_num_neighbors, &indices, &distances);
+                        fill_pair_vector(indices, distances, search_buffer);
+
+                        auto& current_target_neighbors = my_neighbors_target[n];
+                        fuse_nn_results(current_target_neighbors, search_buffer, my_num_neighbors, fuse_buffer, static_cast<Index_>(previous_ncorrected));
+                        fuse_buffer.swap(current_target_neighbors);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+                    }
+                }
+#else
+                    }
+                }, my_nthreads);
+#endif
+            }
+
+            auto prev_num = my_nobs[prev];
+            auto prev_data = my_corrected + previous_ncorrected * my_ndim;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+            #pragma omp parallel num_threads(my_nthreads)
+#endif
+            {
+#else
+            MNNCORRECT_CUSTOM_PARALLEL(prev_num, [&](size_t start, size_t end) -> void {
+#endif
+
+                std::vector<Index_> indices;
+                std::vector<Float_> distances;
+                auto next_searcher = next_index->initialize();
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+                #pragma omp for
+#endif
+                for (size_t p = 0; p < prev_num; ++p) {
+#else
+                for (size_t p = start; p < end; ++p) {
+#endif
+
+                    next_searcher->search(prev_data + my_ndim * p, my_num_neighbors, &indices, &distances);
+                    fill_pair_vector(indices, distances, my_neighbors_ref[previous_ncorrected + p]);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
                 }
+            }
 #else
                 }
-                }, nthreads);
-#endif
-            }
-
-            auto prevnum = nobs[prev];
-            auto prevdata = corrected + previous_ncorrected * ndim;
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-            #pragma omp parallel for num_threads(nthreads)
-            for (size_t p = 0; p < prevnum; ++p) {
-#else
-            MNNCORRECT_CUSTOM_PARALLEL(prevnum, [&](size_t start, size_t end) -> void {
-            for (size_t p = start; p < end; ++p) {
+            }, my_nthreads);
 #endif
 
-                neighbors_ref[previous_ncorrected + p] = nxdex->find_nearest_neighbors(prevdata + ndim * p, num_neighbors);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-            }
-#else
-            }
-            }, nthreads);
-#endif
-
-            previous_ncorrected += prevnum;
+            previous_ncorrected += prev_num;
         }
 
         return;
     }
 
 public:
-    void run(Float nmads, int robust_iterations, double robust_trim) {
-        for (size_t i = 1; i < batches.size(); ++i) {
-            auto mnns = find_mutual_nns(neighbors_ref, neighbors_target);
-            auto tnum = nobs[order[i]];
-            auto tdata = batches[order[i]];
+    void run(Float_ nmads, int robust_iterations, double robust_trim) {
+        size_t nbatches = my_batches.size();
+        for (size_t i = 1; i < nbatches; ++i) {
+            auto mnns = find_mutual_nns(my_neighbors_ref, my_neighbors_target);
+            auto tnum = my_nobs[my_order[i]];
+            auto tdata = my_batches[my_order[i]];
 
             correct_target(
-                ndim, 
-                ncorrected, 
-                corrected, 
+                my_ndim, 
+                my_ncorrected, 
+                my_corrected, 
                 tnum, 
                 tdata, 
                 mnns,
-                builder,
-                num_neighbors,
+                my_builder,
+                my_num_neighbors,
                 nmads,
                 robust_iterations,
                 robust_trim,
-                corrected + ncorrected * ndim,
-                nobs_cap,
-                nthreads);
+                my_corrected + my_ncorrected * my_ndim,
+                my_nobs_cap,
+                my_nthreads
+            );
 
             update(i);
-            num_pairs.push_back(mnns.num_pairs);
+            my_num_pairs.push_back(mnns.num_pairs);
         }
     }
 
-    const auto& get_num_pairs() const { return num_pairs; }
+    const auto& get_num_pairs() const { return my_num_pairs; }
 
-    const auto& get_order() const { return order; }
-
-protected:
-    int ndim;
-    std::vector<size_t> nobs;
-    std::vector<const Float*> batches;
-    std::vector<std::shared_ptr<knncolle::Base<Index, Float> > > indices;
-
-    Builder builder;
-    int num_neighbors;
-    NeighborSet<Index, Float> neighbors_ref;
-    NeighborSet<Index, Float> neighbors_target;
-
-    Float* corrected;
-    size_t ncorrected = 0;
-    std::vector<int> order;
-    std::vector<int> num_pairs;
-
-    size_t nobs_cap;
-    int nthreads;
+    const auto& get_order() const { return my_order; }
 };
+
+}
 
 }
 
