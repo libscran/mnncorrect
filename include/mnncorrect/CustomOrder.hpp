@@ -136,83 +136,15 @@ protected:
             const auto& prev_index = my_indices[prev];
 
             if (i == 0) {
-                my_neighbors_target = quick_find_nns(next_num, next_data, *prev_index, my_num_neighbors, my_nthreads);
+                my_neighbors_target.resize(next_num);
+                quick_find_nns(next_num, next_data, *prev_index, my_num_neighbors, my_nthreads, my_neighbors_target, 0);
             } else {
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                #pragma omp parallel num_threads(nthreads)
-#endif
-                {
-#else
-                MNNCORRECT_CUSTOM_PARALLEL(nxnum, [&](size_t start, size_t end) -> void {
-#endif
-
-                    std::vector<Index_> indices;
-                    std::vector<Float_> distances;
-                    auto prev_searcher = prev_index->initialize();
-                    std::vector<std::pair<Index_, Float_> > search_buffer, fuse_buffer;
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                    #pragma omp for
-#endif
-                    for (size_t n = 0; n < next_num; ++n) {
-#else
-                    for (size_t n = start; n < end; ++n) {
-#endif
-
-                        auto next_ptr = next_data + my_ndim * n; // already size_t's, no need to cast to avoid overflow.
-                        prev_searcher->search(next_ptr, my_num_neighbors, &indices, &distances);
-                        fill_pair_vector(indices, distances, search_buffer);
-
-                        auto& current_target_neighbors = my_neighbors_target[n];
-                        fuse_nn_results(current_target_neighbors, search_buffer, my_num_neighbors, fuse_buffer, static_cast<Index_>(previous_ncorrected));
-                        fuse_buffer.swap(current_target_neighbors);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                    }
-                }
-#else
-                    }
-                }, my_nthreads);
-#endif
+                quick_fuse_nns(my_neighbors_target, next_data, *prev_index, my_num_neighbors, my_nthreads, static_cast<Index_>(previous_ncorrected));
             }
 
             auto prev_num = my_nobs[prev];
             auto prev_data = my_corrected + previous_ncorrected * my_ndim;
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-            #pragma omp parallel num_threads(my_nthreads)
-#endif
-            {
-#else
-            MNNCORRECT_CUSTOM_PARALLEL(prev_num, [&](size_t start, size_t end) -> void {
-#endif
-
-                std::vector<Index_> indices;
-                std::vector<Float_> distances;
-                auto next_searcher = next_index->initialize();
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                #pragma omp for
-#endif
-                for (size_t p = 0; p < prev_num; ++p) {
-#else
-                for (size_t p = start; p < end; ++p) {
-#endif
-
-                    next_searcher->search(prev_data + my_ndim * p, my_num_neighbors, &indices, &distances);
-                    fill_pair_vector(indices, distances, my_neighbors_ref[previous_ncorrected + p]);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                }
-            }
-#else
-                }
-            }, my_nthreads);
-#endif
+            quick_find_nns(prev_num, prev_data, *next_index, my_num_neighbors, my_nthreads, my_neighbors_ref, previous_ncorrected);
 
             previous_ncorrected += prev_num;
         }

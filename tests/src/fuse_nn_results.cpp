@@ -45,6 +45,15 @@ TEST(QuickFindNns, Basic) {
     for (size_t c = 0; c < NC; ++c) {
         EXPECT_EQ(output[c], poutput[c]);
     }
+
+    // Step by step construction works as expected.
+    mnncorrect::internal::NeighborSet<int, double> stepwise(NC);
+    mnncorrect::internal::quick_find_nns(50, contents.data(), *prebuilt, k, /* num_threads = */ 1, stepwise, 0);
+    mnncorrect::internal::quick_find_nns(NC - 50, contents.data() + 50 * NR, *prebuilt, k, /* num_threads = */ 1, stepwise, 50);
+    ASSERT_EQ(output.size(), stepwise.size());
+    for (size_t c = 0; c < NC; ++c) {
+        EXPECT_EQ(output[c], stepwise[c]);
+    }
 }
 
 TEST(FuseNnResults, Basic) {
@@ -106,7 +115,7 @@ TEST(FuseNnResults, Basic) {
 
 class FuseNnResultsTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
 
-TEST_P(FuseNnResultsTest, FuseNnResults) {
+TEST_P(FuseNnResultsTest, Randomized) {
     auto param = GetParam();
     auto nleft = std::get<0>(param);
     auto nright = std::get<1>(param);
@@ -151,3 +160,27 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+TEST(FuseNnResults, Recovery) {
+    // Recover the same NN results as just a direct search.
+    size_t NR = 10;
+    size_t NC = 100;
+    auto contents = scran_tests::simulate_vector(NR * NC, []{
+        scran_tests::SimulationParameters sparams;
+        sparams.seed = 69;
+        return sparams;
+    }());
+
+    int k = 5;
+    auto prebuilt_full = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC, contents.data()));
+    auto ref = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_full, /* k = */ k, /* num_threads = */ 1);
+
+    auto prebuilt_first = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, 50, contents.data()));
+    auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_first, /* k = */ k, /* num_threads = */ 1);
+    auto prebuilt_second = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC - 50, contents.data() + 50 * NR));
+    mnncorrect::internal::quick_fuse_nns(output, contents.data(), *prebuilt_second, /* k = */ k, /* num_threads = */ 1, /* offset = */ 50);
+
+    ASSERT_EQ(output.size(), ref.size());
+    for (size_t c = 0; c < NC; ++c) {
+        EXPECT_EQ(output[c], ref[c]);
+    }
+}

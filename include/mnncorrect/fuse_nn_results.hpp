@@ -2,6 +2,7 @@
 #define MNNCORRECT_FUSE_NN_RESULTS_HPP
 
 #include <vector>
+
 #include "knncolle/knncolle.hpp"
 #include "utils.hpp"
 
@@ -20,8 +21,7 @@ void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Dist
 }
 
 template<typename Dim_, typename Index_, typename Distance_>
-NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuilt<Dim_, Index_, Distance_>& index, int k, [[maybe_unused]] int nthreads) {
-    NeighborSet<Index_, Distance_> output(nobs);
+void quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuilt<Dim_, Index_, Distance_>& index, int k, [[maybe_unused]] int nthreads, NeighborSet<Index_, Distance_>& output, size_t shift) {
     size_t ndim = index.num_dimensions();
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
@@ -46,8 +46,9 @@ NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* quer
         for (size_t l = start; l < end; ++l) {
 #endif
 
-            searcher->search(query + ndim * l, k, &indices, &distances);
-            fill_pair_vector(indices, distances, output[l]);
+            auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.
+            searcher->search(ptr, k, &indices, &distances);
+            fill_pair_vector(indices, distances, output[l + shift]);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
@@ -56,7 +57,12 @@ NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* quer
         }
     }, nthreads);
 #endif
+}
 
+template<typename Dim_, typename Index_, typename Distance_>
+NeighborSet<Index_, Distance_> quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuilt<Dim_, Index_, Distance_>& index, int k, [[maybe_unused]] int nthreads) {
+    NeighborSet<Index_, Distance_> output(nobs);
+    quick_find_nns(nobs, query, index, k, nthreads, output, /* shift = */ 0);
     return output;
 }
 
@@ -124,6 +130,51 @@ void fuse_nn_results(
         output.back().first += offset;
         ++aIt;
     }
+}
+
+template<typename Dim_, typename Index_, typename Distance_>
+void quick_fuse_nns(NeighborSet<Index_, Distance_>& existing, const Distance_* query, const knncolle::Prebuilt<Dim_, Index_, Distance_>& index, int k, [[maybe_unused]] int nthreads, Index_ offset) {
+    size_t nobs = existing.size();
+    size_t ndim = index.num_dimensions();
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+    #pragma omp parallel num_threads(nthreads)
+#endif
+    {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
+#endif
+
+        std::vector<Index_> indices;
+        std::vector<Distance_> distances;
+        auto searcher = index.initialize();
+        std::vector<std::pair<Index_, Distance_> > search_buffer, fuse_buffer;
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+        #pragma omp for
+#endif
+        for (size_t l = 0; l < nobs; ++l) {
+#else
+        for (size_t l = start; l < end; ++l) {
+#endif
+
+            auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.
+            searcher->search(ptr, k, &indices, &distances);
+            fill_pair_vector(indices, distances, search_buffer);
+
+            auto& curexisting = existing[l];
+            fuse_nn_results(curexisting, search_buffer, k, fuse_buffer, offset);
+            fuse_buffer.swap(curexisting);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        }
+    }
+#else
+        }
+    }, nthreads);
+#endif
 }
 
 }

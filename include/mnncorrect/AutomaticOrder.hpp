@@ -41,6 +41,44 @@ Float_ compute_total_variance(size_t ndim, size_t nobs, const Float_* values, st
     return total;
 }
 
+template<typename Float_>
+std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_t>& nobs, const std::vector<const Float_*>& batches, bool as_rss, [[maybe_unused]] int nthreads) {
+    size_t nbatches = nobs.size();
+    std::vector<Float_> vars(nbatches);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+    #pragma omp parallel num_threads(nthreads)
+#endif
+    {
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t end) -> void {
+#endif
+
+        std::vector<Float_> mean_buffer(ndim);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
+        #pragma omp for
+#endif
+        for (size_t b = 0; b < nbatches; ++b) {
+#else
+        for (size_t b = start; b < end; ++b) {
+#endif
+
+            vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);
+
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+        }
+    }
+#else
+        }
+    }, nthreads);
+#endif
+
+    return vars;
+}
+
 template<typename Dim_, typename Index_, typename Float_>
 class AutomaticOrder {
 public:
@@ -104,41 +142,9 @@ public:
         size_t ref = 0;
         if (ref_policy == ReferencePolicy::MAX_SIZE) {
             ref = std::max_element(my_nobs.begin(), my_nobs.end()) - my_nobs.begin();
-
         } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
             bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
-            std::vector<Float_> vars(nbatches);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-            #pragma omp parallel num_threads(my_nthreads)
-#endif
-            {
-#else
-            MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t end) -> void {
-#endif
-
-                std::vector<Float_> mean_buffer(my_ndim);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                #pragma omp for
-#endif
-                for (size_t b = 0; b < nbatches; ++b) {
-#else
-                for (size_t b = start; b < end; ++b) {
-#endif
-
-                    vars[b] = compute_total_variance<Float_>(my_ndim, my_nobs[b], my_batches[b], mean_buffer, as_rss);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                }
-            }
-#else
-                }
-            }, my_nthreads);
-#endif
-
+            std::vector<Float_> vars = compute_total_variances(my_ndim, my_nobs, my_batches, as_rss, my_nthreads);
             ref = std::max_element(vars.begin(), vars.end()) - vars.begin();
         }
 
@@ -206,83 +212,9 @@ protected:
             auto& rem_ref_neighbors = my_neighbors_ref[b];
             rem_ref_neighbors.resize(my_ncorrected);
             const auto& rem_index = my_indices[b];
+            quick_find_nns(lat_num, lat_data, *rem_index, my_num_neighbors, my_nthreads, rem_ref_neighbors, previous_ncorrected);
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-            #pragma omp parallel num_threads(my_nthreads)
-#endif
-            {
-#else
-            MNNCORRECT_CUSTOM_PARALLEL(lat_num, [&](size_t start, size_t end) -> void {
-#endif
-
-                std::vector<Index_> indices;
-                std::vector<Float_> distances;
-                auto rem_searcher = rem_index->initialize();
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                #pragma omp for
-#endif
-                for (size_t l = 0; l < lat_num; ++l) {
-#else
-                for (size_t l = start; l < end; ++l) {
-#endif
-
-                    auto lat_ptr = lat_data + my_ndim * l; // already size_t's, so no need to cast to avoid overflow.
-                    rem_searcher->search(lat_ptr, my_num_neighbors, &indices, &distances);
-                    fill_pair_vector(indices, distances, rem_ref_neighbors[previous_ncorrected + l]);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                }
-            }
-#else
-                }
-            }, my_nthreads);
-#endif 
-
-            const size_t rem_num = my_nobs[b];
-            const Float_* rem_data = my_batches[b];
-            auto& rem_target_neighbors = my_neighbors_target[b];
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-            #pragma omp parallel num_threads(my_nthreads)
-#endif
-            {
-#else
-            MNNCORRECT_CUSTOM_PARALLEL(rem_num, [&](size_t start, size_t end) -> void {
-#endif
-
-                std::vector<Index_> indices;
-                std::vector<Float_> distances;
-                auto lat_searcher = lat_index->initialize();
-                std::vector<std::pair<Index_, Float_> > search_buffer, fuse_buffer;
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-                #pragma omp for
-#endif
-                for (size_t r = 0; r < rem_num; ++r) {
-#else
-                for (size_t r = start; r < end; ++r) {
-#endif
-
-                    auto rem_ptr = rem_data + my_ndim * r; // already size_t's, no need to cast to avoid overflow.
-                    lat_searcher->search(rem_ptr, my_num_neighbors, &indices, &distances);
-                    fill_pair_vector(indices, distances, search_buffer);
-
-                    auto& current_target_neighbors = rem_target_neighbors[r];
-                    fuse_nn_results(current_target_neighbors, search_buffer, my_num_neighbors, fuse_buffer, static_cast<Index_>(previous_ncorrected));
-                    fuse_buffer.swap(current_target_neighbors);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-                }
-            }
-#else
-                }
-            }, my_nthreads);
-#endif
+            quick_fuse_nns(my_neighbors_target[b], my_batches[b], *lat_index, my_num_neighbors, my_nthreads, static_cast<Index_>(previous_ncorrected));
         }
 
         return;

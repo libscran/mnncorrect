@@ -39,6 +39,17 @@ TEST(AutomaticOrder, RunningVariances) {
 
     double rss = mnncorrect::internal::compute_total_variance(ndim, nobs, data.data(), buffer, true);
     EXPECT_FLOAT_EQ(rss, ref * (nobs - 1));
+
+    // Overlord function works, even with multiple threads.
+    size_t nobs2 = 100;
+    auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulationParameters());
+
+    auto vars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, 1);
+    EXPECT_FLOAT_EQ(vars[0], running);
+    EXPECT_FLOAT_EQ(vars[1], mnncorrect::internal::compute_total_variance(ndim, nobs2, data2.data(), buffer, false));
+
+    auto pvars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, 2);
+    EXPECT_EQ(vars, pvars);
 }
 
 /****************************************************/
