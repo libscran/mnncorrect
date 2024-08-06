@@ -125,7 +125,9 @@ void compute_center_of_mass(
     auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL    
+#ifdef _OPENMP
     #pragma omp parallel num_threads(nthreads)
+#endif
     {
 #else
     MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t end) -> void {
@@ -134,7 +136,9 @@ void compute_center_of_mass(
         std::vector<std::pair<Float_, size_t> > deltas;
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
+#ifdef _OPENMP
         #pragma omp for
+#endif
         for (size_t g = 0; g < num_mnns; ++g) {
 #else
         for (size_t g = start; g < end; ++g) {

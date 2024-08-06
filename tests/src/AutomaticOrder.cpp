@@ -68,21 +68,6 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, d
         return choose();
     }
 
-    // The parallelized chooser is very complicated, so we test it against
-    // the naive serial chooser, just in case.
-    auto simple_choose() const {
-        mnncorrect::internal::MnnPairs<int> output;
-        size_t chosen = 0;
-        for (auto b : my_remaining) {
-            auto tmp = mnncorrect::internal::find_mutual_nns(my_neighbors_ref[b], my_neighbors_target[b]);
-            if (tmp.num_pairs > output.num_pairs) {
-                output = std::move(tmp);
-                chosen = b;
-            }
-        }
-        return std::make_pair(chosen, std::move(output));
-    }
-
     void test_update(size_t latest) {
         update<false>(latest);
         return;
@@ -194,19 +179,41 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
 
     for (size_t b = 1; b < sizes.size(); ++b) {
         auto& coords0 = all_coords[0];
+        size_t sofar = coords0.get_ncorrected();
 
-        auto simpler = coords0.simple_choose();
+        // The parallelized chooser with neighbor re-use is very complicated,
+        // so we test it against the naive serial chooser, just in case.
+        auto simpler = [&]{ 
+            auto corrected = all_output[0].data();
+            auto ref_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sofar, corrected));
+
+            mnncorrect::internal::MnnPairs<int> output;
+            size_t chosen = 0;
+            for (auto r : coords0.get_remaining()) {
+                auto target_to_ref = mnncorrect::internal::quick_find_nns(sizes[r], data[r].data(), *ref_index, /* k = */ k, /* num_threads = */ 1);
+                auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
+                auto ref_to_target = mnncorrect::internal::quick_find_nns(sofar, corrected, *target_index, /* k = */ k, /* num_threads = */ 1);
+
+                auto tmp = mnncorrect::internal::find_mutual_nns(ref_to_target, target_to_ref);
+                if (tmp.num_pairs > output.num_pairs) {
+                    output = std::move(tmp);
+                    chosen = r;
+                }
+            }
+
+            return std::make_pair(chosen, std::move(output));
+        }();
+
         EXPECT_FALSE(used[simpler.first]);
         used[simpler.first] = true;
 
-        // Check that the MNN pair indices are correct.
+        // Double-check that the MNN pair indices are sensible.
         const auto& m = simpler.second.matches;
-        size_t ncorrected = coords0.get_ncorrected();
         EXPECT_TRUE(m.size() > 0);
         for (const auto& x : m) {
             EXPECT_LT(x.first, sizes[simpler.first]);
             for (const auto& y : x.second) {
-                EXPECT_LT(y, ncorrected);
+                EXPECT_LT(y, sofar);
             }
         }
 
@@ -225,7 +232,6 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             return sparams;
         }());
 
-        size_t sofar = coords0.get_ncorrected();
         for (size_t i = 0; i < all_coords.size(); ++i) {
             auto& coords = all_coords[i];
             std::copy(corrected.begin(), corrected.end(), all_output[i].data() + ndim * coords.get_ncorrected());
@@ -247,7 +253,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             const auto& rcurrent = rneighbors[r];
             auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
             auto target_search = target_index->initialize();
-            EXPECT_EQ(rcurrent.size(), coords0.get_ncorrected());
+            EXPECT_EQ(rcurrent.size(), new_sofar);
 
             std::vector<int> indices;
             std::vector<double> distances;
