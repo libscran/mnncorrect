@@ -165,7 +165,7 @@ protected:
     std::vector<const Float_*> my_batches;
 
     std::unique_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > my_builder;
-    std::vector<std::shared_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
+    std::vector<std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
 
     int my_num_neighbors;
     std::vector<NeighborSet<Index_, Float_> > my_neighbors_ref;
