@@ -226,7 +226,12 @@ void correct_target(
 
     auto mnn_ref = identify_closest_mnn(nref, ref, *index_ref, k, nobs_cap, nthreads);
     index_ref.reset();
-    auto mnn_target = identify_closest_mnn(ntarget, target, *index_target, k, nobs_cap, nthreads);
+
+    // Don't apply the cap to the target NN search, as we need neighbor
+    // information for all target points to compute the correction for each
+    // point. The cap is only intended to avoid a linear increase in the NN
+    // search as the reference dataset grows over multiple merge steps.
+    auto mnn_target = quick_find_nns(ntarget, target, *index_target, k, nthreads);
     index_target.reset();
 
     // Determine the expected width to use, again in parallel. 

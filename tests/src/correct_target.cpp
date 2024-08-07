@@ -124,7 +124,6 @@ TEST_P(CorrectTargetTest, IdentifyClosestMnnsCapped) {
     auto self_mnn2 = identify_closest_mnn(ndim, nright, right.data(), right_mnn, k, buffer2.data(), ncap);
 
     {
-        EXPECT_EQ(buffer, buffer2);
         size_t obs_ncap = 0;
         for (size_t c = 0; c < self_mnn2.size(); ++c) {
             if (!self_mnn2[c].empty()) {
@@ -133,6 +132,7 @@ TEST_P(CorrectTargetTest, IdentifyClosestMnnsCapped) {
             }
         }
         EXPECT_EQ(obs_ncap, ncap);
+        EXPECT_EQ(buffer, buffer2); // checking for correct subsetting... just in case.
 
         // Remaining steps run without issue.
         double limit = mnncorrect::internal::limit_from_closest_distances(self_mnn2, 3.0);
@@ -226,7 +226,8 @@ TEST_P(CorrectTargetTest, CenterOfMassCapped) {
         EXPECT_NE(buffer_left, buffer_left2);
     }
 
-    // Checking what happens when the cap is onerous.
+    // Checking what happens when the cap is onerous, in which case the center
+    // of mass for each MNN-involved cell is just itself.
     {
         std::vector<double> buffer_left2(left_mnn.size() * ndim);
         auto self_mnn2 = identify_closest_mnn(ndim, nleft, left.data(), left_mnn, k, buffer_left2.data(), 0);

@@ -86,8 +86,9 @@ struct Options {
     ReferencePolicy reference_policy = ReferencePolicy::MAX_RSS;
 
     /**
-     * Cap on the number of observations used to compute the center of mass for each MNN-involved observation.
-     * The dataset is effectively downsampled to `mass_cap` observations for this specific calculation, which improves speed at the cost of some precision.
+     * Cap on the number of observations used to compute the center of mass for each MNN-involved observation in the reference dataset.
+     * The reference dataset is effectively downsampled to `mass_cap` observations for this specific calculation,
+     * which speeds up multiple correction iterations at the cost of some precision.
      * If -1, no cap is used.
      */
     size_t mass_cap = -1;
