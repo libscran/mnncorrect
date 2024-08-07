@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <vector>
 #include <numeric>
+#include <stdexcept>
+#include <cstdint>
 
 #include "knncolle/knncolle.hpp"
 
@@ -54,32 +56,45 @@ struct Details {
 namespace internal {
 
 template<typename Dim_, typename Index_, typename Float_>
-Details compute(size_t ndim, std::vector<size_t> num_obs, std::vector<const Float_*> batches, std::vector<Float_*> output, const Options<Dim_, Index_, Float_>& options) {
-    auto reference_policy = options.reference_policy;
-    auto num_neighbors = options.num_neighbors;
-    auto num_obs_cap = options.num_obs_cap;
-    auto nthreads = options.num_threads;
-
+Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Dim_, Index_, Float_>& options) {
     auto builder = options.builder;
     if (!builder) {
-        builder.reset(new knncolle::VptreeBuilder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>);
+        builder.reset(new knncolle::VptreeBuilder<knncolle::EuclideanDistance, knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>);
     }
 
     if (!options.order.empty()) {
-        CustomOrder<Dim_, Index_, Float_> runner(ndim, std::move(num_obs), std::move(batches), std::move(output), std::move(builder), num_neighbors, options.order.data(), num_obs_cap, nthreads);
-        runner.run(num_mads, robust_iterations, robust_trim);
+        { // Running some checks on the 'order' vector.
+            size_t nbatches = num_obs.size();
+            if (options.order.size() != nbatches) {
+                throw std::runtime_error("'order' should have the same length as the number of batches");
+            }
+
+            std::vector<uint8_t> found(nbatches);
+            for (auto o : options.order) {
+                if (o < 0 || o >= nbatches) {
+                    throw std::runtime_error("out-of-range batch indices in 'order'");
+                }
+                if (found[o]) {
+                    throw std::runtime_error("duplicated batch indices in 'order'");
+                }
+                found[o] = 1;
+            }
+        }
+
+        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order.data(), options.mass_cap, options.num_threads);
+        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(runner.get_order(), runner.get_num_pairs());
 
-    } else if (automatic_order) {
-        AutomaticOrder<Dim_, Index_, Float_> runner(ndim, std::move(num_obs), std::move(batches), std::move(output), std::move(builder), num_neighbors, reference_policy, num_obs_cap, nthreads);
-        runner.run(num_mads, robust_iterations, robust_trim);
+    } else if (options.automatic_order) {
+        AutomaticOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.reference_policy, options.mass_cap, options.num_threads);
+        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(runner.get_order(), runner.get_num_pairs());
 
     } else {
         std::vector<size_t> trivial_order(num_obs.size());
         std::iota(trivial_order.begin(), trivial_order.end(), 0);
-        CustomOrder<Dim_, Index_, Float_> runner(ndim, std::move(num_obs), std::move(batches), std::move(output), std::move(builder), num_neighbors, trivial_order.data(), num_obs_cap, nthreads);
-        runner.run(num_mads, robust_iterations, robust_trim);
+        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order.data(), options.mass_cap, options.num_threads);
+        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(std::move(trivial_order), runner.get_num_pairs());
     }
 }
@@ -122,7 +137,7 @@ Details compute(size_t ndim, std::vector<size_t> num_obs, std::vector<const Floa
  * @param[in] batches Vector of length equal to the number of batches.
  * The `i`-th entry points to a column-major dimension-by-observation array containing the uncorrected data for batch `i`,
  * where the number of rows is equal to `num_dim` and the number of columns is equal to `num_obs[i]`.
- * @param[out] output Pointer to an array containing a column-major matrix with number of rows equal to `ndim` and number of columns equal to the sum of `num_obs`.
+ * @param[out] output Pointer to an array containing a column-major matrix with number of rows equal to `num_dim` and number of columns equal to the sum of `num_obs`.
  * On output, the first `num_obs[0]` columns contain the corrected values of the first batch, 
  * the second `num_obs[1]` columns contain the corrected values of the second batch, and so on.
  * @param options Further options.
@@ -131,8 +146,8 @@ Details compute(size_t ndim, std::vector<size_t> num_obs, std::vector<const Floa
  */
 template<typename Dim_, typename Index_, typename Float_>
 Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Dim_, Index_, Float_>& options) {
-    auto stats = internal::compute(num_dim, num_obs, batches, output, order);
-    restore_order(ndim, stats.merge_order, num_obs, output);
+    auto stats = internal::compute(num_dim, num_obs, batches, output, options);
+    internal::restore_order(num_dim, stats.merge_order, num_obs, output);
     return stats;
 }
 
@@ -147,7 +162,7 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  * @param num_obs Vector of length equal to the number of batches.
  * The `i`-th entry contains the number of observations in batch `i`.
  * @param[in] input Pointer to an array containing a column-major matrix of uncorrected values from all batches.
- * The number of rows is equal to `ndim` and the number of columns is equal to the sum of `num_obs`.
+ * The number of rows is equal to `num_dim` and the number of columns is equal to the sum of `num_obs`.
  * The first `num_obs[0]` columns contain the uncorrected data for the first batch,
  * the next `num_obs[1]` columns contain observations for the second batch, and so on.
  * @param[out] output Pointer to an array containing a column-major matrix of the same dimensions as that in `input`, where the corrected values for all batches are stored.
@@ -158,14 +173,14 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  * @return Statistics about the merge process.
  */
 template<typename Dim_, typename Index_, typename Float_>
-Details compute(size_t ndim, const std::vector<size_t>& num_obs, const Float_* input, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_* input, Float_* output, const Options<Dim_, Index_, Float_>& options) {
     std::vector<const Float_*> batches;
     batches.reserve(num_obs.size());
     for (auto n : num_obs) {
         batches.push_back(input);
-        input += n * ndim; // already size_t's, so no need to worry about overflow.
+        input += n * num_dim; // already size_t's, so no need to worry about overflow.
     }
-    return compute(ndim, num_obs, batches, output, order);
+    return compute(num_dim, num_obs, batches, output, options);
 }
 
 /**
@@ -176,10 +191,10 @@ Details compute(size_t ndim, const std::vector<size_t>& num_obs, const Float_* i
  * @tparam Float_ Floating-point type for the distances in the neighbor search.
  * @tparam Batch_ Integer type for the batch IDs.
  *
- * @param ndim Number of dimensions.
+ * @param num_dim Number of dimensions.
  * @param num_obs Number of observations across all batches.
  * @param[in] input Pointer to an array containing a column-major matrix of uncorrected values from all batches.
- * The number of rows is equal to `ndim` and the number of columns is equal to `num_obs`.
+ * The number of rows is equal to `num_dim` and the number of columns is equal to `num_obs`.
  * Observations from the same batch do not need to be stored in adjacent columns.
  * @param[in] batch Pointer to an array of length `num_obs` containing the batch identity for each observation.
  * IDs should be zero-indexed and lie within \f$[0, N)\f$ where \f$N\f$ is the number of unique batches.
@@ -190,7 +205,7 @@ Details compute(size_t ndim, const std::vector<size_t>& num_obs, const Float_* i
  * @return Statistics about the merge process.
  */
 template<typename Dim_, typename Index_, typename Float_, typename Batch_>
-Details compute(size_t ndim, size_t num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Dim_, Index_, Float_>& options) {
     const size_t nbatches = (num_obs ? static_cast<size_t>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
     std::vector<size_t> sizes(nbatches);
     for (size_t o = 0; o < num_obs; ++o) {
@@ -207,7 +222,7 @@ Details compute(size_t ndim, size_t num_obs, const Float_* input, const Batch_* 
        }
     }
     if (already_sorted) {
-        return compute(ndim, sizes, input, output, options);
+        return compute(num_dim, sizes, input, output, options);
     }
 
     size_t accumulated = 0;
@@ -218,22 +233,22 @@ Details compute(size_t ndim, size_t num_obs, const Float_* input, const Batch_* 
     }
 
     // Dumping everything by order into another vector.
-    std::vector<Float_> tmp(ndim * num_obs);
+    std::vector<Float_> tmp(num_dim * num_obs);
     for (size_t o = 0; o < num_obs; ++o) {
-        auto current = input + o * ndim;
+        auto current = input + o * num_dim;
         auto& offset = offsets[batch[o]];
-        auto destination = tmp.data() + ndim * offset; // already size_t's, so no need to cast to avoid overflow.
-        std::copy_n(current, ndim, destination);
+        auto destination = tmp.data() + num_dim * offset; // already size_t's, so no need to cast to avoid overflow.
+        std::copy_n(current, num_dim, destination);
         ++offset;
     }
 
     std::vector<const Float_*> ptrs(nbatches);
     for (size_t b = 0; b < nbatches; ++b) {
-        ptrs[b] = tmp.data() + offsets[b] * ndim;
+        ptrs[b] = tmp.data() + offsets[b] * num_dim;
     }
 
-    auto stats = internal::compute(ndim, sizes, ptrs, output, options);
-    restore_order(ndim, stats.merge_order, sizes, batch, output);
+    auto stats = internal::compute(num_dim, sizes, ptrs, output, options);
+    internal::restore_order(num_dim, stats.merge_order, sizes, batch, output);
     return stats;
 }
 

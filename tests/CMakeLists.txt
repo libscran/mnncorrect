@@ -25,7 +25,7 @@ macro(create_test name)
         src/CustomOrder.cpp
         src/restore_order.cpp
         src/utils.cpp
-#        src/MnnCorrect.cpp
+        src/compute.cpp
     )
 
     target_link_libraries(

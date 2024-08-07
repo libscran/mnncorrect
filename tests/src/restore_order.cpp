@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <random>
 
-class RestoreOrderTest : public ::testing::TestWithParam<std::tuple<std::vector<int>, std::vector<size_t> > > {
+class RestoreOrderTest : public ::testing::TestWithParam<std::tuple<std::vector<size_t>, std::vector<size_t> > > {
 protected:
     static size_t init(size_t batch, size_t index) {
         return (batch + 1) * (index + 1);
@@ -96,9 +96,9 @@ INSTANTIATE_TEST_SUITE_P(
     RestoreOrder,
     RestoreOrderTest,
     ::testing::Values(
-        std::make_tuple(std::vector<int>{0, 1}, std::vector<size_t>{ 50, 20 }),
-        std::make_tuple(std::vector<int>{0, 1, 2}, std::vector<size_t>{ 10, 20, 30 }),
-        std::make_tuple(std::vector<int>{2, 0, 1}, std::vector<size_t>{ 9, 11, 7 }),
-        std::make_tuple(std::vector<int>{2, 1, 3, 0}, std::vector<size_t>{ 5, 2, 9, 4 })
+        std::make_tuple(std::vector<size_t>{0, 1}, std::vector<size_t>{ 50, 20 }),
+        std::make_tuple(std::vector<size_t>{0, 1, 2}, std::vector<size_t>{ 10, 20, 30 }),
+        std::make_tuple(std::vector<size_t>{2, 0, 1}, std::vector<size_t>{ 9, 11, 7 }),
+        std::make_tuple(std::vector<size_t>{2, 1, 3, 0}, std::vector<size_t>{ 5, 2, 9, 4 })
     )
 );

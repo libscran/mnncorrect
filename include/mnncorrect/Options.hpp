@@ -32,11 +32,11 @@ struct Options {
      * Number of median absolute deviations to use to define the distance threshold for the center of mass calculations.
      * Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
      */
-    static constexpr Float num_mads = 3;
+    double num_mads = 3;
 
     /**
      * Algorithm to use for building the nearest-neighbor search indices.
-     * If NULL, defaults to an exact search with `knncolle::VptreeBuilder`.
+     * If NULL, defaults to an exact search via `knncolle::VptreeBuilder` with Euclidean distances.
      */
     std::shared_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > builder;
 
@@ -86,7 +86,8 @@ struct Options {
 
     /**
      * Cap on the number of observations used to compute the center of mass for each MNN-involved observation.
-     * The dataset is effectively downsampled to `c` observations for this calculation, which improves speed at the cost of some precision.
+     * The dataset is effectively downsampled to `mass_cap` observations for this calculation, which improves speed at the cost of some precision.
+     * If -1, no cap is used.
      */
     size_t mass_cap = -1;
 

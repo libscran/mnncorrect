@@ -9,7 +9,7 @@ namespace mnncorrect {
 
 namespace internal {
 
-inline std::pair<std::vector<size_t>, size_t> define_merge_order_offsets(const std::vector<int>& merge_order, const std::vector<size_t>& sizes) {
+inline std::pair<std::vector<size_t>, size_t> define_merge_order_offsets(const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes) {
     size_t nbatches = merge_order.size();
     size_t accumulated = 0;
     std::vector<size_t> offsets(nbatches);
@@ -53,7 +53,7 @@ void reorder_data(size_t ndim, size_t nobs, const std::vector<size_t>& reindex, 
 }
 
 template<typename Float_>
-void restore_order(size_t ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, Float_* output) {
+void restore_order(size_t ndim, const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes, Float_* output) {
     auto offset_out = define_merge_order_offsets(merge_order, sizes);
     const auto& offsets = offset_out.first;
     size_t nobs = offset_out.second;
@@ -71,7 +71,7 @@ void restore_order(size_t ndim, const std::vector<int>& merge_order, const std::
 }
 
 template<typename Float_, typename Batch>
-void restore_order(size_t ndim, const std::vector<int>& merge_order, const std::vector<size_t>& sizes, const Batch* batch, Float_* output) {
+void restore_order(size_t ndim, const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes, const Batch* batch, Float_* output) {
     auto offset_out = define_merge_order_offsets(merge_order, sizes);
     auto& offsets = offset_out.first;
     size_t nobs = offset_out.second;
