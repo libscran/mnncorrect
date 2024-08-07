@@ -63,18 +63,5 @@ robust_centroid <- function(y, iterations, trim) {
         center <- rowMeans(y[,keep,drop=FALSE])
     }
 
-#    ref <- robust_average(y, iterations, trim)
-#    if (!isTRUE(all.equal(center, ref))) {
-#        cat("DELTA IS:\n")
-#        print(sort(delta))
-#        print(sum(keep))
-#        print(quantile(delta, 1-trim) * 1.00000001)
-#        cat("REF IS:\n")
-#        print(ref)
-#        cat("CENTER IS:\n")
-#        print(center)
-#        stop("ARGGHH")
-#    }
-
     center
 }
