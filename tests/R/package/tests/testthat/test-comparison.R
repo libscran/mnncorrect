@@ -104,3 +104,43 @@ test_that("iterative comparisons work out", {
 
     expect_equal(final, cpp$corrected)
 })
+
+set.seed(100003)
+test_that("automatic merge order makes sense", {
+    x <- matrix(rnorm(10000), nrow=10)
+    b <- rep(1:4, 1:4 * 100)
+    x <- t(t(x) + b)
+
+    cpp <- mnncorrect.cpp(x, b, automatic.order=TRUE)
+    order <- cpp$merge.order
+    expect_identical(order, 3:0) # largest to smallest, as more cells => more MNNs.
+
+    ref <- x[,b==4]
+    for (batch in 3:1) {
+        current <- x[,b==batch,drop=FALSE]
+        ref2 <- mnncorrect.ref(ref, current)
+        ref <- cbind(ref2, ref)
+    }
+
+    expect_equal(ref, cpp$corrected)
+})
+
+set.seed(100004)
+test_that("custom merge order makes sense", {
+    x <- matrix(rnorm(10000), nrow=10)
+    b <- rep(1:4, 4:1 * 100)
+    x <- t(t(x) + b)
+
+    cpp <- mnncorrect.cpp(x, b, order=4:1)
+    order <- cpp$merge.order
+    expect_identical(order, 3:0) # largest to smallest, as more cells => more MNNs.
+
+    ref <- x[,b==4]
+    for (batch in 3:1) {
+        current <- x[,b==batch,drop=FALSE]
+        ref2 <- mnncorrect.ref(ref, current)
+        ref <- cbind(ref2, ref)
+    }
+
+    expect_equal(ref, cpp$corrected)
+})
