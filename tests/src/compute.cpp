@@ -324,3 +324,34 @@ INSTANTIATE_TEST_SUITE_P(
         )
     )
 );
+
+TEST(Overall, CustomOrderErrors) {
+    int ndim = 10;
+    std::vector<size_t> sizes { 10, 20 };
+    std::vector<const double*> ptrs { NULL, NULL };
+    std::vector<double> output(300);
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(5);
+            return opt;
+        }());
+    }, "same length");
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(2, 10);
+            return opt;
+        }());
+    }, "out-of-range");
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(2);
+            return opt;
+        }());
+    }, "duplicate");
+}

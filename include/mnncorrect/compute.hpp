@@ -71,7 +71,7 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
 
             std::vector<uint8_t> found(nbatches);
             for (auto o : options.order) {
-                if (o < 0 || o >= nbatches) {
+                if (o >= nbatches) {
                     throw std::runtime_error("out-of-range batch indices in 'order'");
                 }
                 if (found[o]) {
