@@ -108,8 +108,16 @@ protected:
         total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
     }
 
-    int ndim = 5, k;
+public:
+    // Constants.
+    int ndim = 5;
+    knncolle::VptreeBuilder<> builder;
+
+    // Parameters.
+    int k;
     std::vector<size_t> sizes;
+
+    // Computed.
     std::vector<std::vector<double> > data;
     std::vector<const double*> ptrs;
     int total_size;
@@ -132,7 +140,7 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
         sizes,
         ptrs,
         output.data(),
-        std::make_unique<knncolle::VptreeBuilder<> >(),
+        builder,
         /* num_neighbors = */ k,
         /* ref_policy = */ AutomaticOrder2::default_policy,
         /* nobs_cap = */ -1,
@@ -176,7 +184,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             sizes,
             ptrs,
             all_output[t].data(),
-            std::make_unique<knncolle::VptreeBuilder<> >(),
+            builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ AutomaticOrder2::default_policy,
             /* nobs_cap = */ -1,
@@ -319,7 +327,7 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
             sizes,
             ptrs,
             output.data(),
-            std::make_unique<knncolle::VptreeBuilder<> >(),
+            builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ choice,
             /* nobs_cap = */ -1,
@@ -346,7 +354,7 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
             sizes,
             ptrs,
             par_output3.data(),
-            std::make_unique<knncolle::VptreeBuilder<> >(),
+            builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ choice,
             /* nobs_cap = */ -1,

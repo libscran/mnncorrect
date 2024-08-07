@@ -55,9 +55,17 @@ protected:
         total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
     }
 
-    int ndim = 5, k;
+protected:
+    // Constants.
+    int ndim = 5;
+    knncolle::VptreeBuilder<> builder;
+
+    // Parameters.
+    int k;
     std::vector<size_t> sizes;
     bool reversed;
+
+    // Simulated.
     std::vector<std::vector<double> > data;
     std::vector<const double*> ptrs;
     int total_size;
@@ -86,7 +94,7 @@ TEST_P(CustomOrderTest, CheckInitialization) {
         sizes,
         ptrs,
         output.data(),
-        std::make_unique<knncolle::VptreeBuilder<> >(),
+        builder,
         /* num_neighbors = */ k,
         /* order = */ ordering.data(),
         /* nobs_cap = */ -1,
@@ -125,7 +133,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             sizes,
             ptrs,
             all_output.back().data(),
-            std::make_unique<knncolle::VptreeBuilder<> >(),
+            builder,
             /* num_neighbors = */ k,
             /* order = */ ordering.data(),
             /* nobs_cap = */ -1,
@@ -167,7 +175,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             const auto& rneighbors = coords0.get_neighbors_ref();
             EXPECT_EQ(rneighbors.size(), new_sofar);
 
-            auto target_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, tnum, tdata.data()));
+            auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, tnum, tdata.data()));
             auto target_searcher = target_index->initialize();
             for (size_t x = 0; x < new_sofar; ++x) {
                 target_searcher->search(all_output[0].data() + x * ndim, k, &indices, &distances);
@@ -177,7 +185,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             const auto& tneighbors = coords0.get_neighbors_target();
             EXPECT_EQ(tneighbors.size(), tnum);
 
-            auto ref_index = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
+            auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
             auto ref_searcher = ref_index->initialize();
             for (size_t x = 0; x < tnum; ++x) {
                 ref_searcher->search(tdata.data() + x * ndim, k, &indices, &distances);

@@ -22,19 +22,19 @@ public:
     template<typename Order_>
     CustomOrder(
         size_t ndim, 
-        std::vector<size_t> nobs,
-        std::vector<const Float_*> batches,
+        const std::vector<size_t>& nobs,
+        const std::vector<const Float_*>& batches,
         Float_* corrected,
-        std::unique_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > builder,
+        const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& builder,
         int num_neighbors,
         const Order_* order,
         size_t nobs_cap,
         int nthreads) 
     :
         my_ndim(ndim), 
-        my_nobs(std::move(nobs)), 
-        my_batches(std::move(batches)),
-        my_builder(std::move(builder)),
+        my_nobs(nobs), 
+        my_batches(batches),
+        my_builder(builder),
         my_indices(my_batches.size()),
         my_num_neighbors(num_neighbors),
         my_corrected(corrected),
@@ -64,7 +64,7 @@ public:
             for (size_t b = start; b < end; ++b) {
 #endif
 
-                my_indices[b] = my_builder->build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, my_nobs[b], my_batches[b]));
+                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, my_nobs[b], my_batches[b]));
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
@@ -90,10 +90,10 @@ public:
 
 protected:
     int my_ndim;
-    std::vector<size_t> my_nobs;
-    std::vector<const Float_*> my_batches;
+    const std::vector<size_t>& my_nobs;
+    const std::vector<const Float_*>& my_batches;
 
-    std::unique_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > my_builder;
+    const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& my_builder;
     std::vector<std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
 
     int my_num_neighbors;
@@ -121,7 +121,7 @@ protected:
         }
 
         // Updating all statistics with the latest batch added to the corrected reference.
-        my_indices[latest] = my_builder->build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, lnum, ldata));
+        my_indices[latest] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, lnum, ldata));
 
         auto next = my_order[position];
         auto next_data = my_batches[next];
