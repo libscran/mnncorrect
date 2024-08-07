@@ -234,17 +234,17 @@ Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch
 
     // Dumping everything by order into another vector.
     std::vector<Float_> tmp(num_dim * num_obs);
+    std::vector<const Float_*> ptrs(nbatches);
+    for (size_t b = 0; b < nbatches; ++b) {
+        ptrs[b] = tmp.data() + offsets[b] * num_dim;
+    }
+
     for (size_t o = 0; o < num_obs; ++o) {
         auto current = input + o * num_dim;
         auto& offset = offsets[batch[o]];
         auto destination = tmp.data() + num_dim * offset; // already size_t's, so no need to cast to avoid overflow.
         std::copy_n(current, num_dim, destination);
         ++offset;
-    }
-
-    std::vector<const Float_*> ptrs(nbatches);
-    for (size_t b = 0; b < nbatches; ++b) {
-        ptrs[b] = tmp.data() + offsets[b] * num_dim;
     }
 
     auto stats = internal::compute(num_dim, sizes, ptrs, output, options);
