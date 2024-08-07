@@ -2,6 +2,7 @@
 #define MNNCORRECT_OPTIONS_HPP
 
 #include "knncolle/knncolle.hpp"
+#include "ReferencePolicy.hpp"
 
 /**
  * @file Options.hpp
