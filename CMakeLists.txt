@@ -25,7 +25,7 @@ else()
     find_package(knncolle_knncolle 2.0.0 CONFIG REQUIRED)
 endif()
 
-target_link_libraries(mnncorrect INTERFACE knncolle::knncolle ltla::aarand)
+target_link_libraries(mnncorrect INTERFACE knncolle::knncolle)
 
 # Tests
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

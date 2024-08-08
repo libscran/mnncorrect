@@ -122,9 +122,11 @@ This involves different technologies and different cell populations.
 
 ## Building projects
 
+### CMake with `FetchContent`
+
 If you're using CMake, you just need to add something like this to your `CMakeLists.txt`:
 
-```
+```cmake
 include(FetchContent)
 
 FetchContent_Declare(
@@ -138,7 +140,7 @@ FetchContent_MakeAvailable(mnncorrect)
 
 Then you can link to **libscran** to make the headers available during compilation:
 
-```
+```cmake
 # For executables:
 target_link_libraries(myexe mnncorrect)
 
@@ -146,9 +148,29 @@ target_link_libraries(myexe mnncorrect)
 target_link_libraries(mylib INTERFACE mnncorrect)
 ```
 
+### CMake with `find_package()`
+
+```cmake
+find_package(libscran_mnncorrect CONFIG REQUIRED)
+target_link_libraries(mylib INTERFACE libscran::mnncorrect)
+```
+
+To install the library, use:
+
+```sh
+mkdir build && cd build
+cmake .. -DMNNCORRECT_TESTS=OFF
+cmake --build . --target install
+```
+
+By default, this will use `FetchContent` to fetch all external dependencies.
+If you want to install them manually, use `-DMNNCORRECT_FETCH_EXTERN=OFF`.
+See [`extern/CMakeLists.txt`](extern/CMakeLists.txt) to find compatible versions of each dependency.
+
+### Manual
+
 If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's `-I`.
-Note that this requires manual management of the [**knncolle**](https://github.com/knncolle/knncolle) library for k-nearest neighbor detection.
-This in turn has a suite of its own dependencies, see the link for details.
+This requires the external dependencies listed in [`extern/CMakeLists.txt`](extern/CMakeLists.txt), which also need to be made available during compilation.
 
 ## References
 
