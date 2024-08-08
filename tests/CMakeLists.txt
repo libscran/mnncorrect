@@ -1,48 +1,56 @@
 include(FetchContent)
 FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+  scran_tests
+  GIT_REPOSITORY https://github.com/libscran/scran_tests
+  GIT_TAG master
 )
+FetchContent_MakeAvailable(scran_tests)
 
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-enable_testing()
-
-add_executable(
-    libtest 
-    src/find_mutual_nns.cpp
-    src/RobustAverage.cpp
-    src/correct_target.cpp
-    src/AutomaticOrder.cpp
-    src/CustomOrder.cpp
-    src/restore_order.cpp
-    src/utils.cpp
-    src/MnnCorrect.cpp
-)
-
-target_link_libraries(
-    libtest
-    gtest_main
-    mnncorrect 
-)
-
-set(CODE_COVERAGE "Enable coverage testing" OFF)
+option(CODE_COVERAGE "Enable coverage testing" OFF)
+set(DO_CODE_COVERAGE OFF)
 if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(libtest PRIVATE -O0 -g --coverage)
-    target_link_options(libtest PRIVATE --coverage)
-endif()
-
-set(USE_OPENMP OFF CACHE BOOL "Compile with OpenMP support")
-set(USE_CUSTOM_PARALLEL OFF CACHE BOOL "Compile with custom parallelization")
-
-if (USE_OPENMP)
-    find_package(OpenMP)
-    target_link_libraries(libtest OpenMP::OpenMP_CXX)
-elseif(USE_CUSTOM_PARALLEL)
-    target_compile_definitions(libtest PRIVATE TEST_CUSTOM_PARALLEL)
+    set(DO_CODE_COVERAGE ON)
 endif()
 
 include(GoogleTest)
-gtest_discover_tests(libtest)
+
+macro(create_test name) 
+    add_executable(
+        ${name} 
+        src/fuse_nn_results.cpp
+        src/find_mutual_nns.cpp
+        src/robust_average.cpp
+        src/correct_target.cpp
+        src/AutomaticOrder.cpp
+        src/CustomOrder.cpp
+        src/restore_order.cpp
+        src/utils.cpp
+        src/compute.cpp
+    )
+
+    target_link_libraries(
+        ${name}
+        scran_tests
+        mnncorrect 
+    )
+
+    target_compile_options(${name} PRIVATE -Wall -Wpedantic -Wextra -Werror)
+
+    if(DO_CODE_COVERAGE)
+        target_compile_options(${name} PRIVATE -O0 -g --coverage)
+        target_link_options(${name} PRIVATE --coverage)
+    endif()
+
+    gtest_discover_tests(${name})
+endmacro()
+
+create_test(libtest)
+
+create_test(cuspartest)
+target_compile_definitions(cuspartest PRIVATE TEST_CUSTOM_PARALLEL)
+
+find_package(OpenMP)
+if (OpenMP_FOUND)
+    create_test(omptest)
+    target_link_libraries(omptest OpenMP::OpenMP_CXX)
+endif()

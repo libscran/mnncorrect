@@ -2,24 +2,16 @@
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
+#include "scran_tests/scran_tests.hpp"
+
 #include "mnncorrect/AutomaticOrder.hpp"
 #include <random>
 #include <algorithm>
-#include "order_utils.h"
 
 TEST(AutomaticOrder, RunningVariances) {
-    std::mt19937_64 rng(42);
-    std::normal_distribution<> dist;
-
     int ndim = 12;
     size_t nobs = 34;
-
-    std::vector<double> data;
-    for (size_t s = 0; s < nobs; ++s) {
-        for (int d = 0; d < ndim; ++d) {
-            data.push_back(dist(rng));
-        }
-    }
+    auto data = scran_tests::simulate_vector(ndim * nobs, scran_tests::SimulationParameters());
 
     double ref = 0;
     for (int d = 0; d < ndim; ++d) {
@@ -41,102 +33,50 @@ TEST(AutomaticOrder, RunningVariances) {
         ref += variance;
     }
 
-    double running = mnncorrect::compute_total_variance(ndim, nobs, data.data(), false);
+    std::vector<double> buffer(ndim);
+    double running = mnncorrect::internal::compute_total_variance(ndim, nobs, data.data(), buffer, false);
     EXPECT_FLOAT_EQ(running, ref);
-    double rss = mnncorrect::compute_total_variance(ndim, nobs, data.data(), true);
+
+    double rss = mnncorrect::internal::compute_total_variance(ndim, nobs, data.data(), buffer, true);
     EXPECT_FLOAT_EQ(rss, ref * (nobs - 1));
 
-    return;
+    // Overlord function works, even with multiple threads.
+    size_t nobs2 = 100;
+    auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulationParameters());
+
+    auto vars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 1);
+    EXPECT_FLOAT_EQ(vars[0], running);
+    EXPECT_FLOAT_EQ(vars[1], mnncorrect::internal::compute_total_variance(ndim, nobs2, data2.data(), buffer, false));
+
+    auto pvars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 3);
+    EXPECT_EQ(vars, pvars);
 }
 
 /****************************************************/
 
-class FuseNeighborsTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
+struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, double> {
+    static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::ReferencePolicy::MAX_SIZE;
 
-TEST_P(FuseNeighborsTest, FuseNeighbors) {
-    auto param = GetParam();
-    auto nleft = std::get<0>(param);
-    auto nright = std::get<1>(param);
-    auto nkeep = std::get<2>(param);
+    template<typename ... Args_>
+    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, int, double>(std::forward<Args_>(args)...) {}
 
-    std::mt19937_64 rng(nleft * nright + nkeep);
-    std::normal_distribution ndist;
-    std::uniform_int_distribution udist(0, 10000000);
-    auto comp = [](const auto& l, const auto& r) -> bool { return l.second < r.second; };
-
-    std::vector<std::pair<int, double> > base;
-    for (int l = 0; l < nleft; ++l) {
-        base.emplace_back(udist(rng), ndist(rng));
+    const auto& get_neighbors_ref () const { 
+        return my_neighbors_ref;
     }
-    std::sort(base.begin(), base.end(), comp);
-
-    std::vector<std::pair<int, double> > alt;
-    for (int r = 0; r < nright; ++r) {
-        alt.emplace_back(udist(rng), ndist(rng));
-    }
-    std::sort(alt.begin(), alt.end(), comp);
-    
-    auto ref = base;
-    ref.insert(ref.end(), alt.begin(), alt.end());
-    std::sort(ref.begin(), ref.end(), comp);
-    if (static_cast<size_t>(nkeep) < ref.size()) {
-        ref.resize(nkeep);
-    }
-
-    mnncorrect::fuse_nn_results(base, alt, nkeep);
-    EXPECT_EQ(ref, base);
-}
-
-INSTANTIATE_TEST_CASE_P(
-    FuseNeighbors,
-    FuseNeighborsTest,
-    ::testing::Combine(
-        ::testing::Values(1, 5, 10), // left
-        ::testing::Values(1, 5, 10), // right
-        ::testing::Values(1, 5, 10) // number to keep
-    )
-);
-
-/****************************************************/
-
-struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
-    static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::MaxSize;
-
-    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k, mnncorrect::ReferencePolicy first = default_policy, size_t cap = -1, int nthreads = 1) :
-        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k, first, cap, nthreads) {}
-
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_ref () const { 
-        return neighbors_ref;
-    }
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_target () const { 
-        return neighbors_target;
+    const auto& get_neighbors_target () const { 
+        return my_neighbors_target;
     }
 
     size_t get_ncorrected() const { 
-        return ncorrected;
+        return my_ncorrected;
     }
 
-    const std::set<size_t>& get_remaining () const { 
-        return remaining; 
+    const auto& get_remaining () const { 
+        return my_remaining; 
     }
 
     auto test_choose() {
         return choose();
-    }
-
-    // The parallelized chooser is very complicated, so we test it against
-    // the naive serial chooser, just in case.
-    auto simple_choose() const {
-        mnncorrect::MnnPairs<int> output;
-        size_t chosen = 0;
-        for (auto b : remaining) {
-            auto tmp = mnncorrect::find_mutual_nns(neighbors_ref[b], neighbors_target[b]);
-            if (tmp.num_pairs > output.num_pairs) {
-                output = std::move(tmp);
-                chosen = b;
-            }
-        }
-       return std::pair<size_t, mnncorrect::MnnPairs<int> >(chosen, std::move(output));
     }
 
     void test_update(size_t latest) {
@@ -145,44 +85,67 @@ struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder>
     }
 };
 
-class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t> > > {
 protected:
-    template<class Param>
-    void assemble(Param param) {
-        // Simulating values.
-        std::mt19937_64 rng(42);
-        std::normal_distribution<> dist;
-
-        ndim = std::get<0>(param);
-        k = std::get<1>(param);
-        sizes = std::get<2>(param);
+    void SetUp() {
+        auto param = GetParam();
+        k = std::get<0>(param);
+        sizes = std::get<1>(param);
 
         data.resize(sizes.size());
         ptrs.resize(sizes.size());
         for (size_t b = 0; b < sizes.size(); ++b) {
-            for (size_t s = 0; s < sizes[b]; ++s) {
-                for (int d = 0; d < ndim; ++d) {
-                    data[b].push_back(dist(rng));
-                }
-            }
+            data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+                scran_tests::SimulationParameters sparams;
+                sparams.lower = -2;
+                sparams.upper = 2;
+                sparams.seed = 42 + ndim * 10 + k * 100 + sizes[b];
+                return sparams;
+            }());
             ptrs[b] = data[b].data();
         }
 
-        size_t total_size = std::accumulate(sizes.begin(), sizes.end(), 0);
-        output.resize(total_size * ndim);
-        return;
+        total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
     }
 
-    int ndim, k;
+public:
+    // Constants.
+    int ndim = 5;
+    knncolle::VptreeBuilder<> builder;
+
+    // Parameters.
+    int k;
     std::vector<size_t> sizes;
+
+    // Computed.
     std::vector<std::vector<double> > data;
     std::vector<const double*> ptrs;
-    std::vector<double> output;
+    int total_size;
+
+public:
+    static void compare_to_naive(const std::vector<int>& indices, const std::vector<double>& distances, const std::vector<std::pair<int, double> >& updated) {
+        size_t n = indices.size();
+        ASSERT_EQ(n, updated.size());
+        for (size_t i = 0; i < n; ++i) {
+            EXPECT_EQ(indices[i], updated[i].first);
+            EXPECT_EQ(distances[i], updated[i].second);
+        }
+    }
 };
 
 TEST_P(AutomaticOrderTest, CheckInitialization) {
-    assemble(GetParam());
-    AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
+    std::vector<double> output(total_size);
+    AutomaticOrder2 coords(
+        ndim,
+        sizes,
+        ptrs,
+        output.data(),
+        builder,
+        /* num_neighbors = */ k,
+        /* ref_policy = */ AutomaticOrder2::default_policy,
+        /* nobs_cap = */ -1,
+        /* nthreads = */ 1
+    );
 
     size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
     const auto& ord = coords.get_order();
@@ -210,163 +173,195 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
 }
 
 TEST_P(AutomaticOrderTest, CheckUpdate) {
-    assemble(GetParam());
-    AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
+    std::vector<AutomaticOrder2> all_coords;
+    all_coords.reserve(3);
+    std::vector<std::vector<double> > all_output(3);
+
+    for (int t = 0; t < 3; ++t) {
+        all_output[t].resize(total_size);
+        all_coords.emplace_back(
+            ndim,
+            sizes,
+            ptrs,
+            all_output[t].data(),
+            builder,
+            /* num_neighbors = */ k,
+            /* ref_policy = */ AutomaticOrder2::default_policy,
+            /* nobs_cap = */ -1,
+            /* nthreads = */ t + 1
+        );
+    }
+
     std::vector<char> used(sizes.size());
-    used[coords.get_order()[0]] = true;
-
-    // Creating a copy that doesn't mutate the neighbor sets upon calling test_choose().
-    AutomaticOrder2 ref_coords(ndim, sizes, ptrs, output.data(), k);
-
-    // Compare to multi-threaded versions, using 2 or 3 threads.
-    // We need to check this a bit more carefully because the
-    // multithreading inside the AutomaticOrder class is wild.
-    std::vector<double> par_output2(output.size());
-    AutomaticOrder2 par_coords2(ndim, sizes, ptrs, par_output2.data(), k, AutomaticOrder2::default_policy, /* cap = */ -1, /* nthreads = */ 2);
-
-    std::vector<double> par_output3(output.size());
-    AutomaticOrder2 par_coords3(ndim, sizes, ptrs, par_output3.data(), k, AutomaticOrder2::default_policy, /* cap = */ -1, /* nthreads = */ 3);
-
-    std::mt19937_64 rng(123456);
-    std::normal_distribution<> dist;
+    used[all_coords.front().get_order()[0]] = true;
 
     for (size_t b = 1; b < sizes.size(); ++b) {
-        auto chosen = coords.test_choose();
-        EXPECT_FALSE(used[chosen.first]);
-        used[chosen.first] = true;
+        auto& coords0 = all_coords[0];
+        size_t sofar = coords0.get_ncorrected();
 
-        // Check that the MNN pair indices are correct.
-        const auto& m = chosen.second.matches;
+        // The parallelized chooser with neighbor re-use is very complicated,
+        // so we test it against the naive serial chooser, just in case.
+        auto simpler = [&]{ 
+            auto corrected = all_output[0].data();
+            auto ref_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sofar, corrected));
+
+            mnncorrect::internal::MnnPairs<int> output;
+            size_t chosen = 0;
+            for (auto r : coords0.get_remaining()) {
+                auto target_to_ref = mnncorrect::internal::quick_find_nns(sizes[r], data[r].data(), *ref_index, /* k = */ k, /* num_threads = */ 1);
+                auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
+                auto ref_to_target = mnncorrect::internal::quick_find_nns(sofar, corrected, *target_index, /* k = */ k, /* num_threads = */ 1);
+
+                auto tmp = mnncorrect::internal::find_mutual_nns(ref_to_target, target_to_ref);
+                if (tmp.num_pairs > output.num_pairs) {
+                    output = std::move(tmp);
+                    chosen = r;
+                }
+            }
+
+            return std::make_pair(chosen, std::move(output));
+        }();
+
+        EXPECT_FALSE(used[simpler.first]);
+        used[simpler.first] = true;
+
+        // Double-check that the MNN pair indices are sensible.
+        const auto& m = simpler.second.matches;
         EXPECT_TRUE(m.size() > 0);
         for (const auto& x : m) {
-            EXPECT_TRUE(x.first < sizes[chosen.first]);
+            EXPECT_LT(x.first, sizes[simpler.first]);
             for (const auto& y : x.second) {
-                EXPECT_TRUE(y < coords.get_ncorrected());
+                EXPECT_LT(y, sofar);
             }
         }
 
-        auto simpler = coords.simple_choose();
-        EXPECT_EQ(chosen.first, simpler.first);
-        EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
-        EXPECT_EQ(chosen.second.matches, simpler.second.matches);
-
-        auto ref_simpler = ref_coords.simple_choose(); // Also comparing to a version that does not call the mutating choose(). 
-        EXPECT_EQ(chosen.first, simpler.first);
-        EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
-        EXPECT_EQ(chosen.second.matches, simpler.second.matches);
+        for (size_t i = 0; i < all_coords.size(); ++i) {
+            auto chosen = all_coords[i].test_choose();
+            EXPECT_EQ(chosen.first, simpler.first);
+            EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
+            EXPECT_EQ(chosen.second.matches, simpler.second.matches);
+        }
 
         // Applying an update. We mock up some corrected data so that the builders work correctly.
-        size_t sofar = coords.get_ncorrected();
-        double* fixed = output.data() + sofar * ndim;
-        for (size_t s = 0; s < sizes[chosen.first]; ++s) {
-            for (int d = 0; d < ndim; ++d) {
-                fixed[s * ndim + d] = dist(rng);
-            }
+        size_t cursize = sizes[simpler.first];
+        auto corrected = scran_tests::simulate_vector(ndim * cursize, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = ndim * 1000 + k + b + 69;
+            return sparams;
+        }());
+
+        size_t output_offset = ndim * sofar;
+        for (size_t i = 0; i < all_coords.size(); ++i) {
+            std::copy(corrected.begin(), corrected.end(), all_output[i].data() + output_offset);
+            all_coords[i].test_update(simpler.first);
         }
-        coords.test_update(chosen.first);
-        ref_coords.test_update(chosen.first);
 
         // Check that the update works as expected.
-        const auto& remaining = coords.get_remaining();
+        const auto& remaining = coords0.get_remaining();
         EXPECT_EQ(remaining.size(), sizes.size() - b - 1);
-        EXPECT_EQ(sofar + sizes[chosen.first], coords.get_ncorrected());
+        size_t new_sofar = coords0.get_ncorrected();
+        EXPECT_EQ(sofar + sizes[simpler.first], new_sofar);
 
-        const auto& ord = coords.get_order();
+        const auto& ord = coords0.get_order();
         EXPECT_EQ(ord.size(), b + 1);
-        EXPECT_EQ(ord.back(), chosen.first);
+        EXPECT_EQ(ord.back(), simpler.first);
 
-        const auto& rneighbors = coords.get_neighbors_ref();
+        const auto& rneighbors = coords0.get_neighbors_ref();
         for (auto r : remaining) {
             const auto& rcurrent = rneighbors[r];
-            knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[r], data[r].data());
-            EXPECT_EQ(rcurrent.size(), coords.get_ncorrected());
+            auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
+            auto target_search = target_index->initialize();
+            EXPECT_EQ(rcurrent.size(), new_sofar);
 
-            for (size_t x = sofar; x < coords.get_ncorrected(); ++x) {
-                auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
-                const auto& updated = rcurrent[x];
-                compare_to_naive(naive, updated);
+            std::vector<int> indices;
+            std::vector<double> distances;
+            for (size_t x = sofar; x < new_sofar; ++x) {
+                target_search->search(all_output[0].data() + x * ndim, k, &indices, &distances);
+                compare_to_naive(indices, distances, rcurrent[x]);
             }
         }
 
-        knncolle::VpTreeEuclidean<> ref_index(ndim, coords.get_ncorrected(), output.data());
-        const auto& tneighbors = coords.get_neighbors_target();
+        auto ref_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
+        auto ref_search = ref_index->initialize();
+        const auto& tneighbors = coords0.get_neighbors_target();
         for (auto r : remaining) {
             const auto& current = data[r];
             const auto& tcurrent = tneighbors[r];
             EXPECT_EQ(tcurrent.size(), sizes[r]);
 
+            std::vector<int> indices;
+            std::vector<double> distances;
             for (size_t x = 0; x < sizes[r]; ++x) {
-                auto naive = ref_index.find_nearest_neighbors(current.data() + x * ndim, k);
-                const auto& updated = tcurrent[x];
-                compare_to_naive(naive, updated);
+                ref_search->search(current.data() + x * ndim, k, &indices, &distances);
+                compare_to_naive(indices, distances, tcurrent[x]);
             }
-        }
-
-        // Doing the same for the parallelized runners.
-        {
-            auto par_chosen2 = par_coords2.test_choose();
-            EXPECT_EQ(par_chosen2.first, chosen.first);
-            EXPECT_EQ(chosen.second.num_pairs, par_chosen2.second.num_pairs);
-            EXPECT_EQ(chosen.second.matches, par_chosen2.second.matches);
-
-            double* par_fixed2 = par_output2.data() + sofar * ndim;
-            std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed2);
-            par_coords2.test_update(chosen.first);
-        }
-
-        {
-            auto par_chosen3 = par_coords3.test_choose();
-            EXPECT_EQ(par_chosen3.first, chosen.first);
-            EXPECT_EQ(chosen.second.num_pairs, par_chosen3.second.num_pairs);
-            EXPECT_EQ(chosen.second.matches, par_chosen3.second.matches);
-
-            double* par_fixed3 = par_output3.data() + sofar * ndim;
-            std::copy(fixed, fixed + sizes[chosen.first] * ndim, par_fixed3);
-            par_coords3.test_update(chosen.first);
         }
     }
 
     // Same results when run in parallel.
-    EXPECT_EQ(output, par_output2);
-    EXPECT_EQ(output, par_output3);
+    EXPECT_EQ(all_output[0], all_output[1]);
+    EXPECT_EQ(all_output[0], all_output[2]);
 }
 
 TEST_P(AutomaticOrderTest, DifferentPolicies) {
-    assemble(GetParam());
-
-    // Choosing the smallest batch to amplify the variance.
+    // Choosing the smallest batch to amplify the variance,
+    // so that it's clear that we're using a different policy.
     size_t chosen = std::min_element(sizes.begin(), sizes.end()) - sizes.begin();
     for (auto& d : data[chosen]) {
         d *= 10;
     }
 
     for (size_t iter = 0; iter < 4; ++iter) {
-        mnncorrect::ReferencePolicy choice = mnncorrect::Input;
+        mnncorrect::ReferencePolicy choice = mnncorrect::ReferencePolicy::INPUT;
         if (iter == 1) {
-            choice = mnncorrect::MaxSize;
+            choice = mnncorrect::ReferencePolicy::MAX_SIZE;
         } else if (iter == 2) {
-            choice = mnncorrect::MaxVariance;
+            choice = mnncorrect::ReferencePolicy::MAX_VARIANCE;
         } else if (iter == 3) {
-            choice = mnncorrect::MaxRss;
+            choice = mnncorrect::ReferencePolicy::MAX_RSS;
         }
 
-        AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k, choice);
+        std::vector<double> output(total_size);
+        AutomaticOrder2 coords(
+            ndim,
+            sizes,
+            ptrs,
+            output.data(),
+            builder,
+            /* num_neighbors = */ k,
+            /* ref_policy = */ choice,
+            /* nobs_cap = */ -1,
+            /* nthreads = */ 1
+        );
 
-        if (iter == 0) {
+        if (choice == mnncorrect::ReferencePolicy::INPUT) {
             EXPECT_EQ(coords.get_order()[0], 0);
-        } else if (iter == 1) {
+        } else if (choice == mnncorrect::ReferencePolicy::MAX_SIZE) {
             auto first = coords.get_order()[0];
             for (auto s : sizes) {
                 EXPECT_TRUE(sizes[first] >= s);
             }
-        } else if (iter == 2) {
+        } else if (choice == mnncorrect::ReferencePolicy::MAX_VARIANCE) {
             EXPECT_EQ(coords.get_order()[0], chosen);
-        } else if (iter == 3) {
+        } else if (choice == mnncorrect::ReferencePolicy::MAX_RSS) {
             EXPECT_EQ(coords.get_order()[0], chosen);
         }
 
-        std::mt19937_64 rng(123456);
-        std::normal_distribution<> dist;
+        // Same results with parallelization.
+        std::vector<double> par_output3(output.size());
+        AutomaticOrder2 par_coords3(
+            ndim,
+            sizes,
+            ptrs,
+            par_output3.data(),
+            builder,
+            /* num_neighbors = */ k,
+            /* ref_policy = */ choice,
+            /* nobs_cap = */ -1,
+            /* nthreads = */ 3 
+        );
+        EXPECT_EQ(coords.get_order(), par_coords3.get_order());
+
         std::vector<char> used(sizes.size());
         used[coords.get_order()[0]] = true;
 
@@ -377,26 +372,32 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
                 EXPECT_FALSE(used[chosen.first]);
                 used[chosen.first] = true;
 
-                // Applying an update. We mock up some corrected data so that the builders work correctly.
-                size_t sofar = coords.get_ncorrected();
-                double* fixed = output.data() + sofar * ndim;
-                for (size_t s = 0; s < sizes[chosen.first]; ++s) {
-                    for (int d = 0; d < ndim; ++d) {
-                        fixed[s * ndim + d] = dist(rng);
-                    }
-                }
-
+                size_t cursize = sizes[chosen.first];
+                auto corrected = scran_tests::simulate_vector(ndim * cursize, [&]{
+                    scran_tests::SimulationParameters sparams;
+                    sparams.seed = ndim * 1000 + k + b + 69;
+                    return sparams;
+                }());
+                size_t offset = ndim * coords.get_ncorrected();
+                std::copy(corrected.begin(), corrected.end(), output.data() + offset);
                 coords.test_update(chosen.first);
+
+                auto chosen3 = par_coords3.test_choose();
+                std::copy(corrected.begin(), corrected.end(), par_output3.data() + offset);
+                EXPECT_EQ(chosen.first, chosen3.first);
+                par_coords3.test_update(chosen3.first);
             }
+
+            EXPECT_EQ(coords.get_order(), par_coords3.get_order());
+            EXPECT_EQ(output, par_output3);
         }
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AutomaticOrder,
     AutomaticOrderTest,
     ::testing::Combine(
-        ::testing::Values(5), // Number of dimensions
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
             std::vector<size_t>{10, 20},        

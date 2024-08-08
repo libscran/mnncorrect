@@ -10,6 +10,7 @@ common <- intersect(rownames(sce3k), rownames(sce4k))
 sce3k <- sce3k[common,]
 sce4k <- sce4k[common,]
 x0 <- cbind(assay(sce3k), assay(sce4k))
+x0 <- as(x0, "dgCMatrix")
 block <- rep(c("3k", "4k"), c(ncol(sce3k), ncol(sce4k)))
 
 saveRDS(list(x0, block), file="whee.rds")

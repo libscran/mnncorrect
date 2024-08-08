@@ -1,59 +1,65 @@
-#include <gtest/gtest.h>
+#include "scran_tests/scran_tests.hpp"
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
-#include "mnncorrect/MnnCorrect.hpp"
+#include "mnncorrect/compute.hpp"
 #include <random>
 #include <algorithm>
 #include <cmath>
 
-class MnnCorrectTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class OverallTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
 protected:
     constexpr static double multiplier = 10;
 
-    template<class Param>
-    void assemble(Param param) {
+    void SetUp() {
+        auto param = GetParam();
         ndim = std::get<0>(param);
         k = std::get<1>(param);
         sizes = std::get<2>(param);
 
         nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
-        data.resize(nobs * ndim);
+        data = scran_tests::simulate_vector(nobs * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = ndim * k + nobs;
+            sparams.lower = -2;
+            sparams.upper = 2;
+            return sparams;
+        }());
+
         ptrs.resize(sizes.size());
-
-        // Simulating values.
-        std::mt19937_64 rng(nobs / k);
-        std::normal_distribution<> dist;
-
-        auto ptr = data.data();
+        size_t sofar = 0;
         for (size_t b = 0; b < sizes.size(); ++b) {
-            ptrs[b] = ptr;
-            for (size_t s = 0; s < sizes[b]; ++s) {
-                for (int d = 0; d < ndim; ++d) {
-                    *ptr = dist(rng) + multiplier * b;
-                    ++ptr;
-                }
+            auto current = data.data() + sofar;
+            size_t len = sizes[b] * ndim;
+            for (size_t i = 0; i < len; ++i) { // introducing our own batch effect.
+                current[i] += multiplier * b;
             }
+            ptrs[b] = current;
+            sofar += len;
         }
 
         return;
     }
 
+protected:
+    // Parameters.
     int ndim, nobs, k;
     std::vector<size_t> sizes;
+
+    // Simulated.
     std::vector<double> data;
     std::vector<const double*> ptrs;
 };
 
-TEST_P(MnnCorrectTest, Basic) {
-    assemble(GetParam());
-
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k);
+TEST_P(OverallTest, Basic) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
     size_t refbatch = ordering.merge_order.front();
-    
+
     // Heuristic: check that the differences in the mean are less than the
     // standard deviation (default 1) in each dimension.
     size_t sofar = 0;
@@ -85,23 +91,26 @@ TEST_P(MnnCorrectTest, Basic) {
     EXPECT_EQ(original, corrected);
 
     // Same results when multiple threads are in use.
-    mnnrun.set_num_threads(3);
     std::vector<double> par_output(nobs * ndim);
-    auto par_ordering = mnnrun.run(ndim, sizes, ptrs, par_output.data());
+    auto par_ordering = mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        opt.num_threads = 3;
+        return opt;
+    }());
     EXPECT_EQ(par_ordering.merge_order, ordering.merge_order);
     EXPECT_EQ(par_output, output);
 }
 
-TEST_P(MnnCorrectTest, Iterative) {
-    assemble(GetParam());
-
-    // Running it all at once.
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k);
+TEST_P(OverallTest, Iterative) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
 
-    // Now trying to run it iteratively.
+    // Now trying to run it iteratively as a reference.
     size_t previous = ordering.merge_order[0];
     std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
     std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
@@ -117,22 +126,28 @@ TEST_P(MnnCorrectTest, Iterative) {
         size_t current = ordering.merge_order[i];
         ref_ptrs[1] = ptrs[current];
         ref_sizes[1] = sizes[current];
-        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+
+        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
+            mnncorrect::Options opt;
+            opt.num_neighbors = k;
+            opt.automatic_order = false;
+            return opt;
+        }());
         previous = current;
     }
-    
-    mnncorrect::restore_order(ndim, ordering.merge_order, sizes, ref.data());
+
+    mnncorrect::internal::restore_order(ndim, ordering.merge_order, sizes, ref.data());
     EXPECT_EQ(output, ref);
 }
 
-TEST_P(MnnCorrectTest, Linear) {
-    assemble(GetParam());
-
-    // Running it all at once.
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k).set_automatic_order(false);
+TEST_P(OverallTest, Linear) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        opt.automatic_order = false;
+        return opt;
+    }());
 
     // Checking that the order is as expected.
     EXPECT_EQ(ordering.merge_order.size(), sizes.size());
@@ -154,24 +169,30 @@ TEST_P(MnnCorrectTest, Linear) {
 
         ref_ptrs[1] = ptrs[i];
         ref_sizes[1] = sizes[i];
-        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+
+        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
+            mnncorrect::Options opt;
+            opt.num_neighbors = k;
+            opt.automatic_order = false;
+            return opt;
+        }());
         previous = i;
     }
 
     EXPECT_EQ(output, ref);
 }
 
-TEST_P(MnnCorrectTest, Reverse) {
-    assemble(GetParam());
-
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k).set_automatic_order(false);
+TEST_P(OverallTest, Reverse) {
     std::vector<double> output(nobs * ndim);
-
-    std::vector<int> input_order(sizes.size());
-    std::iota(input_order.begin(), input_order.end(), 0);
-    std::reverse(input_order.begin(), input_order.end());
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data(), input_order.data());
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        opt.automatic_order = false;
+        opt.order.resize(sizes.size());
+        std::iota(opt.order.begin(), opt.order.end(), 0);
+        std::reverse(opt.order.begin(), opt.order.end());
+        return opt;
+    }());
 
     // Checking that the order is as expected.
     EXPECT_EQ(ordering.merge_order.size(), sizes.size());
@@ -194,25 +215,35 @@ TEST_P(MnnCorrectTest, Reverse) {
         size_t next = sizes.size() - i - 1;
         ref_ptrs[1] = ptrs[next];
         ref_sizes[1] = sizes[next];
-        mnnrun.run(ndim, ref_sizes, ref_ptrs, ref.data());
+
+        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
+            mnncorrect::Options opt;
+            opt.num_neighbors = k;
+            opt.automatic_order = false;
+            return opt;
+        }());
         previous = next;
     }
 
-    mnncorrect::restore_order(ndim, ordering.merge_order, sizes, ref.data());
+    mnncorrect::internal::restore_order(ndim, ordering.merge_order, sizes, ref.data());
     EXPECT_EQ(output, ref);
 }
 
-TEST_P(MnnCorrectTest, OtherInputs) {
-    assemble(GetParam());
-
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k);
+TEST_P(OverallTest, OtherInputs) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
 
     // Just getting some coverage on the other input approach.
     std::vector<double> output2(nobs * ndim);
-    auto ordering2 = mnnrun.run(ndim, sizes, data.data(), output2.data());
+    auto ordering2 = mnncorrect::compute(ndim, sizes, data.data(), output2.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
     EXPECT_EQ(output, output2);
     EXPECT_EQ(ordering.merge_order, ordering2.merge_order);
 
@@ -227,51 +258,61 @@ TEST_P(MnnCorrectTest, OtherInputs) {
     std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * sizes.size())); // just varying the seed a bit.
 
     // Scrambling both the data and the expected results to match the scrambled batches.
-    std::vector<int> mock_order(sizes.size());
+    std::vector<size_t> mock_order(sizes.size());
     std::iota(mock_order.begin(), mock_order.end(), 0);
 
     auto copy = data;
-    mnncorrect::restore_order(ndim, mock_order, sizes, batch.data(), copy.data());
+    mnncorrect::internal::restore_order(ndim, mock_order, sizes, batch.data(), copy.data());
 
     auto ref = output;
-    mnncorrect::restore_order(ndim, mock_order, sizes, batch.data(), ref.data());
+    mnncorrect::internal::restore_order(ndim, mock_order, sizes, batch.data(), ref.data());
 
     // Actually running the test.
     std::vector<double> output3(nobs * ndim);
-    auto ordering3 = mnnrun.run(ndim, nobs, copy.data(), batch.data(), output3.data());
+    auto ordering3 = mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
     EXPECT_EQ(ref, output3);
     EXPECT_EQ(ordering.merge_order, ordering3.merge_order);
 }
 
-TEST_P(MnnCorrectTest, OtherParams) {
-    assemble(GetParam());
-
-    mnncorrect::MnnCorrect<> mnnrun;
-    mnnrun.set_num_neighbors(k);
+TEST_P(OverallTest, OtherParams) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnnrun.run(ndim, sizes, ptrs, output.data());
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options opt;
+        opt.num_neighbors = k;
+        return opt;
+    }());
 
     // Trying different options to check they have some effect.    
     {
         std::vector<double> output2(nobs * ndim);
-        mnnrun.set_mass_cap(50);
-        auto ordering = mnnrun.run(ndim, sizes, ptrs, output2.data());
+        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
+            mnncorrect::Options opt;
+            opt.num_neighbors = k;
+            opt.mass_cap = 50;
+            return opt;
+        }());
         EXPECT_NE(output2, output);
-        mnnrun.set_mass_cap(mnncorrect::MnnCorrect<>::Defaults::mass_cap);
     }
 
     {
         std::vector<double> output2(nobs * ndim);
-        mnnrun.set_robust_trim(0);
-        auto ordering = mnnrun.run(ndim, sizes, ptrs, output2.data());
+        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
+            mnncorrect::Options opt;
+            opt.num_neighbors = k;
+            opt.robust_trim = 0;
+            return opt;
+        }());
         EXPECT_NE(output2, output);
-        mnnrun.set_mass_cap(mnncorrect::MnnCorrect<>::Defaults::robust_trim);
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
-    MnnCorrect,
-    MnnCorrectTest,
+INSTANTIATE_TEST_SUITE_P(
+    Overall,
+    OverallTest,
     ::testing::Combine(
         ::testing::Values(5), // Number of dimensions
         ::testing::Values(10, 50), // Number of neighbors
@@ -283,3 +324,34 @@ INSTANTIATE_TEST_CASE_P(
         )
     )
 );
+
+TEST(Overall, CustomOrderErrors) {
+    int ndim = 10;
+    std::vector<size_t> sizes { 10, 20 };
+    std::vector<const double*> ptrs { NULL, NULL };
+    std::vector<double> output(300);
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(5);
+            return opt;
+        }());
+    }, "same length");
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(2, 10);
+            return opt;
+        }());
+    }, "out-of-range");
+
+    scran_tests::expect_error([&]() {
+        mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+            mnncorrect::Options opt;
+            opt.order.resize(2);
+            return opt;
+        }());
+    }, "duplicate");
+}

@@ -10,9 +10,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// mnn_correct
-Rcpp::List mnn_correct(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double nmads, int iterations, double trim);
-RcppExport SEXP _mnncorrect_ref_mnn_correct(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP nmadsSEXP, SEXP iterationsSEXP, SEXP trimSEXP) {
+// compute
+Rcpp::List compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double nmads, int iterations, double trim, int mass_cap, Rcpp::Nullable<Rcpp::IntegerVector> order, bool auto_order);
+RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP nmadsSEXP, SEXP iterationsSEXP, SEXP trimSEXP, SEXP mass_capSEXP, SEXP orderSEXP, SEXP auto_orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
@@ -21,7 +21,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type nmads(nmadsSEXP);
     Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
     Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
-    rcpp_result_gen = Rcpp::wrap(mnn_correct(x, batch, k, nmads, iterations, trim));
+    Rcpp::traits::input_parameter< int >::type mass_cap(mass_capSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type order(orderSEXP);
+    Rcpp::traits::input_parameter< bool >::type auto_order(auto_orderSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, nmads, iterations, trim, mass_cap, order, auto_order));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -39,7 +42,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mnncorrect_ref_mnn_correct", (DL_FUNC) &_mnncorrect_ref_mnn_correct, 6},
+    {"_mnncorrect_ref_compute", (DL_FUNC) &_mnncorrect_ref_compute, 9},
     {"_mnncorrect_ref_robust_average", (DL_FUNC) &_mnncorrect_ref_robust_average, 3},
     {NULL, NULL, 0}
 };

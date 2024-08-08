@@ -13,4 +13,5 @@ Suggests:
     testthat
 SystemRequirements: C++17
 StagedInstall: no
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2
+Encoding: UTF-8

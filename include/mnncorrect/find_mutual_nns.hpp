@@ -4,37 +4,37 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
-#include <set>
-#include "knncolle/knncolle.hpp"
+#include <unordered_set>
+
 #include "utils.hpp"
 
 namespace mnncorrect {
 
-template<typename Index>
-struct MnnPairs {
-    MnnPairs(size_t nright=0) {
-        matches.reserve(nright);
-        return;
-    }
+namespace internal {
 
-    std::unordered_map<Index, std::vector<Index> > matches;
+template<typename Index_>
+struct MnnPairs {
+    std::unordered_map<Index_, std::vector<Index_> > matches;
     size_t num_pairs = 0;
 };
 
-template<typename Index>
-std::vector<Index> unique_left(const MnnPairs<Index>& input) {
-    std::set<Index> tmp; // yes, I would like it to be ordered, please.
+template<typename Index_>
+std::vector<Index_> unique_left(const MnnPairs<Index_>& input) {
+    std::unordered_set<Index_> tmp;
     for (const auto& x : input.matches) {
         for (auto y : x.second) {
             tmp.insert(y);
         }
     }
-    return std::vector<Index>(tmp.begin(), tmp.end());
+
+    std::vector<Index_> output(tmp.begin(), tmp.end());
+    std::sort(output.begin(), output.end());
+    return output;
 }
 
-template<typename Index>
-std::vector<Index> unique_right(const MnnPairs<Index>& input) {
-    std::vector<Index> output;
+template<typename Index_>
+std::vector<Index_> unique_right(const MnnPairs<Index_>& input) {
+    std::vector<Index_> output;
     output.reserve(input.matches.size());
     for (const auto& x : input.matches) {
         output.push_back(x.first);
@@ -43,18 +43,19 @@ std::vector<Index> unique_right(const MnnPairs<Index>& input) {
     return output;
 }
 
-template<typename Index, typename Float>
-MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const NeighborSet<Index, Float>& right) {
-    Index nleft = left.size();
-    Index nright = right.size();
+template<typename Index_, typename Float_>
+MnnPairs<Index_> find_mutual_nns(const NeighborSet<Index_, Float_>& left, const NeighborSet<Index_, Float_>& right) {
+    size_t nleft = left.size();
+    size_t nright = right.size();
 
-    MnnPairs<Index> output(nright);
-    std::vector<std::vector<Index> > neighbors_of_left(nleft);
+    MnnPairs<Index_> output;
+    std::vector<std::vector<Index_> > neighbors_of_left(nleft);
     std::vector<size_t> last(nleft);
 
-    for (Index r = 0; r < nright; ++r) {
+    for (size_t r = 0; r < nright; ++r) {
         const auto& mine = right[r];
-        std::vector<Index> holder;
+        std::vector<Index_> holder;
+        Index_ r0 = r;
 
         for (auto left_pair : mine) {
             auto left_neighbor = left_pair.first;
@@ -72,11 +73,14 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
                 }
             }
 
+            // Picking up our search from the last position; we don't need to
+            // search earlier indices, because there were already processed
+            // by an earlier iteration of 'r'.
             auto& position = last[left_neighbor];
-
-            for (; position < other.size(); ++position) {
-                if (other[position] >= r) {
-                    if (other[position] == r) {
+            size_t num_other = other.size();
+            for (; position < num_other; ++position) {
+                if (other[position] >= r0) {
+                    if (other[position] == r0) {
                         holder.push_back(left_neighbor);
                         ++output.num_pairs;
                     }
@@ -86,11 +90,13 @@ MnnPairs<Index> find_mutual_nns(const NeighborSet<Index, Float>& left, const Nei
         }
 
         if (holder.size()) {
-            output.matches[r] = std::move(holder);
+            output.matches[r0] = std::move(holder);
         }
     }
 
     return output;
+}
+
 }
 
 }
