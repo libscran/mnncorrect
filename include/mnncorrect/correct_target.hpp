@@ -46,7 +46,7 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nobs_cap, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(nobs_cap, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Index_> indices;
@@ -59,7 +59,7 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
 #endif
         for (size_t o_ = 0; o_ < nobs_cap; ++o_) {
 #else
-        for (size_t o_ = start; o_ < end; ++o_) {
+        for (size_t o_ = start, end = start + length; o_ < end; ++o_) {
 #endif
 
             size_t o = gap * o_; // truncation
@@ -130,7 +130,7 @@ void compute_center_of_mass(
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<std::pair<Float_, size_t> > deltas;
@@ -141,7 +141,7 @@ void compute_center_of_mass(
 #endif
         for (size_t g = 0; g < num_mnns; ++g) {
 #else
-        for (size_t g = start; g < end; ++g) {
+        for (size_t g = start, end = start + length; g < end; ++g) {
 #endif
 
             // Usually, the MNN is always included in its own neighbor list.
@@ -204,8 +204,8 @@ void correct_target(
 #endif
         for (int opt = 0; opt < 2; ++opt) {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(2, [&](int start, int end) -> void {
-        for (int opt = start; opt < end; ++opt) {
+    MNNCORRECT_CUSTOM_PARALLEL(2, [&](size_t start, size_t length) -> void {
+        for (int opt = start, end = start + length; opt < end; ++opt) {
 #endif
 
             auto obs_ptr = (opt == 0 ? ref : target);
@@ -247,8 +247,8 @@ void correct_target(
 #endif
         for (int opt = 0; opt < 2; ++opt) {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(2, [&](int start, int end) -> void {
-        for (int opt = start; opt < end; ++opt) {
+    MNNCORRECT_CUSTOM_PARALLEL(2, [&](size_t start, size_t length) -> void {
+        for (int opt = start, end = start + length; opt < end; ++opt) {
 #endif
 
             auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
@@ -280,7 +280,7 @@ void correct_target(
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(ntarget, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(ntarget, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Float_> corrections;
@@ -292,7 +292,7 @@ void correct_target(
 #endif
         for (size_t t = 0; t < ntarget; ++t) {
 #else
-        for (size_t t = start; t < end; ++t) {
+        for (size_t t = start, end = start + length; t < end; ++t) {
 #endif
 
             const auto& target_closest = mnn_target[t];

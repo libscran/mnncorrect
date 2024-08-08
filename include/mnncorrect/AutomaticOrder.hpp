@@ -52,7 +52,7 @@ std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Float_> mean_buffer(ndim);
@@ -63,7 +63,7 @@ std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_
 #endif
         for (size_t b = 0; b < nbatches; ++b) {
 #else
-        for (size_t b = start; b < end; ++b) {
+        for (size_t b = start, end = start + length; b < end; ++b) {
 #endif
 
             vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);
@@ -123,8 +123,8 @@ public:
 #endif
             for (size_t b = 0; b < nbatches; ++b) {
 #else
-        MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t end) -> void {
-            for (size_t b = start; b < end; ++b) {
+        MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t length) -> void {
+            for (size_t b = start, end = start + length; b < end; ++b) {
 #endif
 
                 my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
@@ -263,8 +263,8 @@ protected:
 #endif
             for (size_t t = 0; t < actual_nthreads; ++t) {
 #else
-        MNNCORRECT_CUSTOM_PARALLEL(actual_nthreads, [&](size_t start, size_t end) -> void {
-            for (size_t t = start; t < end; ++t) {
+        MNNCORRECT_CUSTOM_PARALLEL(actual_nthreads, [&](size_t start, size_t length) -> void {
+            for (size_t t = start, end = start + length; t < end; ++t) {
 #endif
 
                 // Within each thread, scanning for the maximum among the allocated batches.

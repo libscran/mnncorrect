@@ -30,7 +30,7 @@ void quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuil
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Index_> indices;
@@ -43,7 +43,7 @@ void quick_find_nns(size_t nobs, const Distance_* query, const knncolle::Prebuil
 #endif
         for (size_t l = 0; l < nobs; ++l) {
 #else
-        for (size_t l = start; l < end; ++l) {
+        for (size_t l = start, end = start + length; l < end; ++l) {
 #endif
 
             auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.
@@ -143,7 +143,7 @@ void quick_fuse_nns(NeighborSet<Index_, Distance_>& existing, const Distance_* q
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t end) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(nobs, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Index_> indices;
@@ -157,7 +157,7 @@ void quick_fuse_nns(NeighborSet<Index_, Distance_>& existing, const Distance_* q
 #endif
         for (size_t l = 0; l < nobs; ++l) {
 #else
-        for (size_t l = start; l < end; ++l) {
+        for (size_t l = start, end = start + length; l < end; ++l) {
 #endif
 
             auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.

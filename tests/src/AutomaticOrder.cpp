@@ -44,11 +44,11 @@ TEST(AutomaticOrder, RunningVariances) {
     size_t nobs2 = 100;
     auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulationParameters());
 
-    auto vars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, 1);
+    auto vars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 1);
     EXPECT_FLOAT_EQ(vars[0], running);
     EXPECT_FLOAT_EQ(vars[1], mnncorrect::internal::compute_total_variance(ndim, nobs2, data2.data(), buffer, false));
 
-    auto pvars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, 2);
+    auto pvars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 3);
     EXPECT_EQ(vars, pvars);
 }
 
