@@ -15,14 +15,15 @@ which provides a number of improvements and speed-ups over the original method i
 
 ## Quick start
 
-Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns.
-Given a batch assignment vector for each cell, the `mnncorrect::compute()` function can compute corrected values:
+Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns,
+and a vector of integers specifying the batch of origin for each cell.
+These are supplied to the `mnncorrect::compute()` function to compute corrected values:
 
 ```cpp
 #include "mnncorrect/MnnCorrect.hpp"
 
 std::vector<double> matrix(ndim * nobs); // fill with values...
-std::vector<int> batch(nobs) // fill with values...
+std::vector<int> batch(nobs) // fill with batch IDs from [0, num_batches)
 
 mnncorrect::Options opt;
 std::vector<double> output(ndim * nobs);
