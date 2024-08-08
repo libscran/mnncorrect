@@ -1,9 +1,9 @@
 # C++ library for MNN correction
 
-![Unit tests](https://github.com/LTLA/CppMnnCorrect/actions/workflows/run-tests.yaml/badge.svg)
-![Documentation](https://github.com/LTLA/CppMnnCorrect/actions/workflows/doxygenate.yaml/badge.svg)
-![R comparison](https://github.com/LTLA/CppMnnCorrect/actions/workflows/compare-R.yaml/badge.svg)
-[![codecov](https://codecov.io/gh/LTLA/CppMnnCorrect/branch/master/graph/badge.svg?token=J3dxS3MtT1)](https://codecov.io/gh/LTLA/CppMnnCorrect)
+![Unit tests](https://github.com/libscran/mnncorrect/actions/workflows/run-tests.yaml/badge.svg)
+![Documentation](https://github.com/libscran/mnncorrect/actions/workflows/doxygenate.yaml/badge.svg)
+![R comparison](https://github.com/libscran/mnncorrect/actions/workflows/compare-R.yaml/badge.svg)
+[![codecov](https://codecov.io/gh/libscran/mnncorrect/branch/master/graph/badge.svg?token=J3dxS3MtT1)](https://codecov.io/gh/libscran/mnncorrect)
 
 ## Overview
 
@@ -15,7 +15,8 @@ which provides a number of improvements and speed-ups over the original method i
 
 ## Quick start
 
-Given a dense feature-by-observation matrix in column-major format and a batch assignment vector for each observation (i.e., column), we can compute corrected values:
+Given a dense feature-by-observation matrix in column-major format and a batch assignment vector for each observation (i.e., column),
+the `mnncorrect::compute()` function will compute corrected values:
 
 ```cpp
 #include "mnncorrect/MnnCorrect.hpp"
@@ -23,12 +24,44 @@ Given a dense feature-by-observation matrix in column-major format and a batch a
 std::vector<double> matrix(ndim * nobs); // fill with values...
 std::vector<int> batch(nobs) // fill with values...
 
-mnncorrect::MnnCorrect<> runner;
+mnncorrect::Options opt;
 std::vector<double> output(ndim * nobs);
-runner.run(ndim, nobs, matrix.data(), batch.data(), output.data());
+mnncorrect::compute(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);
 ```
 
-See the [reference documentation](https://ltla.github.io/CppMnnCorrect) for more details.
+We also support batches in separate arrays, storing the corrected values for all batches in a single output array:
+
+```cpp
+size_t nbatches = 3;
+std::vector<size_t> batch_size;
+std::vector<std::vector<double> > batches;
+for (size_t b = 0; b < 3; ++b) { // mocking up three batches of different size.
+    batch_size.push_back((b + 1) * 100);
+    batch.resize(ndim * batch_size.back()); // fill with values...
+}
+
+size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);
+std::vector<double> output(ndim * total_size);
+mnncorrect::compute(ndim, batch_size, batch_ptrs, output.data(), opt);
+```
+
+Advanced users can also fiddle with the options: 
+
+```cpp
+opt.num_neighbors = 10;
+opt.num_threads = 3;
+
+// Manually specify your own merge order:
+opt.order = std::vector<size_t>{ 3, 1, 0, 2 };
+
+// Change the nearest-neighbor search algorithm:
+opt.builder.reset(new knncolle_annoy::AnnoyBuilder<Annoy::Euclidean>);
+
+// Approximate the center-of-mass calculations for greater speed.
+opt.mass_cap = 100000;
+```
+
+See the [reference documentation](https://libscran.github.io/mnncorrect) for more details.
 
 ## Theoretical details 
 
@@ -71,17 +104,17 @@ To run these, install the package at `tests/R/package` (this requires the [**scr
 `pbmc`: mergesthe PBMC 3K and 4K datasets from 10X Genomics.
 These are technical replicates (I think) so a complete merge is to be expected.
 
-![pbmc-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pbmc/output.png)
+![pbmc-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output.png)
 
 `pancreas`: merges the [Grun et al. (2016)](https://dx.doi.org/10.1016%2Fj.stem.2016.05.010) and [Muraro et al. (2016)](https://doi.org/10.1016/j.cels.2016.09.002) datasets.
 I believe this involves data from different patients but using the same-ish technology.
 
-![pancreas-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/pancreas/output.png)
+![pancreas-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pancreas/output.png)
 
 `neurons`: merges the [Zeisel et al. (2015)](https://doi.org/10.1126/science.aaa1934) and [Tasic et al. (2016)](https://doi.org/10.1038/nn.4216) datasets.
 This involves different technologies and different cell populations.
 
-![neurons-output](https://raw.githubusercontent.com/LTLA/CppMnnCorrect/images/tests/R/examples/neurons/output.png)
+![neurons-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/neurons/output.png)
 
 ## Building projects
 
@@ -91,26 +124,26 @@ If you're using CMake, you just need to add something like this to your `CMakeLi
 include(FetchContent)
 
 FetchContent_Declare(
-  libscran
-  GIT_REPOSITORY https://github.com/LTLA/libscran
+  mnncorrect
+  GIT_REPOSITORY https://github.com/libscran/mnncorrect
   GIT_TAG master # or any version of interest
 )
 
-FetchContent_MakeAvailable(libscran)
+FetchContent_MakeAvailable(mnncorrect)
 ```
 
 Then you can link to **libscran** to make the headers available during compilation:
 
 ```
 # For executables:
-target_link_libraries(myexe libscran)
+target_link_libraries(myexe mnncorrect)
 
 # For libaries
-target_link_libraries(mylib INTERFACE libscran)
+target_link_libraries(mylib INTERFACE mnncorrect)
 ```
 
 If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's `-I`.
-Note that this requires manual management of the [**knncolle**](https://github.com/LTLA/knncolle) library for k-nearest neighbor detection.
+Note that this requires manual management of the [**knncolle**](https://github.com/knncolle/knncolle) library for k-nearest neighbor detection.
 This in turn has a suite of its own dependencies, see the link for details.
 
 ## References
