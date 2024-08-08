@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <vector>
 #include <memory>
+#include <cassert>
 
 namespace mnncorrect {
 
@@ -27,18 +28,27 @@ void subset_to_mnns(size_t ndim, const Float_* data, const std::vector<Index_>& 
     }
 }
 
+inline size_t capped_index(size_t i, double gap) {
+    return static_cast<double>(i) * gap; // truncation.
+}
+
 template<typename Dim_, typename Index_, typename Float_>
-NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data, const knncolle::Prebuilt<Dim_, Index_, Float_>& index, int k, size_t nobs_cap, int nthreads) {
-    if (nobs_cap >= nobs) {
-        return quick_find_nns(nobs, data, index, k, nthreads);
-    }
+std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
+    size_t nobs,
+    const Float_* data,
+    const knncolle::Prebuilt<Dim_, Index_, Float_>& index,
+    int k,
+    size_t mass_cap,
+    [[maybe_unused]] int nthreads) 
+{
+    // This function should only be called if nobs > mass_cap, so the gap is
+    // guaranteed to be > 1 here; there's no chance of jobs overlapping if
+    // we apply any type of truncation or rounding.
+    assert(nobs > mass_cap);
+    double gap = static_cast<double>(nobs) / mass_cap; 
 
-    NeighborSet<Index_, Float_> output(nobs);
+    NeighborSet<Index_, Float_> output(mass_cap);
     size_t ndim = index.num_dimensions();
-
-    // The gap guaranteed to be > 1 here, so there's no chance of jobs
-    // overlapping if we apply any type of truncation or rounding.
-    double gap = static_cast<double>(nobs) / nobs_cap; 
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
 #ifdef _OPENMP
@@ -46,7 +56,7 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
 #endif
     {
 #else
-    MNNCORRECT_CUSTOM_PARALLEL(nobs_cap, [&](size_t start, size_t length) -> void {
+    MNNCORRECT_CUSTOM_PARALLEL(mass_cap, [&](size_t start, size_t length) -> void {
 #endif
 
         std::vector<Index_> indices;
@@ -57,14 +67,14 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
 #ifdef _OPENMP
         #pragma omp for
 #endif
-        for (size_t o_ = 0; o_ < nobs_cap; ++o_) {
+        for (size_t o_ = 0; o_ < mass_cap; ++o_) {
 #else
         for (size_t o_ = start, end = start + length; o_ < end; ++o_) {
 #endif
 
-            size_t o = gap * o_; // truncation
+            size_t o = capped_index(o_, gap);
             searcher->search(data + o * ndim, k, &indices, &distances);
-            fill_pair_vector(indices, distances, output[o]);
+            fill_pair_vector(indices, distances, output[o_]);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
@@ -74,7 +84,7 @@ NeighborSet<Index_, Float_> identify_closest_mnn(size_t nobs, const Float_* data
     }, nthreads);
 #endif
 
-    return output;
+    return std::make_pair(gap, std::move(output));
 }
 
 template<typename Index_, typename Float_>
@@ -114,15 +124,13 @@ template<typename Index_, typename Float_>
 void compute_center_of_mass(
     size_t ndim,
     const std::vector<Index_>& mnn_ids,
-    const NeighborSet<Index_, Float_>& closest_mnn,
+    const std::vector<std::vector<Index_> >& mnn_neighbors,
     const Float_* data,
     Float_* buffer,
     const RobustAverageOptions& raopt,
-    Float_ limit,
     [[maybe_unused]] int nthreads)
 {
     size_t num_mnns = mnn_ids.size();
-    auto inverted = invert_neighbors(num_mnns, closest_mnn, limit);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL    
 #ifdef _OPENMP
@@ -150,7 +158,7 @@ void compute_center_of_mass(
             // subsample towards the MNN (thus causing kissing effects). So, in
             // the unfortunate case when the MNN's neighbor list is empty, we
             // fall back to just setting the center of mass to the MNN itself.
-            const auto& inv = inverted[g];
+            const auto& inv = mnn_neighbors[g];
             auto output = buffer + g * ndim;
             if (inv.empty()) {
                 auto ptr = data + static_cast<size_t>(mnn_ids[g]) * ndim;
@@ -183,15 +191,15 @@ void correct_target(
     int robust_iterations,
     double robust_trim, // yes, this is a double, not a Float_. Doesn't really matter given where we're using it.
     Float_* output,
-    size_t nobs_cap,
+    size_t mass_cap,
     int nthreads) 
 {
-    auto uniq_ref = unique_left(pairings);
-    auto uniq_target = unique_right(pairings);
+    auto uniq_mnn_ref = unique_left(pairings);
+    auto uniq_mnn_target = unique_right(pairings);
 
-    // Identify the closest MNN, with parallelized index building.
-    std::vector<Float_> buffer_ref(uniq_ref.size() * ndim);
-    std::vector<Float_> buffer_target(uniq_target.size() * ndim);
+    // Parallelized building of the MNN-only indices.
+    std::vector<Float_> buffer_ref(uniq_mnn_ref.size() * ndim);
+    std::vector<Float_> buffer_target(uniq_mnn_target.size() * ndim);
     std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > index_ref, index_target;
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
@@ -209,7 +217,7 @@ void correct_target(
 #endif
 
             auto obs_ptr = (opt == 0 ? ref : target);
-            const auto& uniq = (opt == 0 ? uniq_ref : uniq_target);
+            const auto& uniq = (opt == 0 ? uniq_mnn_ref : uniq_mnn_target);
             auto& buffer = (opt == 0 ? buffer_ref : buffer_target);
             auto& index = (opt == 0 ? index_ref : index_target);
 
@@ -224,19 +232,34 @@ void correct_target(
     }, nthreads);
 #endif
 
-    auto mnn_ref = identify_closest_mnn(nref, ref, *index_ref, k, nobs_cap, nthreads);
+    // Finding the closest MNN-involved point for each point in the reference
+    // dataset. If 'mass_cap' is smaller than 'nobs', we only do this search
+    // for every x-th point where 'x = nobs / mass_cap'; this subsamples the
+    // reference to save time in the mass calculation. In particular, this
+    // amortizes the cost of the mass calculation over multiple merge steps to
+    // counter the growth of the reference itself after each step (which would
+    // otherwise cause each mass calculation to take longer).
+    bool is_capped = mass_cap < nref;
+    double gap = 0;
+    NeighborSet<Index_, Float_> closest_mnn_ref;
+    if (is_capped) {
+        auto capped_out = capped_find_nns(nref, ref, *index_ref, k, mass_cap, nthreads);
+        gap = capped_out.first;
+        closest_mnn_ref = std::move(capped_out.second);
+    } else {
+        closest_mnn_ref = quick_find_nns(nref, ref, *index_ref, k, nthreads);
+    }
     index_ref.reset();
 
-    // Don't apply the cap to the target NN search, as we need neighbor
-    // information for all target points to compute the correction for each
-    // point. The cap is only intended to avoid a linear increase in the NN
-    // search as the reference dataset grows over multiple merge steps.
-    auto mnn_target = quick_find_nns(ntarget, target, *index_target, k, nthreads);
+    // Don't apply the cap when searching for the closest MNN to each target
+    // point, as we need the MNN-neighbor information for each target point to
+    // compute its correction. Besides, the cap is only intended to avoid
+    // issues with the growth of the reference.
+    auto closest_mnn_target = quick_find_nns(ntarget, target, *index_target, k, nthreads);
     index_target.reset();
 
-    // Determine the expected width to use, again in parallel. 
+    // Parallelized limit calculation for reference/target.
     Float_ limit_closest_ref, limit_closest_target;
-
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
 #ifdef _OPENMP
     #pragma omp parallel num_threads(nthreads)
@@ -252,7 +275,7 @@ void correct_target(
 #endif
 
             auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
-            const auto& mnn = (opt == 0 ? mnn_ref : mnn_target);
+            const auto& mnn = (opt == 0 ? closest_mnn_ref : closest_mnn_target);
             limit = limit_from_closest_distances(mnn, nmads);
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
@@ -265,15 +288,26 @@ void correct_target(
 
     // Computing the centers of mass. We reuse the buffers to store the center coordinates.
     RobustAverageOptions raopt(robust_iterations, robust_trim);
-    compute_center_of_mass(ndim, uniq_ref, mnn_ref, ref, buffer_ref.data(), raopt, limit_closest_ref, nthreads);
-    compute_center_of_mass(ndim, uniq_target, mnn_target, target, buffer_target.data(), raopt, limit_closest_target, nthreads);
+    {
+        auto ref_inverted = invert_neighbors(uniq_mnn_ref.size(), closest_mnn_ref, limit_closest_ref);
+        if (is_capped) {
+            for (auto& ref_neighbors : ref_inverted) {
+                for (auto& x : ref_neighbors) {
+                    x = capped_index(x, gap);
+                }
+            }
+        }
+        compute_center_of_mass(ndim, uniq_mnn_ref, ref_inverted, ref, buffer_ref.data(), raopt, nthreads);
+
+        auto target_inverted = invert_neighbors(uniq_mnn_target.size(), closest_mnn_target, limit_closest_target);
+        compute_center_of_mass(ndim, uniq_mnn_target, target_inverted, target, buffer_target.data(), raopt, nthreads);
+    }
+
+    auto remap_ref = invert_indices(nref, uniq_mnn_ref);
 
     // Computing the correction vector for each target point as a robust
     // average of the correction vectors for the closest MNN-involved cells,
     // and then applying it to the target data.
-    auto remap_ref = invert_indices(nref, uniq_ref);
-    auto remap_target = invert_indices(ntarget, uniq_target);
-
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
 #ifdef _OPENMP
     #pragma omp parallel num_threads(nthreads)
@@ -295,13 +329,13 @@ void correct_target(
         for (size_t t = start, end = start + length; t < end; ++t) {
 #endif
 
-            const auto& target_closest = mnn_target[t];
+            const auto& target_closest = closest_mnn_target[t];
             corrections.clear();
             size_t ncorrections = 0;
 
             for (const auto& tc : target_closest) {
                 const Float_* ptptr = buffer_target.data() + static_cast<size_t>(tc.first) * ndim; // cast to avoid overflow.
-                const auto& ref_partners = pairings.matches.at(uniq_target[tc.first]);
+                const auto& ref_partners = pairings.matches.at(uniq_mnn_target[tc.first]);
 
                 size_t old_size = corrections.size();
                 corrections.resize(corrections.size() + ref_partners.size() * ndim);

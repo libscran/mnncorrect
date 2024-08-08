@@ -2,7 +2,6 @@
 #define MNNCORRECT_CUSTOM_ORDER_HPP
 
 #include <algorithm>
-#include <unordered_set>
 #include <stdexcept>
 
 #include "knncolle/knncolle.hpp"
