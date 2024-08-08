@@ -5,13 +5,20 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>mnncorrect: mnncorrect::MnnCorrect&lt; Index, Float &gt;::Details Struct Reference</title>
+<title>mnncorrect: mnncorrect::Details Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  extensions: ["tex2jax.js"],
+  jax: ["input/TeX","output/HTML-CSS"],
+});
+</script>
+<script type="text/javascript" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -24,7 +31,7 @@
   <td id="projectalign">
    <div id="projectname">mnncorrect
    </div>
-   <div id="projectbrief">A C++ library for MNN batch correction</div>
+   <div id="projectbrief">Batch correction with mutual nearest neighbors</div>
   </td>
  </tr>
  </tbody>
@@ -71,43 +78,40 @@ $(function() {
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><b>mnncorrect</b></li><li class="navelem"><a class="el" href="classmnncorrect_1_1MnnCorrect.html">MnnCorrect</a></li><li class="navelem"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html">Details</a></li>  </ul>
+<li class="navelem"><a class="el" href="namespacemnncorrect.html">mnncorrect</a></li><li class="navelem"><a class="el" href="structmnncorrect_1_1Details.html">Details</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="structmnncorrect_1_1MnnCorrect_1_1Details-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">mnncorrect::MnnCorrect&lt; Index, Float &gt;::Details Struct Reference</div></div>
+<a href="structmnncorrect_1_1Details-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">mnncorrect::Details Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p>Correction details.  
- <a href="structmnncorrect_1_1MnnCorrect_1_1Details.html#details">More...</a></p>
+<p>Correction details from <code><a class="el" href="namespacemnncorrect.html#af638206e33439818ce2f04633fcd9bb5">compute()</a></code>.  
+ <a href="structmnncorrect_1_1Details.html#details">More...</a></p>
 
-<p><code>#include &lt;<a class="el" href="MnnCorrect_8hpp_source.html">MnnCorrect.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="compute_8hpp_source.html">compute.hpp</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:a206219cb0438745174520711474da801" id="r_a206219cb0438745174520711474da801"><td class="memItemLeft" align="right" valign="top">std::vector&lt; int &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html#a206219cb0438745174520711474da801">merge_order</a></td></tr>
-<tr class="separator:a206219cb0438745174520711474da801"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a65bc9d38dd254052e2ecdccdec7f7404" id="r_a65bc9d38dd254052e2ecdccdec7f7404"><td class="memItemLeft" align="right" valign="top">std::vector&lt; int &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1MnnCorrect_1_1Details.html#a65bc9d38dd254052e2ecdccdec7f7404">num_pairs</a></td></tr>
-<tr class="separator:a65bc9d38dd254052e2ecdccdec7f7404"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af091230c4416eecedeec23bccdaa3d08" id="r_af091230c4416eecedeec23bccdaa3d08"><td class="memItemLeft" align="right" valign="top">std::vector&lt; size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1Details.html#af091230c4416eecedeec23bccdaa3d08">merge_order</a></td></tr>
+<tr class="separator:af091230c4416eecedeec23bccdaa3d08"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a104c7a9f40bfbb834422ebf1c4884b70" id="r_a104c7a9f40bfbb834422ebf1c4884b70"><td class="memItemLeft" align="right" valign="top">std::vector&lt; size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1Details.html#a104c7a9f40bfbb834422ebf1c4884b70">num_pairs</a></td></tr>
+<tr class="separator:a104c7a9f40bfbb834422ebf1c4884b70"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><div class="compoundTemplParams">template&lt;typename Index = int, typename Float = double&gt;<br />
-struct mnncorrect::MnnCorrect&lt; Index, Float &gt;::Details</div><p>Correction details. </p>
+<div class="textblock"><p>Correction details from <code><a class="el" href="namespacemnncorrect.html#af638206e33439818ce2f04633fcd9bb5">compute()</a></code>. </p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
-<a id="a206219cb0438745174520711474da801" name="a206219cb0438745174520711474da801"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a206219cb0438745174520711474da801">&#9670;&#160;</a></span>merge_order</h2>
+<a id="af091230c4416eecedeec23bccdaa3d08" name="af091230c4416eecedeec23bccdaa3d08"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af091230c4416eecedeec23bccdaa3d08">&#9670;&#160;</a></span>merge_order</h2>
 
 <div class="memitem">
 <div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index  = int, typename Float  = double&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;int&gt; <a class="el" href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect</a>&lt; Index, Float &gt;::Details::merge_order</td>
+          <td class="memname">std::vector&lt;size_t&gt; mnncorrect::Details::merge_order</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -115,16 +119,14 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 
 </div>
 </div>
-<a id="a65bc9d38dd254052e2ecdccdec7f7404" name="a65bc9d38dd254052e2ecdccdec7f7404"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a65bc9d38dd254052e2ecdccdec7f7404">&#9670;&#160;</a></span>num_pairs</h2>
+<a id="a104c7a9f40bfbb834422ebf1c4884b70" name="a104c7a9f40bfbb834422ebf1c4884b70"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a104c7a9f40bfbb834422ebf1c4884b70">&#9670;&#160;</a></span>num_pairs</h2>
 
 <div class="memitem">
 <div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index  = int, typename Float  = double&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;int&gt; <a class="el" href="classmnncorrect_1_1MnnCorrect.html">mnncorrect::MnnCorrect</a>&lt; Index, Float &gt;::Details::num_pairs</td>
+          <td class="memname">std::vector&lt;size_t&gt; mnncorrect::Details::num_pairs</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -133,7 +135,7 @@ template&lt;typename Index  = int, typename Float  = double&gt; </div>
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li>mnncorrect/<a class="el" href="MnnCorrect_8hpp_source.html">MnnCorrect.hpp</a></li>
+<li>mnncorrect/<a class="el" href="compute_8hpp_source.html">compute.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

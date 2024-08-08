@@ -12,6 +12,13 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  extensions: ["tex2jax.js"],
+  jax: ["input/TeX","output/HTML-CSS"],
+});
+</script>
+<script type="text/javascript" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
@@ -24,7 +31,7 @@
   <td id="projectalign">
    <div id="projectname">mnncorrect
    </div>
-   <div id="projectbrief">A C++ library for MNN batch correction</div>
+   <div id="projectbrief">Batch correction with mutual nearest neighbors</div>
   </td>
  </tr>
  </tbody>
@@ -81,8 +88,14 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="files" name="files"></a>
 Files</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top"><a href="MnnCorrect_8hpp_source.html"><span class="icondoc"></span></a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="MnnCorrect_8hpp.html">MnnCorrect.hpp</a></td></tr>
-<tr class="memdesc:MnnCorrect_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction using mutual nearest neighbors. <br /></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top"><a href="compute_8hpp_source.html"><span class="icondoc"></span></a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="compute_8hpp.html">compute.hpp</a></td></tr>
+<tr class="memdesc:compute_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute the MNN correction. <br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top"><a href="mnncorrect_8hpp_source.html"><span class="icondoc"></span></a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mnncorrect_8hpp.html">mnncorrect.hpp</a></td></tr>
+<tr class="memdesc:mnncorrect_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction with mutual nearest neighbors. <br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top"><a href="Options_8hpp_source.html"><span class="icondoc"></span></a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Options_8hpp.html">Options.hpp</a></td></tr>
+<tr class="memdesc:Options_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Options for MNN correction. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top"><a href="ReferencePolicy_8hpp_source.html"><span class="icondoc"></span></a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ReferencePolicy_8hpp.html">ReferencePolicy.hpp</a></td></tr>
 <tr class="memdesc:ReferencePolicy_8hpp"><td class="mdescLeft">&#160;</td><td class="mdescRight">Automatic choice for the reference batch. <br /></td></tr>

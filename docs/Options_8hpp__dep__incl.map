@@ -1,0 +1,8 @@
+<map id="mnncorrect/Options.hpp" name="mnncorrect/Options.hpp">
+<area shape="rect" id="Node000001" title="Options for MNN correction." alt="" coords="68,5,227,31"/>
+<area shape="rect" id="Node000002" href="$compute_8hpp.html" title="Compute the MNN correction." alt="" coords="5,79,170,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="130,44,100,80,96,77,126,41"/>
+<area shape="rect" id="Node000003" href="$mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="58,153,237,178"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="168,43,185,78,186,100,180,121,160,154,155,151,175,119,181,99,180,80,163,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="109,115,139,150,135,154,105,118"/>
+</map>

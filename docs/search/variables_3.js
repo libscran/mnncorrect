@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['reference_5fpolicy_0',['reference_policy',['../structmnncorrect_1_1MnnCorrect_1_1Defaults.html#afd120f73180d0caa12be40c6cb228841',1,'mnncorrect::MnnCorrect::Defaults']]],
-  ['robust_5fiterations_1',['robust_iterations',['../structmnncorrect_1_1MnnCorrect_1_1Defaults.html#a4ee36aa3844aa13ec6f627e80899fedc',1,'mnncorrect::MnnCorrect::Defaults']]],
-  ['robust_5ftrim_2',['robust_trim',['../structmnncorrect_1_1MnnCorrect_1_1Defaults.html#ac776c7e34a88f4cef47c6ce53c936fba',1,'mnncorrect::MnnCorrect::Defaults']]]
+  ['mass_5fcap_0',['mass_cap',['../structmnncorrect_1_1Options.html#abbbbae91bfc491a2aaa9f3b2b27b8b49',1,'mnncorrect::Options']]],
+  ['merge_5forder_1',['merge_order',['../structmnncorrect_1_1Details.html#af091230c4416eecedeec23bccdaa3d08',1,'mnncorrect::Details']]]
 ];

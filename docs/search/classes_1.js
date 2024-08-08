@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['mnncorrect_0',['MnnCorrect',['../classmnncorrect_1_1MnnCorrect.html',1,'mnncorrect']]]
+  ['details_0',['Details',['../structmnncorrect_1_1Details.html',1,'mnncorrect']]]
 ];

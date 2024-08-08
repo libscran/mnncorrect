@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['referencepolicy_0',['ReferencePolicy',['../ReferencePolicy_8hpp.html#ad6c4a54a9f9a0db1d5863fc99fb6af47',1,'mnncorrect']]]
+  ['referencepolicy_0',['ReferencePolicy',['../namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694',1,'mnncorrect']]]
 ];
