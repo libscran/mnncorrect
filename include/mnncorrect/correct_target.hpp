@@ -249,9 +249,6 @@ void correct_target(
 
                 for (auto rp : ref_partners) {
                     const Float_* prptr = buffer_ref.data() + static_cast<size_t>(remap_ref[rp]) * ndim; // cast to avoid overflow.
-#ifdef _OPENMP
-                    #pragma omp simd
-#endif
                     for (size_t d = 0; d < ndim; ++d) {
                         corptr[d] = prptr[d] - ptptr[d];
                     }

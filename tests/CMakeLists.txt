@@ -48,9 +48,3 @@ create_test(libtest)
 
 create_test(cuspartest)
 target_compile_definitions(cuspartest PRIVATE TEST_CUSTOM_PARALLEL)
-
-find_package(OpenMP)
-if (OpenMP_FOUND)
-    create_test(omptest)
-    target_link_libraries(omptest OpenMP::OpenMP_CXX)
-endif()

@@ -67,18 +67,12 @@ void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Floa
 
     for (size_t i = 0; i < num_pts; ++i) {
         const auto dptr = data + static_cast<size_t>(indfun(i)) * long_ndim; // cast to size_t to avoid overflow.
-#ifdef _OPENMP        
-        #pragma omp simd
-#endif
         for (size_t d = 0; d < num_dim; ++d) {
             output[d] += dptr[d];
         }
     }
 
     const double denom = 1.0 / num_pts;
-#ifdef _OPENMP        
-    #pragma omp simd
-#endif
     for (size_t d = 0; d < num_dim; ++d) {
         output[d] *= denom;
     }
@@ -136,9 +130,6 @@ void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Floa
             }
 
             const auto dptr = data + static_cast<size_t>(deltas[x].second) * long_ndim; // both are already size_t's to avoid overflow.
-#ifdef _OPENMP        
-            #pragma omp simd
-#endif
             for (size_t d = 0; d < num_dim; ++d) {
                 output[d] += dptr[d];
             }
@@ -147,9 +138,6 @@ void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Floa
         }
 
         const double denom = 1.0/counter;
-#ifdef _OPENMP        
-        #pragma omp simd
-#endif
         for (size_t d = 0; d < num_dim; ++d) {
             output[d] *= denom;
         }
