@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['vptreeprebuilt_0',['VptreePrebuilt',['https://knncolle.github.io/knncolle/classknncolle_1_1VptreePrebuilt.html#a5391976fe1e6b957181229a8590a6ca3',1,'knncolle::VptreePrebuilt']]]
+  ['raw_5fdistance_0',['raw_distance',['https://knncolle.github.io/knncolle/structknncolle_1_1EuclideanDistance.html#a0d6936a53ba4ed0e0ca33c9ac2515d06',1,'knncolle::EuclideanDistance::raw_distance()'],['https://knncolle.github.io/knncolle/structknncolle_1_1ManhattanDistance.html#ac782b1cfdb76e144a3d84d674e661456',1,'knncolle::ManhattanDistance::raw_distance()'],['https://knncolle.github.io/knncolle/structknncolle_1_1MockDistance.html#a7cfc77c0fd9806f9030a617404a5f954',1,'knncolle::MockDistance::raw_distance()']]]
 ];

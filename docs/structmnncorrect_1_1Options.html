@@ -231,14 +231,7 @@ template&lt;typename Dim_  = int, typename Index_  = int, typename Float_  = dou
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Number of threads to use.</p>
-<p>By default, <b>mnncorrect</b> uses OpenMP to implement parallelization. However, if the <code>MNNCORRECT_CUSTOM_PARALLEL</code> macro function is defined, it will be used instead. The macro function should accept three arguments:</p>
-<ul>
-<li><code>njobs</code>, an integer specifying the number of jobs.</li>
-<li><code>fun</code>, a lambda that accepts two arguments, <code>start</code> and <code>length</code>.</li>
-<li><code>nthreads</code>, an integer specifying the number of threads to use.</li>
-</ul>
-<p>The macro function should split <code>[0, njobs)</code> into any non-zero number of contiguous, non-overlapping intervals. It should then call <code>fun</code> on each interval using the index of the first job in the interval as <code>start</code> and the number of jobs in the interval as <code>length</code>. Multiple invocations of <code>fun</code> may be safely executed in parallel - the exact nature of the parallelization is left to the discretion of the developer defining the macro. Finally, the macro function should only return once all evaluations of <code>fun</code> are complete. </p>
+<p>Number of threads to use. The parallelization scheme is defined by <code><a class="el" href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">parallelize()</a></code>. </p>
 
 </div>
 </div>

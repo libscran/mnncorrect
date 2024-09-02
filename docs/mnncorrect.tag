@@ -26,6 +26,12 @@
     <namespace>mnncorrect</namespace>
   </compound>
   <compound kind="file">
+    <name>parallelize.hpp</name>
+    <path>mnncorrect/</path>
+    <filename>parallelize_8hpp.html</filename>
+    <namespace>mnncorrect</namespace>
+  </compound>
+  <compound kind="file">
     <name>ReferencePolicy.hpp</name>
     <path>mnncorrect/</path>
     <filename>ReferencePolicy_8hpp.html</filename>
@@ -162,6 +168,13 @@
       <anchorfile>namespacemnncorrect.html</anchorfile>
       <anchor>a8677b66760a4587b5e7d1db3cf252173</anchor>
       <arglist>(size_t num_dim, size_t num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Dim_, Index_, Float_ &gt; &amp;options)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>parallelize</name>
+      <anchorfile>namespacemnncorrect.html</anchorfile>
+      <anchor>a1b556e96c8995a0dba23e412b75c838a</anchor>
+      <arglist>(int num_workers, Task_ num_tasks, Run_ run_task_range)</arglist>
     </member>
   </compound>
   <compound kind="page">

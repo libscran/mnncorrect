@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['searcher_2ehpp_0',['Searcher.hpp',['https://knncolle.github.io/knncolle/Searcher_8hpp.html',1,'']]]
+  ['referencepolicy_2ehpp_0',['ReferencePolicy.hpp',['../ReferencePolicy_8hpp.html',1,'']]]
 ];

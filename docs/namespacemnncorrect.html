@@ -118,6 +118,9 @@ Functions</h2></td></tr>
 <tr class="memitem:a8677b66760a4587b5e7d1db3cf252173" id="r_a8677b66760a4587b5e7d1db3cf252173"><td class="memTemplParams" colspan="2">template&lt;typename Dim_ , typename Index_ , typename Float_ , typename Batch_ &gt; </td></tr>
 <tr class="memitem:a8677b66760a4587b5e7d1db3cf252173"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structmnncorrect_1_1Details.html">Details</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a8677b66760a4587b5e7d1db3cf252173">compute</a> (size_t num_dim, size_t num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Dim_, Index_, Float_ &gt; &amp;options)</td></tr>
 <tr class="separator:a8677b66760a4587b5e7d1db3cf252173"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b556e96c8995a0dba23e412b75c838a" id="r_a1b556e96c8995a0dba23e412b75c838a"><td class="memTemplParams" colspan="2">template&lt;typename Task_ , class Run_ &gt; </td></tr>
+<tr class="memitem:a1b556e96c8995a0dba23e412b75c838a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">parallelize</a> (int num_workers, Task_ num_tasks, Run_ run_task_range)</td></tr>
+<tr class="separator:a1b556e96c8995a0dba23e412b75c838a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Batch correction with mutual nearest neighbors. </p>
@@ -365,6 +368,58 @@ template&lt;typename Dim_ , typename Index_ , typename Float_ , typename Batch_ 
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Statistics about the merge process. </dd></dl>
+
+</div>
+</div>
+<a id="a1b556e96c8995a0dba23e412b75c838a" name="a1b556e96c8995a0dba23e412b75c838a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b556e96c8995a0dba23e412b75c838a">&#9670;&#160;</a></span>parallelize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Task_ , class Run_ &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">void mnncorrect::parallelize </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>num_workers</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Task_&#160;</td>
+          <td class="paramname"><em>num_tasks</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Run_&#160;</td>
+          <td class="paramname"><em>run_task_range</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Task_</td><td>Integer type for the number of tasks. </td></tr>
+    <tr><td class="paramname">Run_</td><td>Function to execute a range of tasks.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">num_workers</td><td>Number of workers. </td></tr>
+    <tr><td class="paramname">num_tasks</td><td>Number of tasks. </td></tr>
+    <tr><td class="paramname">run_task_range</td><td>Function to iterate over a range of tasks within a worker.</td></tr>
+  </table>
+  </dd>
+</dl>
+<p>By default, this is an alias to <code>subpar::parallelize_range()</code>. However, if the <code>MNNCORRECT_CUSTOM_PARALLEL</code> function-like macro is defined, it is called instead. Any user-defined macro should accept the same arguments as <code>subpar::parallelize_range()</code>. </p>
 
 </div>
 </div>
