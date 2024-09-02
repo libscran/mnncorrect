@@ -95,19 +95,7 @@ struct Options {
 
     /**
      * Number of threads to use.
-     *
-     * By default, **mnncorrect** uses OpenMP to implement parallelization.
-     * However, if the `MNNCORRECT_CUSTOM_PARALLEL` macro function is defined, it will be used instead.
-     * The macro function should accept three arguments:
-     *
-     * - `njobs`, an integer specifying the number of jobs.
-     * - `fun`, a lambda that accepts two arguments, `start` and `length`.
-     * - `nthreads`, an integer specifying the number of threads to use.
-     *
-     * The macro function should split `[0, njobs)` into any non-zero number of contiguous, non-overlapping intervals.
-     * It should then call `fun` on each interval using the index of the first job in the interval as `start` and the number of jobs in the interval as `length`.
-     * Multiple invocations of `fun` may be safely executed in parallel - the exact nature of the parallelization is left to the discretion of the developer defining the macro.
-     * Finally, the macro function should only return once all evaluations of `fun` are complete.
+     * The parallelization scheme is defined by `parallelize()`.
      */
     int num_threads = 1;
 };

@@ -14,6 +14,7 @@
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
 #include "ReferencePolicy.hpp"
+#include "parallelize.hpp"
 
 namespace mnncorrect {
 
@@ -42,39 +43,15 @@ Float_ compute_total_variance(size_t ndim, size_t nobs, const Float_* values, st
 }
 
 template<typename Float_>
-std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_t>& nobs, const std::vector<const Float_*>& batches, bool as_rss, [[maybe_unused]] int nthreads) {
+std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_t>& nobs, const std::vector<const Float_*>& batches, bool as_rss, int nthreads) {
     size_t nbatches = nobs.size();
     std::vector<Float_> vars(nbatches);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t length) -> void {
-#endif
-
+    parallelize(nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
         std::vector<Float_> mean_buffer(ndim);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (size_t b = 0; b < nbatches; ++b) {
-#else
         for (size_t b = start, end = start + length; b < end; ++b) {
-#endif
-
             vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
-    }
-#else
-        }
-    }, nthreads);
-#endif
+    });
 
     return vars;
 }
@@ -113,29 +90,11 @@ public:
             return;
         }
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp parallel num_threads(my_nthreads)
-#endif
-        {
-#ifdef _OPENMP
-            #pragma omp for
-#endif
-            for (size_t b = 0; b < nbatches; ++b) {
-#else
-        MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t length) -> void {
+        parallelize(nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
             for (size_t b = start, end = start + length; b < end; ++b) {
-#endif
-
                 my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
-        }
-#else
-            }
-        }, my_nthreads);
-#endif
+        });
 
         // Different policies to pick the first batch. The default is to use
         // the first input batch, so first == Input is already covered.
@@ -253,20 +212,8 @@ protected:
         partitions.push_back(my_remaining.end()); // to easily check for the terminator in the last thread.
 
         // This should be a trivial allocation when njobs = nthreads.
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp parallel num_threads(actual_nthreads)
-#endif
-        {
-#ifdef _OPENMP
-            #pragma omp for 
-#endif
-            for (size_t t = 0; t < actual_nthreads; ++t) {
-#else
-        MNNCORRECT_CUSTOM_PARALLEL(actual_nthreads, [&](size_t start, size_t length) -> void {
+        parallelize(actual_nthreads, actual_nthreads, [&](int, size_t start, size_t length) -> void {
             for (size_t t = start, end = start + length; t < end; ++t) {
-#endif
-
                 // Within each thread, scanning for the maximum among the allocated batches.
                 auto startIt = partitions[t], endIt = partitions[t + 1];
 
@@ -321,14 +268,8 @@ protected:
 
                 collected[t] = std::move(best_pairs);
                 best[t] = chosen;
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
-        }
-#else
-            }
-        }, actual_nthreads);
-#endif
+        });
 
         // Scanning across threads for the maximum. (We assume that results
         // from at least one thread are available.) 

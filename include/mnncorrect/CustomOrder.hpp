@@ -10,6 +10,7 @@
 #include "find_mutual_nns.hpp"
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
+#include "parallelize.hpp"
 
 namespace mnncorrect {
 
@@ -49,29 +50,11 @@ public:
             return;
         }
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp parallel num_threads(my_nthreads)
-#endif
-        {
-#ifdef _OPENMP
-            #pragma omp for
-#endif
-            for (size_t b = 0; b < nbatches; ++b) {
-#else
-        MNNCORRECT_CUSTOM_PARALLEL(nbatches, [&](size_t start, size_t length) -> void {
+        parallelize(my_nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
             for (size_t b = start, end = start + length; b < end; ++b) {
-#endif
-
                 my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, my_nobs[b], my_batches[b]));
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
             }
-        }
-#else
-            }
-        }, my_nthreads);
-#endif
+        });
 
         // Picking the first batch to be our reference.
         auto first = my_order[0];

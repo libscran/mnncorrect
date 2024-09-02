@@ -7,6 +7,7 @@
 #include "fuse_nn_results.hpp"
 #include "find_mutual_nns.hpp"
 #include "robust_average.hpp"
+#include "parallelize.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -50,39 +51,17 @@ std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
     NeighborSet<Index_, Float_> output(mass_cap);
     size_t ndim = index.num_dimensions();
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(mass_cap, [&](size_t start, size_t length) -> void {
-#endif
-
+    parallelize(nthreads, mass_cap, [&](int, size_t start, size_t length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
         auto searcher = index.initialize();
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (size_t o_ = 0; o_ < mass_cap; ++o_) {
-#else
         for (size_t o_ = start, end = start + length; o_ < end; ++o_) {
-#endif
-
             size_t o = capped_index(o_, gap);
             searcher->search(data + o * ndim, k, &indices, &distances);
             fill_pair_vector(indices, distances, output[o_]);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
-    }
-#else
-        }
-    }, nthreads);
-#endif
+    });
 
     return std::make_pair(gap, std::move(output));
 }
@@ -128,30 +107,14 @@ void compute_center_of_mass(
     const Float_* data,
     Float_* buffer,
     const RobustAverageOptions& raopt,
-    [[maybe_unused]] int nthreads)
+    int nthreads)
 {
     size_t num_mnns = mnn_ids.size();
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL    
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(num_mnns, [&](size_t start, size_t length) -> void {
-#endif
-
+    parallelize(nthreads, num_mnns, [&](int, size_t start, size_t length) -> void {
         std::vector<std::pair<Float_, size_t> > deltas;
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (size_t g = 0; g < num_mnns; ++g) {
-#else
         for (size_t g = start, end = start + length; g < end; ++g) {
-#endif
-
             // Usually, the MNN is always included in its own neighbor list.
             // However, this may not be the case if a cap is applied. We don't
             // want to force it into the neighbor list, because that biases the
@@ -167,12 +130,7 @@ void compute_center_of_mass(
                 robust_average(ndim, inv, data, output, deltas, raopt);
             }
         }
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-    }
-#else
-    }, nthreads);
-#endif
+    });
 
     return;
 }
@@ -202,20 +160,8 @@ void correct_target(
     std::vector<Float_> buffer_target(uniq_mnn_target.size() * ndim);
     std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > index_ref, index_target;
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (int opt = 0; opt < 2; ++opt) {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(2, [&](size_t start, size_t length) -> void {
+    parallelize(nthreads, 2, [&](int, size_t start, size_t length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
-#endif
-
             auto obs_ptr = (opt == 0 ? ref : target);
             const auto& uniq = (opt == 0 ? uniq_mnn_ref : uniq_mnn_target);
             auto& buffer = (opt == 0 ? buffer_ref : buffer_target);
@@ -223,14 +169,8 @@ void correct_target(
 
             subset_to_mnns(ndim, obs_ptr, uniq, buffer.data());
             index = builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(ndim, uniq.size(), buffer.data()));
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
-    }
-#else
-        }
-    }, nthreads);
-#endif
+    });
 
     // Finding the closest MNN-involved point for each point in the reference
     // dataset. If 'mass_cap' is smaller than 'nobs', we only do this search
@@ -260,31 +200,13 @@ void correct_target(
 
     // Parallelized limit calculation for reference/target.
     Float_ limit_closest_ref, limit_closest_target;
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (int opt = 0; opt < 2; ++opt) {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(2, [&](size_t start, size_t length) -> void {
+    parallelize(nthreads, 2, [&](int, size_t start, size_t length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
-#endif
-
             auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
             const auto& mnn = (opt == 0 ? closest_mnn_ref : closest_mnn_target);
             limit = limit_from_closest_distances(mnn, nmads);
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
-    }
-#else
-        }
-    }, nthreads);
-#endif
+    });
 
     // Computing the centers of mass. We reuse the buffers to store the center coordinates.
     RobustAverageOptions raopt(robust_iterations, robust_trim);
@@ -308,27 +230,11 @@ void correct_target(
     // Computing the correction vector for each target point as a robust
     // average of the correction vectors for the closest MNN-involved cells,
     // and then applying it to the target data.
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-    #pragma omp parallel num_threads(nthreads)
-#endif
-    {
-#else
-    MNNCORRECT_CUSTOM_PARALLEL(ntarget, [&](size_t start, size_t length) -> void {
-#endif
-
+    parallelize(nthreads, ntarget, [&](int, size_t start, size_t length) -> void {
         std::vector<Float_> corrections;
         std::vector<std::pair<Float_, size_t> > deltas;
 
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
-#ifdef _OPENMP
-        #pragma omp for
-#endif
-        for (size_t t = 0; t < ntarget; ++t) {
-#else
         for (size_t t = start, end = start + length; t < end; ++t) {
-#endif
-
             const auto& target_closest = closest_mnn_target[t];
             corrections.clear();
             size_t ncorrections = 0;
@@ -362,14 +268,8 @@ void correct_target(
             for (size_t d = 0; d < ndim; ++d) {
                 optr[d] += tptr[d];
             }
-
-#ifndef MNNCORRECT_CUSTOM_PARALLEL
         }
-    }
-#else
-        }
-    }, nthreads);
-#endif
+    });
 
     return;
 }

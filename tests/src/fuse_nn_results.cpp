@@ -34,8 +34,7 @@ TEST(QuickFindNns, Basic) {
         EXPECT_EQ(output[c][0].second, 0);
 
         for (int i = 0; i < k - 1; ++i) {
-            EXPECT_EQ(ref[c].first[i], output[c][i + 1].first);
-            EXPECT_EQ(ref[c].second[i], output[c][i + 1].second);
+            EXPECT_EQ(ref[c][i], output[c][i + 1]);
         }
     }
 

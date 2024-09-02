@@ -7,18 +7,15 @@
 #include <thread>
 
 template<class Function>
-void parallelize(size_t n, Function f, size_t nthreads) {
-    size_t jobs_per_worker = std::ceil(static_cast<double>(n) / nthreads);
+void default_parallelize(int nthreads, size_t n, Function f) {
+    size_t jobs_per_worker = n / nthreads + (n % nthreads > 0);
     size_t start = 0;
     std::vector<std::thread> jobs;
     jobs.reserve(nthreads);
 
-    for (size_t w = 0; w < nthreads; ++w) {
-        if (start == n) {
-            break;
-        }
+    for (int w = 0; w < nthreads && start < n; ++w) {
         size_t length = std::min(n - start, jobs_per_worker);
-        jobs.emplace_back(f, start, length);
+        jobs.emplace_back(f, w, start, length);
         start += length;
     }
 
@@ -27,6 +24,6 @@ void parallelize(size_t n, Function f, size_t nthreads) {
     }
 }
 
-#define MNNCORRECT_CUSTOM_PARALLEL parallelize
+#define MNNCORRECT_CUSTOM_PARALLEL default_parallelize
 #endif
 #endif
