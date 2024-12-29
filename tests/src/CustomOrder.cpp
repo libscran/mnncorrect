@@ -82,7 +82,7 @@ public:
 };
 
 TEST_P(CustomOrderTest, CheckInitialization) {
-    std::vector<int> ordering(sizes.size());
+    std::vector<size_t> ordering(sizes.size());
     std::iota(ordering.begin(), ordering.end(), 0);
     if (reversed) {
         std::reverse(ordering.begin(), ordering.end());
@@ -96,8 +96,8 @@ TEST_P(CustomOrderTest, CheckInitialization) {
         output.data(),
         builder,
         /* num_neighbors = */ k,
-        /* order = */ ordering.data(),
-        /* nobs_cap = */ -1,
+        /* order = */ ordering,
+        /* mass_cap = */ -1,
         /* nthreads = */ 1
     );
 
@@ -115,7 +115,7 @@ TEST_P(CustomOrderTest, CheckInitialization) {
 }
 
 TEST_P(CustomOrderTest, CheckUpdate) {
-    std::vector<int> ordering(sizes.size());
+    std::vector<size_t> ordering(sizes.size());
     std::iota(ordering.begin(), ordering.end(), 0);
     if (reversed) {
         std::reverse(ordering.begin(), ordering.end());
@@ -135,8 +135,8 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             all_output.back().data(),
             builder,
             /* num_neighbors = */ k,
-            /* order = */ ordering.data(),
-            /* nobs_cap = */ -1,
+            /* order = */ ordering,
+            /* mass_cap = */ -1,
             /* nthreads = */ t
         );
     }
@@ -212,3 +212,96 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(false, true) // whether to use the reverse order
     )
 );
+
+TEST(CustomOrder, InitializationError) {
+    int ndim = 5;
+    std::vector<size_t> sizes { 10, 20, 30 };
+    std::vector<const double*> ptrs{ NULL, NULL, NULL };
+    int k = 10;
+    knncolle::VptreeBuilder<> builder;
+    double* output = NULL;
+
+    scran_tests::expect_error([&]() {
+        std::vector<size_t> ordering;
+        CustomOrder2 coords(
+            ndim,
+            sizes,
+            ptrs,
+            output,
+            builder,
+            /* num_neighbors = */ k,
+            /* order = */ ordering,
+            /* mass_cap = */ -1,
+            /* nthreads = */ 1
+        );
+    }, "number of batches");
+
+    scran_tests::expect_error([&]() {
+        std::vector<size_t> ordering{ 0, 1, 2 };
+        CustomOrder2 coords(
+            ndim,
+            sizes,
+            std::vector<const double*>(),
+            output,
+            builder,
+            /* num_neighbors = */ k,
+            /* order = */ ordering,
+            /* mass_cap = */ -1,
+            /* nthreads = */ 1
+        );
+    }, "length of");
+
+    scran_tests::expect_error([&]() {
+        std::vector<size_t> ordering(sizes.size(), 1);
+        CustomOrder2 coords(
+            ndim,
+            sizes,
+            ptrs,
+            output,
+            builder,
+            /* num_neighbors = */ k,
+            /* order = */ ordering,
+            /* mass_cap = */ -1,
+            /* nthreads = */ 1
+        );
+    }, "duplicate");
+
+    scran_tests::expect_error([&]() {
+        std::vector<size_t> ordering(sizes.size(), 3);
+        CustomOrder2 coords(
+            ndim,
+            sizes,
+            ptrs,
+            output,
+            builder,
+            /* num_neighbors = */ k,
+            /* order = */ ordering,
+            /* mass_cap = */ -1,
+            /* nthreads = */ 1
+        );
+    }, "out-of-range");
+}
+
+TEST(CustomOrder, NoOp) {
+    int ndim = 5;
+    std::vector<size_t> sizes;
+    std::vector<const double*> ptrs;
+    int k = 10;
+    knncolle::VptreeBuilder<> builder;
+    double* output = NULL;
+    std::vector<size_t> ordering;
+
+    CustomOrder2 coords(
+        ndim,
+        sizes,
+        ptrs,
+        output,
+        builder,
+        /* num_neighbors = */ k,
+        /* order = */ ordering,
+        /* mass_cap = */ -1,
+        /* nthreads = */ 1
+    );
+
+    EXPECT_TRUE(coords.get_num_pairs().empty());
+}

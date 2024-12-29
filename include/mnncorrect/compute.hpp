@@ -63,25 +63,7 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
     }
 
     if (!options.order.empty()) {
-        { // Running some checks on the 'order' vector.
-            size_t nbatches = num_obs.size();
-            if (options.order.size() != nbatches) {
-                throw std::runtime_error("'order' should have the same length as the number of batches");
-            }
-
-            std::vector<uint8_t> found(nbatches);
-            for (auto o : options.order) {
-                if (o >= nbatches) {
-                    throw std::runtime_error("out-of-range batch indices in 'order'");
-                }
-                if (found[o]) {
-                    throw std::runtime_error("duplicated batch indices in 'order'");
-                }
-                found[o] = 1;
-            }
-        }
-
-        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order.data(), options.mass_cap, options.num_threads);
+        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(runner.get_order(), runner.get_num_pairs());
 
@@ -93,7 +75,7 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
     } else {
         std::vector<size_t> trivial_order(num_obs.size());
         std::iota(trivial_order.begin(), trivial_order.end(), 0);
-        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order.data(), options.mass_cap, options.num_threads);
+        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(std::move(trivial_order), runner.get_num_pairs());
     }
