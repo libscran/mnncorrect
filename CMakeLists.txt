@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(mnncorrect
-    VERSION 2.0.0
+    VERSION 2.0.1
     DESCRIPTION "MNN correction in C++"
     LANGUAGES CXX)
 
