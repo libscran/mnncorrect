@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
-<tagfile doxygen_version="1.9.8">
+<tagfile doxygen_version="1.12.0">
   <compound kind="file">
     <name>compute.hpp</name>
     <path>mnncorrect/</path>
@@ -58,77 +58,77 @@
   <compound kind="struct">
     <name>mnncorrect::Options</name>
     <filename>structmnncorrect_1_1Options.html</filename>
-    <templarg>typename Dim_</templarg>
     <templarg>typename Index_</templarg>
     <templarg>typename Float_</templarg>
+    <templarg>class Matrix_</templarg>
     <member kind="variable">
       <type>int</type>
       <name>num_neighbors</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a77a06b63da4627528962cdb62f90ca28</anchor>
+      <anchor>ab5023728bd400bacaa74812cb8a56b5d</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>double</type>
       <name>num_mads</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a4285057efa41bf177dc941e9bdba2cef</anchor>
+      <anchor>aa1257dbad59eb1fe7f3f74743b8a2aa7</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>std::shared_ptr&lt; knncolle::Builder&lt; knncolle::SimpleMatrix&lt; Dim_, Index_, Float_ &gt;, Float_ &gt; &gt;</type>
+      <type>std::shared_ptr&lt; knncolle::Builder&lt; Index_, Float_, Float_, Matrix_ &gt; &gt;</type>
       <name>builder</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>ab4e93734e03009bcaec7e43b09605421</anchor>
+      <anchor>a7143d3f30635f258730d15fc2eff8e40</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>std::vector&lt; size_t &gt;</type>
       <name>order</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a2f2a7eb9a24cb5b0df223414b7ec7146</anchor>
+      <anchor>a538ea5122d43128b0c0194843d239fe0</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>bool</type>
       <name>automatic_order</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>adb9f44245d56eb231b87f76412505dbf</anchor>
+      <anchor>afb71da89c11ab9a91b2542460fe0b652</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>int</type>
       <name>robust_iterations</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>af6230f843c36e15e45007376508ef12f</anchor>
+      <anchor>a4a52b39e6d30a5f97358b0a5478c765d</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>double</type>
       <name>robust_trim</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a33d8e8a5102579ce703156509f09b72c</anchor>
+      <anchor>a5383753859038cf0a1e7bc8f7b5ae025</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>ReferencePolicy</type>
       <name>reference_policy</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a6bdc7f31d9b5a2a9aad0862677b5c829</anchor>
+      <anchor>aacb2b4821b13989b2c904cacceab009b</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>size_t</type>
       <name>mass_cap</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>abbbbae91bfc491a2aaa9f3b2b27b8b49</anchor>
+      <anchor>a2b865e235c9de327f32af93cca50bb13</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>int</type>
       <name>num_threads</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a25c060852ae2b7402ba5b5d7e46338ba</anchor>
+      <anchor>aa1e850cce8e765cf5e7b03ea3d240ce2</anchor>
       <arglist></arglist>
     </member>
   </compound>
@@ -152,22 +152,22 @@
       <type>Details</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>af638206e33439818ce2f04633fcd9bb5</anchor>
-      <arglist>(size_t num_dim, const std::vector&lt; size_t &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Dim_, Index_, Float_ &gt; &amp;options)</arglist>
+      <anchor>af743bee735cf1cf3c1b018065b64eeed</anchor>
+      <arglist>(size_t num_dim, const std::vector&lt; size_t &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>Details</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a762d80298d3522cb31a5504435257100</anchor>
-      <arglist>(size_t num_dim, const std::vector&lt; size_t &gt; &amp;num_obs, const Float_ *input, Float_ *output, const Options&lt; Dim_, Index_, Float_ &gt; &amp;options)</arglist>
+      <anchor>a8c46a6844c6c96605bad71e598a81cb0</anchor>
+      <arglist>(size_t num_dim, const std::vector&lt; size_t &gt; &amp;num_obs, const Float_ *input, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>Details</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a8677b66760a4587b5e7d1db3cf252173</anchor>
-      <arglist>(size_t num_dim, size_t num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Dim_, Index_, Float_ &gt; &amp;options)</arglist>
+      <anchor>a141f22063bbb9f2daccb3704f41a7471</anchor>
+      <arglist>(size_t num_dim, size_t num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>void</type>

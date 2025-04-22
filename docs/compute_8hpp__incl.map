@@ -2,7 +2,7 @@
 <area shape="rect" id="Node000001" title="Compute the MNN correction." alt="" coords="359,5,523,31"/>
 <area shape="rect" id="Node000002" title=" " alt="" coords="5,79,80,105"/>
 <area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="361,34,96,81,95,76,360,29"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="103,79,161,105"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="103,79,160,105"/>
 <area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="383,34,176,81,175,76,382,29"/>
 <area shape="rect" id="Node000004" title=" " alt="" coords="185,79,252,105"/>
 <area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="404,34,268,78,266,72,403,29"/>
@@ -10,7 +10,7 @@
 <area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="421,34,350,73,348,69,418,29"/>
 <area shape="rect" id="Node000006" title=" " alt="" coords="378,79,438,105"/>
 <area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="438,32,422,66,418,64,433,30"/>
-<area shape="rect" id="Node000007" href="/github/workspace/docs/knncolle.tag$knncolle_8hpp.html" title=" " alt="" coords="515,153,661,178"/>
+<area shape="rect" id="Node000007" href="/github/workspace/docs/knncolle.tag$knncolle_8hpp.html" title=" " alt="" coords="515,153,660,178"/>
 <area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="450,30,472,64,503,103,528,124,555,142,552,147,525,128,499,107,467,68,446,33"/>
 <area shape="rect" id="Node000008" title=" " alt="" coords="513,79,649,105"/>
 <area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="466,29,545,69,543,74,464,34"/>
@@ -22,5 +22,5 @@
 <area shape="poly" id="edge12_Node000001_Node000012" title=" " alt="" coords="524,26,919,76,918,81,524,31"/>
 <area shape="poly" id="edge10_Node000010_Node000007" title=" " alt="" coords="820,107,650,151,649,146,819,102"/>
 <area shape="rect" id="Node000011" href="$ReferencePolicy_8hpp.html" title="Automatic choice for the reference batch." alt="" coords="796,153,935,178"/>
-<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="868,105,868,137,863,137,863,105"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="868,105,868,137,862,137,862,105"/>
 </map>

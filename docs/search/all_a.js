@@ -1,12 +1,16 @@
 var searchData=
 [
-  ['manhattandistance_0',['ManhattanDistance',['https://knncolle.github.io/knncolle/structknncolle_1_1ManhattanDistance.html',1,'knncolle']]],
-  ['mass_5fcap_1',['mass_cap',['../structmnncorrect_1_1Options.html#abbbbae91bfc491a2aaa9f3b2b27b8b49',1,'mnncorrect::Options']]],
-  ['merge_5forder_2',['merge_order',['../structmnncorrect_1_1Details.html#af091230c4416eecedeec23bccdaa3d08',1,'mnncorrect::Details']]],
-  ['mnn_20correction_3',['C++ library for MNN correction',['../index.html',1,'']]],
-  ['mnncorrect_4',['mnncorrect',['../namespacemnncorrect.html',1,'']]],
-  ['mnncorrect_2ehpp_5',['mnncorrect.hpp',['../mnncorrect_8hpp.html',1,'']]],
-  ['mockdistance_6',['MockDistance',['https://knncolle.github.io/knncolle/structknncolle_1_1MockDistance.html',1,'knncolle']]],
-  ['mockmatrix_7',['MockMatrix',['https://knncolle.github.io/knncolle/classknncolle_1_1MockMatrix.html',1,'knncolle']]],
-  ['mockmatrix_2ehpp_8',['MockMatrix.hpp',['https://knncolle.github.io/knncolle/MockMatrix_8hpp.html',1,'']]]
+  ['neighborlist_0',['NeighborList',['https://knncolle.github.io/knncolle/namespaceknncolle.html#a97693d779b6041859ffa0ef2d9c1500b',1,'knncolle']]],
+  ['neighborqueue_1',['NeighborQueue',['https://knncolle.github.io/knncolle/classknncolle_1_1NeighborQueue.html',1,'knncolle::NeighborQueue&lt; typename Index_, typename Distance_ &gt;'],['https://knncolle.github.io/knncolle/classknncolle_1_1NeighborQueue.html#abc66097ed7fa8f7cbbd0ee82328b9152',1,'knncolle::NeighborQueue::NeighborQueue()']]],
+  ['neighborqueue_2ehpp_2',['NeighborQueue.hpp',['https://knncolle.github.io/knncolle/NeighborQueue_8hpp.html',1,'']]],
+  ['new_5fextractor_3',['new_extractor',['https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html#a4ab89fa80a485216d6890c4ca97ac51e',1,'knncolle::Matrix::new_extractor()'],['https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html#a4d4300b24909ffd9916a29b095a8edb5',1,'knncolle::SimpleMatrix::new_extractor()']]],
+  ['next_4',['next',['https://knncolle.github.io/knncolle/classknncolle_1_1MatrixExtractor.html#a3d82e911202727619399f7dec238b28a',1,'knncolle::MatrixExtractor::next()'],['https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrixExtractor.html#a41129e636ddcf0dcf5f80dd21568e72b',1,'knncolle::SimpleMatrixExtractor::next()']]],
+  ['normalize_5',['normalize',['https://knncolle.github.io/knncolle/classknncolle_1_1DistanceMetric.html#a4a468569d0823bf3211b2ee5c46a81d9',1,'knncolle::DistanceMetric']]],
+  ['normalizedmatrix_6',['NormalizedMatrix',['https://knncolle.github.io/knncolle/classknncolle_1_1L2NormalizedBuilder.html#a1098d7699574f9d509508b6a1fe23a32',1,'knncolle::L2NormalizedBuilder']]],
+  ['num_5fdimensions_7',['num_dimensions',['https://knncolle.github.io/knncolle/classknncolle_1_1BruteforcePrebuilt.html#afcf08a0b0063213de28652097738bd2d',1,'knncolle::BruteforcePrebuilt::num_dimensions()'],['https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html#af606bb88f445cac8ebf6dc540c083759',1,'knncolle::Matrix::num_dimensions()'],['https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html#ad08cdf5cdab27db326fb7883d1458e8e',1,'knncolle::Prebuilt::num_dimensions()'],['https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html#aaae847bdcdf4de01cd6d32f6dff306c9',1,'knncolle::SimpleMatrix::num_dimensions()'],['https://knncolle.github.io/knncolle/classknncolle_1_1VptreePrebuilt.html#a142a6ce78e805b280137a9b4dfe85f49',1,'knncolle::VptreePrebuilt::num_dimensions()']]],
+  ['num_5fmads_8',['num_mads',['../structmnncorrect_1_1Options.html#aa1257dbad59eb1fe7f3f74743b8a2aa7',1,'mnncorrect::Options']]],
+  ['num_5fneighbors_9',['num_neighbors',['../structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d',1,'mnncorrect::Options']]],
+  ['num_5fobservations_10',['num_observations',['https://knncolle.github.io/knncolle/classknncolle_1_1BruteforcePrebuilt.html#aa2058e2a905ac6c83389c5ad5b062049',1,'knncolle::BruteforcePrebuilt::num_observations()'],['https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html#a7b0961f03e8b232a1bfb9d86e171eaab',1,'knncolle::Matrix::num_observations()'],['https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html#a560fec57d6ec36d288b6cd80e9f4c7bd',1,'knncolle::Prebuilt::num_observations()'],['https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html#a9f504a7ae05efc06f4d69510df9a3daa',1,'knncolle::SimpleMatrix::num_observations()'],['https://knncolle.github.io/knncolle/classknncolle_1_1VptreePrebuilt.html#a4ddff52bf80e043c07a43281b067a935',1,'knncolle::VptreePrebuilt::num_observations()']]],
+  ['num_5fpairs_11',['num_pairs',['../structmnncorrect_1_1Details.html#a104c7a9f40bfbb834422ebf1c4884b70',1,'mnncorrect::Details']]],
+  ['num_5fthreads_12',['num_threads',['../structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2',1,'mnncorrect::Options']]]
 ];

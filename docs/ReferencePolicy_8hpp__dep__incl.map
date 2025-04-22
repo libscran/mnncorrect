@@ -1,6 +1,6 @@
 <map id="mnncorrect/ReferencePolicy.hpp" name="mnncorrect/ReferencePolicy.hpp">
 <area shape="rect" id="Node000001" title="Automatic choice for the reference batch." alt="" coords="95,5,304,31"/>
-<area shape="rect" id="Node000002" href="$Options_8hpp.html" title="Options for MNN correction." alt="" coords="61,79,221,105"/>
+<area shape="rect" id="Node000002" href="$Options_8hpp.html" title="Options for MNN correction." alt="" coords="61,79,220,105"/>
 <area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="182,45,153,80,149,77,178,41"/>
 <area shape="rect" id="Node000004" href="$mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="118,226,297,252"/>
 <area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="219,43,235,78,240,121,235,163,215,226,210,225,230,162,235,121,230,80,215,45"/>

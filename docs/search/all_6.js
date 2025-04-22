@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['get_5fobservation_0',['get_observation',['https://knncolle.github.io/knncolle/classknncolle_1_1MockMatrix.html#a4c8aeb3684c8163c9ed3bbfcb688e400',1,'knncolle::MockMatrix']]],
-  ['get_5foptions_1',['get_options',['https://knncolle.github.io/knncolle/classknncolle_1_1KmknnBuilder.html#af6dc5c628478732fb4b5d0f027f1d7a8',1,'knncolle::KmknnBuilder']]]
+  ['initialize_0',['initialize',['https://knncolle.github.io/knncolle/classknncolle_1_1BruteforcePrebuilt.html#aeac9a8865d093e6d019f7383ec556ec6',1,'knncolle::BruteforcePrebuilt::initialize()'],['https://knncolle.github.io/knncolle/classknncolle_1_1L2NormalizedPrebuilt.html#afb014f25024603b63877e5dee3ad3459',1,'knncolle::L2NormalizedPrebuilt::initialize()'],['https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html#aacc8819b7962ce27294cf0d42f6c6e68',1,'knncolle::Prebuilt::initialize()'],['https://knncolle.github.io/knncolle/classknncolle_1_1VptreePrebuilt.html#aa81f5ca04707010f2b8e56aac81f9196',1,'knncolle::VptreePrebuilt::initialize()']]],
+  ['is_5ffull_1',['is_full',['https://knncolle.github.io/knncolle/classknncolle_1_1NeighborQueue.html#ae459f76b2e81b65b7f437e01eea1689b',1,'knncolle::NeighborQueue']]]
 ];

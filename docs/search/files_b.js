@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['vptree_2ehpp_0',['Vptree.hpp',['https://knncolle.github.io/knncolle/Vptree_8hpp.html',1,'']]]
+  ['searcher_2ehpp_0',['Searcher.hpp',['https://knncolle.github.io/knncolle/Searcher_8hpp.html',1,'']]]
 ];
