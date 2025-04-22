@@ -56,7 +56,7 @@ std::vector<Float_> compute_total_variances(size_t ndim, const std::vector<size_
     return vars;
 }
 
-template<typename Dim_, typename Index_, typename Float_>
+template<typename Index_, typename Float_, typename Matrix_>
 class AutomaticOrder {
 public:
     AutomaticOrder(
@@ -64,7 +64,7 @@ public:
         const std::vector<size_t>& nobs,
         const std::vector<const Float_*>& batches, 
         Float_* corrected,
-        const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& builder,
+        const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors, 
         ReferencePolicy ref_policy, 
         size_t nobs_cap, 
@@ -92,7 +92,7 @@ public:
 
         parallelize(nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
             for (size_t b = start, end = start + length; b < end; ++b) {
-                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
+                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
             }
         });
 
@@ -128,8 +128,8 @@ protected:
     const std::vector<size_t>& my_nobs;
     const std::vector<const Float_*>& my_batches;
 
-    const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& my_builder;
-    std::vector<std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
+    std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
 
     int my_num_neighbors;
     std::vector<NeighborSet<Index_, Float_> > my_neighbors_ref;
@@ -166,7 +166,7 @@ protected:
             return;
         }
 
-        auto lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, lat_num, lat_data));
+        auto lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lat_num, lat_data));
         for (auto b : my_remaining) {
             auto& rem_ref_neighbors = my_neighbors_ref[b];
             rem_ref_neighbors.resize(my_ncorrected);

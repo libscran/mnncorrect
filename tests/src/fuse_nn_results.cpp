@@ -21,7 +21,9 @@ TEST(QuickFindNns, Basic) {
         return sparams;
     }());
 
-    auto prebuilt = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC, contents.data()));
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    auto prebuilt = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC, contents.data()));
+
     int k = 5;
     auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt, /* k = */ k, /* num_threads = */ 1);
     ASSERT_EQ(output.size(), NC);
@@ -169,13 +171,15 @@ TEST(FuseNnResults, Recovery) {
         return sparams;
     }());
 
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
     int k = 5;
-    auto prebuilt_full = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC, contents.data()));
+    auto prebuilt_full = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC, contents.data()));
     auto ref = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_full, /* k = */ k, /* num_threads = */ 1);
 
-    auto prebuilt_first = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, 50, contents.data()));
+    auto prebuilt_first = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, 50, contents.data()));
     auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_first, /* k = */ k, /* num_threads = */ 1);
-    auto prebuilt_second = knncolle::VptreeBuilder<>().build_unique(knncolle::SimpleMatrix<int, int, double>(NR, NC - 50, contents.data() + 50 * NR));
+    auto prebuilt_second = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC - 50, contents.data() + 50 * NR));
     mnncorrect::internal::quick_fuse_nns(output, contents.data(), *prebuilt_second, /* k = */ k, /* num_threads = */ 1, /* offset = */ 50);
 
     ASSERT_EQ(output.size(), ref.size());

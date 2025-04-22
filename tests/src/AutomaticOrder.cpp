@@ -54,11 +54,11 @@ TEST(AutomaticOrder, RunningVariances) {
 
 /****************************************************/
 
-struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, double> {
+struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double, knncolle::Matrix<int, double> > {
     static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::ReferencePolicy::MAX_SIZE;
 
     template<typename ... Args_>
-    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, int, double>(std::forward<Args_>(args)...) {}
+    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, double, knncolle::Matrix<int, double> >(std::forward<Args_>(args)...) {}
 
     const auto& get_neighbors_ref () const { 
         return my_neighbors_ref;
@@ -86,6 +86,9 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, int, d
 };
 
 class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t> > > {
+public:
+    AutomaticOrderTest() : builder(std::make_shared<knncolle::EuclideanDistance<double, double> >()) {}
+
 protected:
     void SetUp() {
         auto param = GetParam();
@@ -111,7 +114,7 @@ protected:
 public:
     // Constants.
     int ndim = 5;
-    knncolle::VptreeBuilder<> builder;
+    knncolle::VptreeBuilder<int, double, double> builder;
 
     // Parameters.
     int k;
@@ -203,13 +206,13 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         // so we test it against the naive serial chooser, just in case.
         auto simpler = [&]{ 
             auto corrected = all_output[0].data();
-            auto ref_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sofar, corrected));
+            auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, sofar, corrected));
 
             mnncorrect::internal::MnnPairs<int> output;
             size_t chosen = 0;
             for (auto r : coords0.get_remaining()) {
                 auto target_to_ref = mnncorrect::internal::quick_find_nns(sizes[r], data[r].data(), *ref_index, /* k = */ k, /* num_threads = */ 1);
-                auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
+                auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, sizes[r], data[r].data()));
                 auto ref_to_target = mnncorrect::internal::quick_find_nns(sofar, corrected, *target_index, /* k = */ k, /* num_threads = */ 1);
 
                 auto tmp = mnncorrect::internal::find_mutual_nns(ref_to_target, target_to_ref);
@@ -269,7 +272,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         const auto& rneighbors = coords0.get_neighbors_ref();
         for (auto r : remaining) {
             const auto& rcurrent = rneighbors[r];
-            auto target_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, sizes[r], data[r].data()));
+            auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, sizes[r], data[r].data()));
             auto target_search = target_index->initialize();
             EXPECT_EQ(rcurrent.size(), new_sofar);
 
@@ -281,7 +284,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
 
-        auto ref_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
+        auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, new_sofar, all_output[0].data()));
         auto ref_search = ref_index->initialize();
         const auto& tneighbors = coords0.get_neighbors_target();
         for (auto r : remaining) {

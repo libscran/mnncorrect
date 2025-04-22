@@ -68,9 +68,11 @@ TEST_P(FindMutualNNsTest, Check) {
         return sparams;
     }());
 
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
     // Reference calculation here.
-    auto left_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, nleft, left.data()));
-    auto right_index = knncolle::VptreeBuilder().build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, nright, right.data()));
+    auto left_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, left.data()));
+    auto right_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nright, right.data()));
     auto neighbors_of_left = mnncorrect::internal::quick_find_nns(nleft, left.data(), *right_index, k1, /* nthreads = */ 1);
     auto neighbors_of_right = mnncorrect::internal::quick_find_nns(nright, right.data(), *left_index, k2, /* nthreads = */ 1);
     auto ref = compute_reference(neighbors_of_left, neighbors_of_right);

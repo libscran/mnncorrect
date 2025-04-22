@@ -33,11 +33,11 @@ inline size_t capped_index(size_t i, double gap) {
     return static_cast<double>(i) * gap; // truncation.
 }
 
-template<typename Dim_, typename Index_, typename Float_>
+template<typename Index_, typename Float_>
 std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
     size_t nobs,
     const Float_* data,
-    const knncolle::Prebuilt<Dim_, Index_, Float_>& index,
+    const knncolle::Prebuilt<Index_, Float_, Float_>& index,
     int k,
     size_t mass_cap,
     [[maybe_unused]] int nthreads) 
@@ -135,7 +135,7 @@ void compute_center_of_mass(
     return;
 }
 
-template<typename Dim_, typename Index_, typename Float_>
+template<typename Index_, typename Float_, typename Matrix_>
 void correct_target(
     size_t ndim, 
     size_t nref, 
@@ -143,7 +143,7 @@ void correct_target(
     size_t ntarget, 
     const Float_* target, 
     const MnnPairs<Index_>& pairings, 
-    const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& builder, 
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     int k, 
     Float_ nmads,
     int robust_iterations,
@@ -158,7 +158,7 @@ void correct_target(
     // Parallelized building of the MNN-only indices.
     std::vector<Float_> buffer_ref(uniq_mnn_ref.size() * ndim);
     std::vector<Float_> buffer_target(uniq_mnn_target.size() * ndim);
-    std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > index_ref, index_target;
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index_ref, index_target;
 
     parallelize(nthreads, 2, [&](int, size_t start, size_t length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
@@ -168,7 +168,7 @@ void correct_target(
             auto& index = (opt == 0 ? index_ref : index_target);
 
             subset_to_mnns(ndim, obs_ptr, uniq, buffer.data());
-            index = builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(ndim, uniq.size(), buffer.data()));
+            index = builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, uniq.size(), buffer.data()));
         }
     });
 

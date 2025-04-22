@@ -55,27 +55,28 @@ struct Details {
  */
 namespace internal {
 
-template<typename Dim_, typename Index_, typename Float_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+template<typename Index_, typename Float_, class Matrix_>
+Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto builder = options.builder;
     if (!builder) {
-        builder.reset(new knncolle::VptreeBuilder<knncolle::EuclideanDistance, knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>);
+        typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
+        builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
     }
 
     if (!options.order.empty()) {
-        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order, options.mass_cap, options.num_threads);
+        CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(runner.get_order(), runner.get_num_pairs());
 
     } else if (options.automatic_order) {
-        AutomaticOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.reference_policy, options.mass_cap, options.num_threads);
+        AutomaticOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.reference_policy, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(runner.get_order(), runner.get_num_pairs());
 
     } else {
         std::vector<size_t> trivial_order(num_obs.size());
         std::iota(trivial_order.begin(), trivial_order.end(), 0);
-        CustomOrder<Dim_, Index_, Float_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
+        CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(std::move(trivial_order), runner.get_num_pairs());
     }
@@ -109,9 +110,10 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  * Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
  * _Nature Biotech._ 36, 421-427
  *
- * @tparam Dim_ Integer type for the dimensions of the neighbor search. 
  * @tparam Index_ Integer type for the observation index of the neighbor search. 
  * @tparam Float_ Floating-point type for the distances in the neighbor search.
+ * @tparam Matrix_ Class of the input data matrix.
+ * This should satisfy the `knncolle::Matrix` interface.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -126,8 +128,8 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  *
  * @return Statistics about the merge process.
  */
-template<typename Dim_, typename Index_, typename Float_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+template<typename Index_, typename Float_, typename Matrix_>
+Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto stats = internal::compute(num_dim, num_obs, batches, output, options);
     internal::restore_order(num_dim, stats.merge_order, num_obs, output);
     return stats;
@@ -136,9 +138,10 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
 /**
  * A convenience overload to merge contiguous batches contained in the same array.
  *
- * @tparam Dim_ Integer type for the dimensions of the neighbor search. 
  * @tparam Index_ Integer type for the observation index of the neighbor search. 
  * @tparam Float_ Floating-point type for the distances in the neighbor search.
+ * @tparam Matrix_ Class of the input data matrix.
+ * This should satisfy the `knncolle::Matrix` interface.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -154,8 +157,8 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  *
  * @return Statistics about the merge process.
  */
-template<typename Dim_, typename Index_, typename Float_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_* input, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+template<typename Index_, typename Float_, class Matrix_>
+Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     std::vector<const Float_*> batches;
     batches.reserve(num_obs.size());
     for (auto n : num_obs) {
@@ -168,9 +171,10 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_
 /**
  * Merge batches where observations are arbitrarily ordered in the same array.
  *
- * @tparam Dim_ Integer type for the dimensions of the neighbor search. 
  * @tparam Index_ Integer type for the observation index of the neighbor search. 
  * @tparam Float_ Floating-point type for the distances in the neighbor search.
+ * @tparam Matrix_ Class of the input data matrix.
+ * This should satisfy the `knncolle::Matrix` interface.
  * @tparam Batch_ Integer type for the batch IDs.
  *
  * @param num_dim Number of dimensions.
@@ -186,8 +190,8 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_
  *
  * @return Statistics about the merge process.
  */
-template<typename Dim_, typename Index_, typename Float_, typename Batch_>
-Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Dim_, Index_, Float_>& options) {
+template<typename Index_, typename Float_, typename Batch_, class Matrix_>
+Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     const size_t nbatches = (num_obs ? static_cast<size_t>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
     std::vector<size_t> sizes(nbatches);
     for (size_t o = 0; o < num_obs; ++o) {

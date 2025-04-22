@@ -10,9 +10,9 @@
 #include <random>
 #include <algorithm>
 
-struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, int, double> {
+struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, double, knncolle::Matrix<int, double> > {
     template<typename ... Args_>
-    CustomOrder2(Args_&& ... args) : mnncorrect::internal::CustomOrder<int, int, double>(std::forward<Args_>(args)...) {}
+    CustomOrder2(Args_&& ... args) : mnncorrect::internal::CustomOrder<int, double, knncolle::Matrix<int, double> >(std::forward<Args_>(args)...) {}
 
     const auto& get_neighbors_ref () const { 
         return my_neighbors_ref;
@@ -32,6 +32,9 @@ struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, int, double>
 };
 
 class CustomOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t>, bool> > {
+public:
+    CustomOrderTest() : builder(std::make_shared<knncolle::EuclideanDistance<double, double> >()) {}
+
 protected:
     void SetUp() {
         auto param = GetParam();
@@ -58,7 +61,7 @@ protected:
 protected:
     // Constants.
     int ndim = 5;
-    knncolle::VptreeBuilder<> builder;
+    knncolle::VptreeBuilder<int, double, double> builder;
 
     // Parameters.
     int k;
@@ -175,7 +178,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             const auto& rneighbors = coords0.get_neighbors_ref();
             EXPECT_EQ(rneighbors.size(), new_sofar);
 
-            auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, tnum, tdata.data()));
+            auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, tnum, tdata.data()));
             auto target_searcher = target_index->initialize();
             for (size_t x = 0; x < new_sofar; ++x) {
                 target_searcher->search(all_output[0].data() + x * ndim, k, &indices, &distances);
@@ -185,7 +188,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             const auto& tneighbors = coords0.get_neighbors_target();
             EXPECT_EQ(tneighbors.size(), tnum);
 
-            auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, int, double>(ndim, new_sofar, all_output[0].data()));
+            auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, new_sofar, all_output[0].data()));
             auto ref_searcher = ref_index->initialize();
             for (size_t x = 0; x < tnum; ++x) {
                 ref_searcher->search(tdata.data() + x * ndim, k, &indices, &distances);
@@ -218,7 +221,7 @@ TEST(CustomOrder, InitializationError) {
     std::vector<size_t> sizes { 10, 20, 30 };
     std::vector<const double*> ptrs{ NULL, NULL, NULL };
     int k = 10;
-    knncolle::VptreeBuilder<> builder;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
     double* output = NULL;
 
     scran_tests::expect_error([&]() {
@@ -287,7 +290,7 @@ TEST(CustomOrder, NoOp) {
     std::vector<size_t> sizes;
     std::vector<const double*> ptrs;
     int k = 10;
-    knncolle::VptreeBuilder<> builder;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
     double* output = NULL;
     std::vector<size_t> ordering;
 

@@ -13,11 +13,12 @@ namespace mnncorrect {
 
 /**
  * @brief Options for `compute()`.
- * @tparam Dim_ Integer type for the dimensions of the neighbor search. 
  * @tparam Index_ Integer type for the observation index of the neighbor search. 
  * @tparam Float_ Floating-point type for the distances in the neighbor search.
+ * @tparam Matrix_ Class of the input data matrix.
+ * This should satisfy the `knncolle::Matrix` interface.
  */
-template<typename Dim_ = int, typename Index_ = int, typename Float_ = double>
+template<typename Index_ = int, typename Float_ = double, class Matrix_ = knncolle::Matrix<Index_, Float_> >
 struct Options {
     /**
      * Number of neighbors used in various search steps, primarily to identify MNN pairs.
@@ -39,7 +40,7 @@ struct Options {
      * Algorithm to use for building the nearest-neighbor search indices.
      * If NULL, defaults to an exact search via `knncolle::VptreeBuilder` with Euclidean distances.
      */
-    std::shared_ptr<knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_> > builder;
+    std::shared_ptr<knncolle::Builder<Index_, Float_, Float_, Matrix_> > builder;
 
     /**
      * Manually specified merge order for the batches.

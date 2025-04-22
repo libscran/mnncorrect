@@ -18,7 +18,7 @@ namespace mnncorrect {
 
 namespace internal {
 
-template<typename Dim_, typename Index_, typename Float_>
+template<typename Index_, typename Float_, typename Matrix_>
 class CustomOrder {
 public:
     CustomOrder(
@@ -26,7 +26,7 @@ public:
         const std::vector<size_t>& num_obs,
         const std::vector<const Float_*>& batches,
         Float_* corrected,
-        const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& builder,
+        const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors,
         const std::vector<size_t>& order,
         size_t mass_cap,
@@ -67,7 +67,7 @@ public:
 
         parallelize(my_nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
             for (size_t b = start, end = start + length; b < end; ++b) {
-                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, my_num_obs[b], my_batches[b]));
+                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, my_num_obs[b], my_batches[b]));
             }
         });
 
@@ -91,8 +91,8 @@ protected:
     const std::vector<const Float_*>& my_batches;
     const std::vector<size_t>& my_order;
 
-    const knncolle::Builder<knncolle::SimpleMatrix<Dim_, Index_, Float_>, Float_>& my_builder;
-    std::vector<std::unique_ptr<knncolle::Prebuilt<Dim_, Index_, Float_> > > my_indices;
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
+    std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
 
     int my_num_neighbors;
     NeighborSet<Index_, Float_> my_neighbors_ref;
@@ -118,7 +118,7 @@ protected:
         }
 
         // Updating all statistics with the latest batch added to the corrected reference.
-        my_indices[latest] = my_builder.build_unique(knncolle::SimpleMatrix<Dim_, Index_, Float_>(my_ndim, lnum, ldata));
+        my_indices[latest] = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lnum, ldata));
 
         auto next = my_order[position];
         auto next_data = my_batches[next];
