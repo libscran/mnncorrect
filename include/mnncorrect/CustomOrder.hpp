@@ -90,7 +90,7 @@ protected:
     int my_ndim;
     const std::vector<Index_>& my_num_obs;
     const std::vector<const Float_*>& my_batches;
-    const std::vector<std::size_t>& my_order;
+    const std::vector<BatchIndex>& my_order;
 
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
     std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
@@ -141,7 +141,7 @@ protected:
             }
 
             auto prev_num = my_num_obs[prev];
-            auto prev_data = my_corrected + previous_ncorrected * my_ndim;
+            auto prev_data = my_corrected + static_cast<std::size_t>(previous_ncorrected) * my_ndim; // cast to avoid overflow.
             quick_find_nns(prev_num, prev_data, *next_index, my_num_neighbors, my_nthreads, my_neighbors_ref, previous_ncorrected);
 
             previous_ncorrected += prev_num;
@@ -170,7 +170,7 @@ public:
                 nmads,
                 robust_iterations,
                 robust_trim,
-                my_corrected + my_ncorrected * my_ndim,
+                my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim, // cast to avoid overflow.
                 my_mass_cap,
                 my_nthreads
             );

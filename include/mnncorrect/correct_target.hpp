@@ -23,8 +23,7 @@ template<typename Index_, typename Float_>
 void subset_to_mnns(std::size_t ndim, const Float_* data, const std::vector<Index_>& in_mnn, Float_* buffer) {
     auto num_in_mnn = in_mnn.size();
     for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
-        std::size_t current = in_mnn[f];
-        auto curdata = data + current * ndim; // already size_t's so there's no chance of overflow.
+        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * ndim; // cast to size_t's to avoid overflow.
         std::copy_n(curdata, ndim, buffer + static_cast<std::size_t>(f) * ndim); // also casting to avoid overflow.
     }
 }
@@ -59,7 +58,7 @@ std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
 
         for (Index_ raw_o = start, end = start + length; raw_o < end; ++raw_o) {
             Index_ o = capped_index(raw_o, gap);
-            searcher->search(data + o * ndim, k, &indices, &distances);
+            searcher->search(data + static_cast<std::size_t>(o) * ndim, k, &indices, &distances);
             fill_pair_vector(indices, distances, output[raw_o]);
         }
     });

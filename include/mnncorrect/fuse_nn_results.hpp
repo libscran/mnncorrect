@@ -31,7 +31,7 @@ void quick_find_nns(Index_ nobs, const Float_* query, const knncolle::Prebuilt<I
         auto searcher = index.initialize();
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
-            auto ptr = query + ndim * static_cast<std::size_t>(l); // cast to a size_t to avoid overflow.
+            auto ptr = query + ndim * static_cast<std::size_t>(l); // cast to avoid overflow.
             searcher->search(ptr, k, &indices, &distances);
             fill_pair_vector(indices, distances, output[l + shift]);
         }
@@ -49,11 +49,12 @@ template<typename Index_, typename Distance_>
 void fuse_nn_results(
     const std::vector<std::pair<Index_, Distance_> >& base, 
     const std::vector<std::pair<Index_, Distance_> >& alt, 
-    std::size_t num_neighbors, 
+    int k,
     std::vector<std::pair<Index_, Distance_> >& output,
-    Index_ offset = 0) 
+    Index_ offset) 
 {
     output.clear();
+    std::size_t num_neighbors = k; // converting into size_t for easier comparisons below.
     if (num_neighbors == 0) {
         return;
     }

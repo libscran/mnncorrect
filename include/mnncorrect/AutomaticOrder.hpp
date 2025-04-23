@@ -141,7 +141,7 @@ protected:
 
     std::vector<BatchIndex> my_order;
     std::unordered_set<BatchIndex> my_remaining;
-    std::vector<unsigned long long> my_num_pairs;
+    std::vector<unsigned long long> my_num_pairs; // at least 64 bits to guarantee storage of many pairs.
 
     Index_ my_nobs_cap;
     int my_nthreads;
@@ -173,7 +173,6 @@ protected:
             rem_ref_neighbors.resize(my_ncorrected);
             const auto& rem_index = my_indices[b];
             quick_find_nns(lat_num, lat_data, *rem_index, my_num_neighbors, my_nthreads, rem_ref_neighbors, previous_ncorrected);
-
             quick_fuse_nns(my_neighbors_target[b], my_batches[b], *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
         }
 

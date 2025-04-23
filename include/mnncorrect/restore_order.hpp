@@ -40,11 +40,11 @@ void reorder_data(std::size_t ndim, Index_ nobs, const std::vector<Index_>& rein
             // Moving the current vector into a buffer to free up 
             // some space for the shuffling. This avoids the need
             // to do a bunch of std::swap() calls.
-            auto current_ptr = output + i * ndim;
+            auto current_ptr = output + static_cast<std::size_t>(i) * ndim; // cast to avoid overflow.
             std::copy_n(current_ptr, ndim, buffer.data());
 
             while (target != i) {
-                auto tptr = output + target * ndim;
+                auto tptr = output + static_cast<std::size_t>(target) * ndim; // more casting to avoid overflow.
                 std::copy_n(tptr, ndim, current_ptr);
                 used[target] = true;
                 current_ptr = tptr;

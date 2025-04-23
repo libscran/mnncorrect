@@ -147,7 +147,7 @@ TEST_P(FuseNnResultsTest, Randomized) {
     }
 
     std::vector<std::pair<int, double> > output;
-    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output);
+    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output, /* shift = */ 0);
     EXPECT_EQ(ref, output);
 }
 
