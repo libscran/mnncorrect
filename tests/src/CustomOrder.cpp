@@ -31,7 +31,7 @@ struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, double, knnc
     }
 };
 
-class CustomOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t>, bool> > {
+class CustomOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<int>, bool> > {
 public:
     CustomOrderTest() : builder(std::make_shared<knncolle::EuclideanDistance<double, double> >()) {}
 
@@ -65,7 +65,7 @@ protected:
 
     // Parameters.
     int k;
-    std::vector<size_t> sizes;
+    std::vector<int> sizes;
     bool reversed;
 
     // Simulated.
@@ -207,10 +207,10 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
-            std::vector<size_t>{10, 20},        
-            std::vector<size_t>{10, 20, 30}, 
-            std::vector<size_t>{100, 50, 80}, 
-            std::vector<size_t>{50, 30, 100, 90} 
+            std::vector<int>{10, 20},        
+            std::vector<int>{10, 20, 30}, 
+            std::vector<int>{100, 50, 80}, 
+            std::vector<int>{50, 30, 100, 90} 
         ),
         ::testing::Values(false, true) // whether to use the reverse order
     )
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(CustomOrder, InitializationError) {
     int ndim = 5;
-    std::vector<size_t> sizes { 10, 20, 30 };
+    std::vector<int> sizes { 10, 20, 30 };
     std::vector<const double*> ptrs{ NULL, NULL, NULL };
     int k = 10;
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
@@ -287,7 +287,7 @@ TEST(CustomOrder, InitializationError) {
 
 TEST(CustomOrder, NoOp) {
     int ndim = 5;
-    std::vector<size_t> sizes;
+    std::vector<int> sizes;
     std::vector<const double*> ptrs;
     int k = 10;
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());

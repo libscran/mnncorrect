@@ -13,25 +13,25 @@ namespace internal {
 
 template<typename Index_, typename Distance_>
 void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Distance_>& distances, std::vector<std::pair<Index_, Distance_> >& output) {
-    size_t found = indices.size();
+    auto found = indices.size();
     output.clear();
     output.reserve(found);
-    for (size_t i = 0; i < found; ++i) {
+    for (decltype(found) i = 0; i < found; ++i) {
         output.emplace_back(indices[i], distances[i]);
     }
 }
 
 template<typename Index_, typename Float_>
-void quick_find_nns(size_t nobs, const Float_* query, const knncolle::Prebuilt<Index_, Float_, Float_>& index, int k, int nthreads, NeighborSet<Index_, Float_>& output, size_t shift) {
-    size_t ndim = index.num_dimensions();
+void quick_find_nns(Index_ nobs, const Float_* query, const knncolle::Prebuilt<Index_, Float_, Float_>& index, int k, int nthreads, NeighborSet<Index_, Float_>& output, Index_ shift) {
+    std::size_t ndim = index.num_dimensions();
 
-    parallelize(nthreads, nobs, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, nobs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
         auto searcher = index.initialize();
 
-        for (size_t l = start, end = start + length; l < end; ++l) {
-            auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.
+        for (Index_ l = start, end = start + length; l < end; ++l) {
+            auto ptr = query + ndim * static_cast<std::size_t>(l); // cast to a size_t to avoid overflow.
             searcher->search(ptr, k, &indices, &distances);
             fill_pair_vector(indices, distances, output[l + shift]);
         }
@@ -39,9 +39,9 @@ void quick_find_nns(size_t nobs, const Float_* query, const knncolle::Prebuilt<I
 }
 
 template<typename Index_, typename Float_>
-NeighborSet<Index_, Float_> quick_find_nns(size_t nobs, const Float_* query, const knncolle::Prebuilt<Index_, Float_, Float_>& index, int k, int nthreads) {
+NeighborSet<Index_, Float_> quick_find_nns(Index_ nobs, const Float_* query, const knncolle::Prebuilt<Index_, Float_, Float_>& index, int k, int nthreads) {
     NeighborSet<Index_, Float_> output(nobs);
-    quick_find_nns(nobs, query, index, k, nthreads, output, /* shift = */ 0);
+    quick_find_nns(nobs, query, index, k, nthreads, output, /* shift = */ static_cast<Index_>(0));
     return output;
 }
 
@@ -49,7 +49,7 @@ template<typename Index_, typename Distance_>
 void fuse_nn_results(
     const std::vector<std::pair<Index_, Distance_> >& base, 
     const std::vector<std::pair<Index_, Distance_> >& alt, 
-    size_t num_neighbors, 
+    std::size_t num_neighbors, 
     std::vector<std::pair<Index_, Distance_> >& output,
     Index_ offset = 0) 
 {
@@ -113,16 +113,16 @@ void fuse_nn_results(
 
 template<typename Index_, typename Float_>
 void quick_fuse_nns(NeighborSet<Index_, Float_>& existing, const Float_* query, const knncolle::Prebuilt<Index_, Float_, Float_>& index, int k, int nthreads, Index_ offset) {
-    size_t nobs = existing.size();
-    size_t ndim = index.num_dimensions();
+    Index_ nobs = existing.size();
+    std::size_t ndim = index.num_dimensions();
 
-    parallelize(nthreads, nobs, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, nobs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
         auto searcher = index.initialize();
         std::vector<std::pair<Index_, Float_> > search_buffer, fuse_buffer;
 
-        for (size_t l = start, end = start + length; l < end; ++l) {
+        for (std::size_t l = start, end = start + length; l < end; ++l) {
             auto ptr = query + ndim * l; // everything is a size_t, so no chance of overflow.
             searcher->search(ptr, k, &indices, &distances);
             fill_pair_vector(indices, distances, search_buffer);

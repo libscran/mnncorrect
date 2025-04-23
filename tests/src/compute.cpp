@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
-class OverallTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class OverallTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<int> > > {
 protected:
     constexpr static double multiplier = 10;
 
@@ -44,7 +44,7 @@ protected:
 protected:
     // Parameters.
     int ndim, nobs, k;
-    std::vector<size_t> sizes;
+    std::vector<int> sizes;
 
     // Simulated.
     std::vector<double> data;
@@ -67,7 +67,7 @@ TEST_P(OverallTest, Basic) {
         auto ptr = output.data() + sofar * ndim;
         std::vector<double> ref(ndim);
 
-        for (size_t s = 0; s < sizes[b]; ++s) {
+        for (int s = 0; s < sizes[b]; ++s) {
             for (int d = 0; d < ndim; ++d) {
                 ref[d] += ptr[d];                
             }
@@ -114,7 +114,7 @@ TEST_P(OverallTest, Iterative) {
     size_t previous = ordering.merge_order[0];
     std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
     std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+    std::vector<int> ref_sizes{ sizes[previous], 0 };
 
     for (size_t i = 1; i < ordering.merge_order.size(); ++i) {
         if (i != 1) {
@@ -158,7 +158,7 @@ TEST_P(OverallTest, Linear) {
     size_t previous = 0;
     std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
     std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+    std::vector<int> ref_sizes{ sizes[previous], 0 };
 
     for (size_t i = 1; i < sizes.size(); ++i) {
         if (i != 1) {
@@ -203,7 +203,7 @@ TEST_P(OverallTest, Reverse) {
     size_t previous = sizes.size() - 1;
     std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
     std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<size_t> ref_sizes{ sizes[previous], 0 };
+    std::vector<int> ref_sizes{ sizes[previous], 0 };
 
     for (size_t i = 1; i < sizes.size(); ++i) {
         if (i != 1) {
@@ -248,7 +248,7 @@ TEST_P(OverallTest, OtherInputs) {
     EXPECT_EQ(ordering.merge_order, ordering2.merge_order);
 
     // Creating a mock batch permutation.
-    size_t nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
+    int nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     std::vector<int> batch(nobs);
     auto bIt = batch.begin();
     for (size_t b = 0; b < sizes.size(); ++b) {
@@ -317,10 +317,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(5), // Number of dimensions
         ::testing::Values(10, 50), // Number of neighbors
         ::testing::Values( // Batch sizes
-            std::vector<size_t>{100, 200},        
-            std::vector<size_t>{100, 200, 300}, 
-            std::vector<size_t>{100, 500, 80}, 
-            std::vector<size_t>{60, 300, 100, 80} 
+            std::vector<int>{100, 200},        
+            std::vector<int>{100, 200, 300}, 
+            std::vector<int>{100, 500, 80}, 
+            std::vector<int>{60, 300, 100, 80} 
         )
     )
 );

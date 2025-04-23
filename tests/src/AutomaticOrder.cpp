@@ -10,7 +10,7 @@
 
 TEST(AutomaticOrder, RunningVariances) {
     int ndim = 12;
-    size_t nobs = 34;
+    int nobs = 34;
     auto data = scran_tests::simulate_vector(ndim * nobs, scran_tests::SimulationParameters());
 
     double ref = 0;
@@ -18,7 +18,7 @@ TEST(AutomaticOrder, RunningVariances) {
         // First pass for the mean.
         double* pos = data.data() + d;
         double mean = 0;
-        for (size_t s = 0; s < nobs; ++s, pos += ndim) {
+        for (int s = 0; s < nobs; ++s, pos += ndim) {
             mean += *pos;
         }
         mean /= nobs;
@@ -26,7 +26,7 @@ TEST(AutomaticOrder, RunningVariances) {
         // Second pass for the variance.
         pos = data.data() + d;
         double variance = 0;
-        for (size_t s = 0; s < nobs; ++s, pos += ndim) {
+        for (int s = 0; s < nobs; ++s, pos += ndim) {
             variance += (*pos - mean) * (*pos - mean);
         }
         variance /= nobs - 1;
@@ -41,14 +41,14 @@ TEST(AutomaticOrder, RunningVariances) {
     EXPECT_FLOAT_EQ(rss, ref * (nobs - 1));
 
     // Overlord function works, even with multiple threads.
-    size_t nobs2 = 100;
+    int nobs2 = 100;
     auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulationParameters());
 
-    auto vars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 1);
+    auto vars = mnncorrect::internal::compute_total_variances<int, double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 1);
     EXPECT_FLOAT_EQ(vars[0], running);
     EXPECT_FLOAT_EQ(vars[1], mnncorrect::internal::compute_total_variance(ndim, nobs2, data2.data(), buffer, false));
 
-    auto pvars = mnncorrect::internal::compute_total_variances<double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 3);
+    auto pvars = mnncorrect::internal::compute_total_variances<int, double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 3);
     EXPECT_EQ(vars, pvars);
 }
 
@@ -85,7 +85,7 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double
     }
 };
 
-class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<size_t> > > {
+class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<int> > > {
 public:
     AutomaticOrderTest() : builder(std::make_shared<knncolle::EuclideanDistance<double, double> >()) {}
 
@@ -118,7 +118,7 @@ public:
 
     // Parameters.
     int k;
-    std::vector<size_t> sizes;
+    std::vector<int> sizes;
 
     // Computed.
     std::vector<std::vector<double> > data;
@@ -200,7 +200,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
 
     for (size_t b = 1; b < sizes.size(); ++b) {
         auto& coords0 = all_coords[0];
-        size_t sofar = coords0.get_ncorrected();
+        int sofar = coords0.get_ncorrected();
 
         // The parallelized chooser with neighbor re-use is very complicated,
         // so we test it against the naive serial chooser, just in case.
@@ -294,7 +294,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
 
             std::vector<int> indices;
             std::vector<double> distances;
-            for (size_t x = 0; x < sizes[r]; ++x) {
+            for (int x = 0; x < sizes[r]; ++x) {
                 ref_search->search(current.data() + x * ndim, k, &indices, &distances);
                 compare_to_naive(indices, distances, tcurrent[x]);
             }
@@ -403,11 +403,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
-            std::vector<size_t>{10, 20},        
-            std::vector<size_t>{10, 20, 30}, 
-            std::vector<size_t>{100, 50, 80}, 
-            std::vector<size_t>{50, 30, 100, 90},
-            std::vector<size_t>{50, 40, 30, 20, 10}
+            std::vector<int>{10, 20},        
+            std::vector<int>{10, 20, 30}, 
+            std::vector<int>{100, 50, 80}, 
+            std::vector<int>{50, 30, 100, 90},
+            std::vector<int>{50, 40, 30, 20, 10}
         )
     )
 );

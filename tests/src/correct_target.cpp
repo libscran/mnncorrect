@@ -181,7 +181,7 @@ TEST_P(CorrectTargetTest, Correction) {
         iterations,
         trim,
         buffer.data(),
-        /* mass_cap = */ -1, 
+        /* mass_cap = */ 0, 
         /* nthreads = */ 1
     );
 
@@ -223,7 +223,7 @@ TEST_P(CorrectTargetTest, Correction) {
             iterations,
             trim,
             par_buffer.data(),
-            /* mass_cap = */ -1, 
+            /* mass_cap = */ 0, 
             /* nthreads = */ 3 
         );
         EXPECT_EQ(par_buffer, buffer);
