@@ -231,8 +231,6 @@ TEST_P(CorrectTargetTest, Correction) {
 
     // Different results with a cap.
     {
-        int mass_cap = 50;
-
         std::vector<double> cap_buffer(nright * ndim);
         mnncorrect::internal::correct_target(
             ndim,
@@ -247,10 +245,32 @@ TEST_P(CorrectTargetTest, Correction) {
             iterations,
             trim,
             cap_buffer.data(),
-            /* mass_cap = */ mass_cap, 
+            /* mass_cap = */ 50,
             /* nthreads = */ 1 
         );
         EXPECT_NE(cap_buffer, buffer);
+    }
+
+    // Unless the cap is larger than the number of observations.
+    {
+        std::vector<double> cap_buffer(nright * ndim);
+        mnncorrect::internal::correct_target(
+            ndim,
+            nleft,
+            left.data(),
+            nright,
+            right.data(),
+            pairings,
+            builder,
+            k,
+            nmads,
+            iterations,
+            trim,
+            cap_buffer.data(),
+            /* mass_cap = */ 5000,
+            /* nthreads = */ 1 
+        );
+        EXPECT_EQ(cap_buffer, buffer);
     }
 }
 
