@@ -5,7 +5,6 @@
 #include <vector>
 #include <numeric>
 #include <stdexcept>
-#include <cstdint>
 #include <cstddef>
 
 #include "knncolle/knncolle.hpp"
