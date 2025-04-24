@@ -239,7 +239,7 @@ void correct_target(
         for (Index_ t = start, end = start + length; t < end; ++t) {
             const auto& target_closest = closest_mnn_target[t];
             corrections.clear();
-            Index_ ncorrections = 0;
+            std::size_t ncorrections = 0; // the number of correction vectors (i.e., pairs), which could be larger than the number of observations and beyond an Index_.
 
             for (const auto& tc : target_closest) {
                 const Float_* ptptr = buffer_target.data() + static_cast<std::size_t>(tc.first) * ndim; // cast to avoid overflow.
