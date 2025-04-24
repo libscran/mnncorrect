@@ -66,6 +66,24 @@ std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
     return std::make_pair(gap, std::move(output));
 }
 
+template<typename Float_>
+Float_ median(std::size_t n, Float_* ptr) {
+    if (!n) {
+        return std::numeric_limits<Float_>::quiet_NaN();
+    }
+    std::size_t half = n / 2;
+    bool is_even = n % 2 == 0;
+
+    std::nth_element(ptr, ptr + half, ptr + n);
+    Float_ mid = *(ptr + half);
+    if (!is_even) {
+        return mid;
+    }
+
+    std::nth_element(ptr, ptr + half - 1, ptr + n);
+    return (mid + *(ptr + half - 1)) / 2;
+}
+
 template<typename Index_, typename Float_>
 Float_ limit_from_closest_distances(const NeighborSet<Index_, Float_>& found, Float_ nmads) {
     if (found.empty()) {
@@ -98,6 +116,30 @@ Float_ limit_from_closest_distances(const NeighborSet<Index_, Float_>& found, Fl
     // within 3 sigma of the correction vector. 
     constexpr double mad2sigma = 1.4826;
     return med + nmads * mad * static_cast<Float_>(mad2sigma);
+}
+
+template<typename Index_, typename Distance_>
+std::vector<std::vector<Index_> > invert_neighbors(std::size_t n, const NeighborSet<Index_, Distance_>& neighbors, Distance_ limit) {
+    std::vector<std::vector<Index_> > output(n);
+    const Index_ num_neighbors = neighbors.size();
+    for (Index_ i = 0; i < num_neighbors; ++i) {
+        for (const auto& x : neighbors[i]) {
+            if (x.second <= limit) {
+                output[x.first].push_back(i);
+            }
+        }
+    }
+    return output;
+}
+
+template<typename Index_>
+std::vector<Index_> invert_indices(std::size_t n, const std::vector<Index_>& uniq) {
+    std::vector<Index_> output(n, static_cast<Index_>(-1)); // any value is fine, we don't check this anyway.
+    Index_ num_uniq = uniq.size();
+    for (Index_ u = 0; u < num_uniq; ++u) {
+        output[uniq[u]] = u;
+    }
+    return output;
 }
 
 template<typename Index_, typename Float_>

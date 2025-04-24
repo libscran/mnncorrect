@@ -14,7 +14,6 @@
 #include "find_mutual_nns.hpp"
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
-#include "ReferencePolicy.hpp"
 #include "parallelize.hpp"
 
 namespace mnncorrect {

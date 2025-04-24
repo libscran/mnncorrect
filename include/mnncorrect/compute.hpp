@@ -33,7 +33,7 @@ struct Details {
      */
     Details() = default;
 
-    Details(std::vector<std::size_t> merge_order, std::vector<unsigned long long> num_pairs) : merge_order(std::move(merge_order)), num_pairs(std::move(num_pairs)) {}
+    Details(std::vector<BatchIndex> merge_order, std::vector<unsigned long long> num_pairs) : merge_order(std::move(merge_order)), num_pairs(std::move(num_pairs)) {}
     /**
      * @endcond
      */
@@ -43,7 +43,7 @@ struct Details {
      * The first entry is the index/ID of the batch used as the reference,
      * and the remaining entries are merged to the reference in the listed order.
      */
-    std::vector<std::size_t> merge_order;
+    std::vector<BatchIndex> merge_order;
 
     /**
      * Number of MNN pairs identified at each merge step.
@@ -76,8 +76,8 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
         return Details(runner.get_order(), runner.get_num_pairs());
 
     } else {
-        std::vector<internal::BatchIndex> trivial_order(num_obs.size());
-        std::iota(trivial_order.begin(), trivial_order.end(), static_cast<internal::BatchIndex>(0));
+        std::vector<BatchIndex> trivial_order(num_obs.size());
+        std::iota(trivial_order.begin(), trivial_order.end(), static_cast<BatchIndex>(0));
         CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(std::move(trivial_order), runner.get_num_pairs());
@@ -197,7 +197,7 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const F
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
 Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
-    const internal::BatchIndex nbatches = (num_obs ? static_cast<internal::BatchIndex>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
+    const BatchIndex nbatches = (num_obs ? static_cast<BatchIndex>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
     std::vector<Index_> sizes(nbatches);
     for (Index_ o = 0; o < num_obs; ++o) {
         ++sizes[batch[o]];
@@ -218,7 +218,7 @@ Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const 
 
     std::size_t accumulated = 0; // use size_t to avoid overflow issues during later multiplication.
     std::vector<std::size_t> offsets(nbatches);
-    for (internal::BatchIndex b = 0; b < nbatches; ++b) {
+    for (BatchIndex b = 0; b < nbatches; ++b) {
         offsets[b] = accumulated;
         accumulated += sizes[b];
     }
@@ -226,7 +226,7 @@ Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const 
     // Dumping everything by order into another vector.
     std::vector<Float_> tmp(num_dim * static_cast<std::size_t>(num_obs)); // cast to size_t to avoid overflow.
     std::vector<const Float_*> ptrs(nbatches);
-    for (internal::BatchIndex b = 0; b < nbatches; ++b) {
+    for (BatchIndex b = 0; b < nbatches; ++b) {
         ptrs[b] = tmp.data() + offsets[b] * num_dim; // already size_t's, so no need to cast to avoid overflow.
     }
 

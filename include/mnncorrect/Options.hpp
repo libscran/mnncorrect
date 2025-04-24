@@ -2,7 +2,7 @@
 #define MNNCORRECT_OPTIONS_HPP
 
 #include "knncolle/knncolle.hpp"
-#include "ReferencePolicy.hpp"
+#include "utils.hpp"
 
 /**
  * @file Options.hpp
@@ -55,7 +55,7 @@ struct Options {
      * If this is empty and `Options::automatic_order = false`, batches are merged in the order that they were supplied in `compute()`.
      * If a `batch` array was supplied, the batches are merged in order of their identifiers, i.e., batch 0 is the reference.
      */
-    std::vector<std::size_t> order;
+    std::vector<BatchIndex> order;
 
     /**
      * Should batches be merged in an automatically-determined order?

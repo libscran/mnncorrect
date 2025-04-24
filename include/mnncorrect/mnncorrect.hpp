@@ -2,7 +2,7 @@
 #define MNNCORRECT_HPP
 
 #include "Options.hpp"
-#include "ReferencePolicy.hpp"
+#include "utils.hpp"
 #include "compute.hpp"
 
 /**

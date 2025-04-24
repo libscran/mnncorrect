@@ -7,58 +7,48 @@
 #include <algorithm>
 #include <cstddef>
 
+/**
+ * @file utils.hpp
+ * @brief Utilities for MNN correction.
+ */
+
 namespace mnncorrect {
 
-namespace internal {
-
+/**
+ * Integer type of the batch indices.
+ */
 typedef std::size_t BatchIndex;
+
+/**
+ * Policy for choosing the first reference batch with the automatic merging procedure.
+ * 
+ * - `INPUT` will use the first supplied batch in the input order.
+ *   This is useful in cases where one batch is known to contain most subpopulations and should be used as the reference,
+ *   but there is no obvious ordering for the other batches.
+ * - `MAX_SIZE` will use the largest batch (i.e., with the most observations).
+ *   This is simple to compute and was the previous default;
+ *   it does, at least, ensure that the initial reference has enough cells for stable correction.
+ * - `MAX_VARIANCE` will use the batch with the greatest variance.
+ *   This improves the likelihood of obtaining an reference that contains a diversity of subpopulations
+ *   and thus is more likely to form sensible MNN pairs with subsequent batches.
+ * - `MAX_RSS` will use the batch with the greatest residual sum of squares (RSS).
+ *   This is similar to `MAX_VARIANCE` but it puts more weight on batches with more cells,
+ *   so as to avoid picking small batches with few cells and unstable population strcuture.
+ */
+enum class ReferencePolicy : char { INPUT, MAX_SIZE, MAX_VARIANCE, MAX_RSS };
+
+/**
+ * @cond
+ */
+namespace internal {
 
 template<typename Index_, typename Distance_>
 using NeighborSet = std::vector<std::vector<std::pair<Index_, Distance_> > >;
 
-template<typename Index_, typename Distance_>
-std::vector<std::vector<Index_> > invert_neighbors(std::size_t n, const NeighborSet<Index_, Distance_>& neighbors, Distance_ limit) {
-    std::vector<std::vector<Index_> > output(n);
-    const Index_ num_neighbors = neighbors.size();
-    for (Index_ i = 0; i < num_neighbors; ++i) {
-        for (const auto& x : neighbors[i]) {
-            if (x.second <= limit) {
-                output[x.first].push_back(i);
-            }
-        }
-    }
-    return output;
 }
-
-template<typename Index_>
-std::vector<Index_> invert_indices(std::size_t n, const std::vector<Index_>& uniq) {
-    std::vector<Index_> output(n, static_cast<Index_>(-1)); // any value is fine, we don't check this anyway.
-    Index_ num_uniq = uniq.size();
-    for (Index_ u = 0; u < num_uniq; ++u) {
-        output[uniq[u]] = u;
-    }
-    return output;
-}
-
-template<typename Float_>
-Float_ median(std::size_t n, Float_* ptr) {
-    if (!n) {
-        return std::numeric_limits<Float_>::quiet_NaN();
-    }
-    std::size_t half = n / 2;
-    bool is_even = n % 2 == 0;
-
-    std::nth_element(ptr, ptr + half, ptr + n);
-    Float_ mid = *(ptr + half);
-    if (!is_even) {
-        return mid;
-    }
-
-    std::nth_element(ptr, ptr + half - 1, ptr + n);
-    return (mid + *(ptr + half - 1)) / 2;
-}
-
-}
+/**
+ * @endcond
+ */
 
 }
 
