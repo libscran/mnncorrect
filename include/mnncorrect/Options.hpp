@@ -17,8 +17,9 @@ namespace mnncorrect {
  * @tparam Float_ Floating-point type for the input/output data.
  * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  */
-template<typename Index_ = int, typename Float_ = double, class Matrix_ = knncolle::Matrix<Index_, Float_> >
+template<typename Index_, typename Float_, class Matrix_ = knncolle::Matrix<Index_, Float_> >
 struct Options {
     /**
      * Number of neighbors used in various search steps, primarily to identify MNN pairs.

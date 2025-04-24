@@ -112,10 +112,11 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
  * Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
  * _Nature Biotech._ 36, 421-427
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -130,7 +131,7 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
  *
  * @return Statistics about the merge process.
  */
-template<typename Index_, typename Float_, typename Matrix_>
+template<typename Index_, typename Float_, class Matrix_>
 Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto stats = internal::compute(num_dim, num_obs, batches, output, options);
     internal::restore_order(num_dim, stats.merge_order, num_obs, output);
@@ -140,10 +141,11 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
 /**
  * A convenience overload to merge contiguous batches contained in the same array.
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -173,10 +175,11 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const F
 /**
  * Merge batches where observations are arbitrarily ordered in the same array.
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  * @tparam Batch_ Integer type for the batch IDs.
  *
  * @param num_dim Number of dimensions.

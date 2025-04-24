@@ -54,7 +54,7 @@ protected:
 TEST_P(OverallTest, Basic) {
     std::vector<double> output(nobs * ndim);
     auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -93,7 +93,7 @@ TEST_P(OverallTest, Basic) {
     // Same results when multiple threads are in use.
     std::vector<double> par_output(nobs * ndim);
     auto par_ordering = mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         opt.num_threads = 3;
         return opt;
@@ -105,7 +105,7 @@ TEST_P(OverallTest, Basic) {
 TEST_P(OverallTest, Iterative) {
     std::vector<double> output(nobs * ndim);
     auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -128,7 +128,7 @@ TEST_P(OverallTest, Iterative) {
         ref_sizes[1] = sizes[current];
 
         mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options opt;
+            mnncorrect::Options<int, double> opt;
             opt.num_neighbors = k;
             opt.automatic_order = false;
             return opt;
@@ -143,7 +143,7 @@ TEST_P(OverallTest, Iterative) {
 TEST_P(OverallTest, Linear) {
     std::vector<double> output(nobs * ndim);
     auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         opt.automatic_order = false;
         return opt;
@@ -171,7 +171,7 @@ TEST_P(OverallTest, Linear) {
         ref_sizes[1] = sizes[i];
 
         mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options opt;
+            mnncorrect::Options<int, double> opt;
             opt.num_neighbors = k;
             opt.automatic_order = false;
             return opt;
@@ -185,7 +185,7 @@ TEST_P(OverallTest, Linear) {
 TEST_P(OverallTest, Reverse) {
     std::vector<double> output(nobs * ndim);
     auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         opt.automatic_order = false;
         opt.order.resize(sizes.size());
@@ -217,7 +217,7 @@ TEST_P(OverallTest, Reverse) {
         ref_sizes[1] = sizes[next];
 
         mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options opt;
+            mnncorrect::Options<int, double> opt;
             opt.num_neighbors = k;
             opt.automatic_order = false;
             return opt;
@@ -232,7 +232,7 @@ TEST_P(OverallTest, Reverse) {
 TEST_P(OverallTest, OtherInputs) {
     std::vector<double> output(nobs * ndim);
     auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -240,7 +240,7 @@ TEST_P(OverallTest, OtherInputs) {
     // Just getting some coverage on the other input approach.
     std::vector<double> output2(nobs * ndim);
     auto ordering2 = mnncorrect::compute(ndim, sizes, data.data(), output2.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -270,7 +270,7 @@ TEST_P(OverallTest, OtherInputs) {
     // Actually running the test.
     std::vector<double> output3(nobs * ndim);
     auto ordering3 = mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -281,7 +281,7 @@ TEST_P(OverallTest, OtherInputs) {
 TEST_P(OverallTest, OtherParams) {
     std::vector<double> output(nobs * ndim);
     mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options opt;
+        mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -290,7 +290,7 @@ TEST_P(OverallTest, OtherParams) {
     {
         std::vector<double> output2(nobs * ndim);
         mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
-            mnncorrect::Options opt;
+            mnncorrect::Options<int, double> opt;
             opt.num_neighbors = k;
             opt.mass_cap = 50;
             return opt;
@@ -301,7 +301,7 @@ TEST_P(OverallTest, OtherParams) {
     {
         std::vector<double> output2(nobs * ndim);
         mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
-            mnncorrect::Options opt;
+            mnncorrect::Options<int, double> opt;
             opt.num_neighbors = k;
             opt.robust_trim = 0;
             return opt;
