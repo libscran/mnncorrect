@@ -4,28 +4,32 @@
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <cstddef>
+
+#include "utils.hpp"
 
 namespace mnncorrect {
 
 namespace internal {
 
-inline std::pair<std::vector<size_t>, size_t> define_merge_order_offsets(const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes) {
-    size_t nbatches = merge_order.size();
-    size_t accumulated = 0;
-    std::vector<size_t> offsets(nbatches);
-    for (size_t b = 0; b < nbatches; ++b) {
+template<typename Index_>
+std::pair<std::vector<Index_>, Index_> define_merge_order_offsets(const std::vector<BatchIndex>& merge_order, const std::vector<Index_>& sizes) {
+    BatchIndex nbatches = merge_order.size();
+    Index_ accumulated = 0;
+    std::vector<Index_> offsets(nbatches);
+    for (BatchIndex b = 0; b < nbatches; ++b) {
         offsets[merge_order[b]] = accumulated;
         accumulated += sizes[merge_order[b]];
     }
     return std::make_pair(std::move(offsets), accumulated);
 }
 
-template<typename Float_>
-void reorder_data(size_t ndim, size_t nobs, const std::vector<size_t>& reindex, Float_* output) {
+template<typename Index_, typename Float_>
+void reorder_data(std::size_t ndim, Index_ nobs, const std::vector<Index_>& reindex, Float_* output) {
     std::vector<unsigned char> used(nobs);
     std::vector<Float_> buffer(ndim);
 
-    for (size_t i = 0; i < nobs; ++i) {
+    for (Index_ i = 0; i < nobs; ++i) {
         if (used[i]) {
             continue;
         }
@@ -36,11 +40,11 @@ void reorder_data(size_t ndim, size_t nobs, const std::vector<size_t>& reindex, 
             // Moving the current vector into a buffer to free up 
             // some space for the shuffling. This avoids the need
             // to do a bunch of std::swap() calls.
-            auto current_ptr = output + i * ndim;
+            auto current_ptr = output + static_cast<std::size_t>(i) * ndim; // cast to avoid overflow.
             std::copy_n(current_ptr, ndim, buffer.data());
 
             while (target != i) {
-                auto tptr = output + target * ndim;
+                auto tptr = output + static_cast<std::size_t>(target) * ndim; // more casting to avoid overflow.
                 std::copy_n(tptr, ndim, current_ptr);
                 used[target] = true;
                 current_ptr = tptr;
@@ -52,16 +56,16 @@ void reorder_data(size_t ndim, size_t nobs, const std::vector<size_t>& reindex, 
     }
 }
 
-template<typename Float_>
-void restore_order(size_t ndim, const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes, Float_* output) {
+template<typename Index_, typename Float_>
+void restore_order(std::size_t ndim, const std::vector<BatchIndex>& merge_order, const std::vector<Index_>& sizes, Float_* output) {
     auto offset_out = define_merge_order_offsets(merge_order, sizes);
     const auto& offsets = offset_out.first;
-    size_t nobs = offset_out.second;
-    size_t nbatches = offsets.size();
+    Index_ nobs = offset_out.second;
+    BatchIndex nbatches = offsets.size();
 
-    std::vector<size_t> reindex(nobs);
+    std::vector<Index_> reindex(nobs);
     auto ptr = reindex.data();
-    for (size_t b = 0; b < nbatches; ++b) {
+    for (BatchIndex b = 0; b < nbatches; ++b) {
         std::iota(ptr, ptr + sizes[b], offsets[b]);
         ptr += sizes[b];
     }
@@ -70,14 +74,14 @@ void restore_order(size_t ndim, const std::vector<size_t>& merge_order, const st
     return;    
 }
 
-template<typename Float_, typename Batch>
-void restore_order(size_t ndim, const std::vector<size_t>& merge_order, const std::vector<size_t>& sizes, const Batch* batch, Float_* output) {
+template<typename Index_, typename Batch, typename Float_>
+void restore_order(std::size_t ndim, const std::vector<BatchIndex>& merge_order, const std::vector<Index_>& sizes, const Batch* batch, Float_* output) {
     auto offset_out = define_merge_order_offsets(merge_order, sizes);
     auto& offsets = offset_out.first;
-    size_t nobs = offset_out.second;
+    Index_ nobs = offset_out.second;
 
-    std::vector<size_t> reindex(nobs);
-    for (size_t o = 0; o < nobs; ++o) {
+    std::vector<Index_> reindex(nobs);
+    for (Index_ o = 0; o < nobs; ++o) {
         auto& off = offsets[batch[o]];
         reindex[o] = off;
         ++off;

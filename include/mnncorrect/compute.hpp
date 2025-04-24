@@ -6,6 +6,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <cstdint>
+#include <cstddef>
 
 #include "knncolle/knncolle.hpp"
 
@@ -13,6 +14,7 @@
 #include "CustomOrder.hpp"
 #include "Options.hpp"
 #include "restore_order.hpp"
+#include "utils.hpp"
 
 /**
  * @file compute.hpp
@@ -31,7 +33,7 @@ struct Details {
      */
     Details() = default;
 
-    Details(std::vector<size_t> merge_order, std::vector<size_t> num_pairs) : merge_order(std::move(merge_order)), num_pairs(std::move(num_pairs)) {}
+    Details(std::vector<std::size_t> merge_order, std::vector<unsigned long long> num_pairs) : merge_order(std::move(merge_order)), num_pairs(std::move(num_pairs)) {}
     /**
      * @endcond
      */
@@ -41,13 +43,13 @@ struct Details {
      * The first entry is the index/ID of the batch used as the reference,
      * and the remaining entries are merged to the reference in the listed order.
      */
-    std::vector<size_t> merge_order;
+    std::vector<std::size_t> merge_order;
 
     /**
      * Number of MNN pairs identified at each merge step.
      * This is of length one less than `merge_order`.
      */
-    std::vector<size_t> num_pairs;
+    std::vector<unsigned long long> num_pairs;
 };
 
 /**
@@ -56,7 +58,7 @@ struct Details {
 namespace internal {
 
 template<typename Index_, typename Float_, class Matrix_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto builder = options.builder;
     if (!builder) {
         typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
@@ -74,8 +76,8 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
         return Details(runner.get_order(), runner.get_num_pairs());
 
     } else {
-        std::vector<size_t> trivial_order(num_obs.size());
-        std::iota(trivial_order.begin(), trivial_order.end(), 0);
+        std::vector<internal::BatchIndex> trivial_order(num_obs.size());
+        std::iota(trivial_order.begin(), trivial_order.end(), static_cast<internal::BatchIndex>(0));
         CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
         runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
         return Details(std::move(trivial_order), runner.get_num_pairs());
@@ -110,10 +112,11 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  * Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
  * _Nature Biotech._ 36, 421-427
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -128,8 +131,8 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  *
  * @return Statistics about the merge process.
  */
-template<typename Index_, typename Float_, typename Matrix_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+template<typename Index_, typename Float_, class Matrix_>
+Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto stats = internal::compute(num_dim, num_obs, batches, output, options);
     internal::restore_order(num_dim, stats.merge_order, num_obs, output);
     return stats;
@@ -138,10 +141,11 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
 /**
  * A convenience overload to merge contiguous batches contained in the same array.
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Vector of length equal to the number of batches.
@@ -158,12 +162,12 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const std::v
  * @return Statistics about the merge process.
  */
 template<typename Index_, typename Float_, class Matrix_>
-Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     std::vector<const Float_*> batches;
     batches.reserve(num_obs.size());
     for (auto n : num_obs) {
         batches.push_back(input);
-        input += n * num_dim; // already size_t's, so no need to worry about overflow.
+        input += static_cast<std::size_t>(n) * num_dim; // cast to size_t's to avoid overflow.
     }
     return compute(num_dim, num_obs, batches, output, options);
 }
@@ -171,10 +175,11 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_
 /**
  * Merge batches where observations are arbitrarily ordered in the same array.
  *
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation index. 
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  * @tparam Batch_ Integer type for the batch IDs.
  *
  * @param num_dim Number of dimensions.
@@ -191,17 +196,17 @@ Details compute(size_t num_dim, const std::vector<size_t>& num_obs, const Float_
  * @return Statistics about the merge process.
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
-Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
-    const size_t nbatches = (num_obs ? static_cast<size_t>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
-    std::vector<size_t> sizes(nbatches);
-    for (size_t o = 0; o < num_obs; ++o) {
+Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+    const internal::BatchIndex nbatches = (num_obs ? static_cast<internal::BatchIndex>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
+    std::vector<Index_> sizes(nbatches);
+    for (Index_ o = 0; o < num_obs; ++o) {
         ++sizes[batch[o]];
     }
 
     // Avoiding the need to allocate a temporary buffer
     // if we're already dealing with contiguous batches.
     bool already_sorted = true;
-    for (size_t o = 1; o < num_obs; ++o) {
+    for (Index_ o = 1; o < num_obs; ++o) {
        if (batch[o] < batch[o-1]) {
            already_sorted = false;
            break;
@@ -211,22 +216,22 @@ Details compute(size_t num_dim, size_t num_obs, const Float_* input, const Batch
         return compute(num_dim, sizes, input, output, options);
     }
 
-    size_t accumulated = 0;
-    std::vector<size_t> offsets(nbatches);
-    for (size_t b = 0; b < nbatches; ++b) {
+    std::size_t accumulated = 0; // use size_t to avoid overflow issues during later multiplication.
+    std::vector<std::size_t> offsets(nbatches);
+    for (internal::BatchIndex b = 0; b < nbatches; ++b) {
         offsets[b] = accumulated;
         accumulated += sizes[b];
     }
 
     // Dumping everything by order into another vector.
-    std::vector<Float_> tmp(num_dim * num_obs);
+    std::vector<Float_> tmp(num_dim * static_cast<std::size_t>(num_obs)); // cast to size_t to avoid overflow.
     std::vector<const Float_*> ptrs(nbatches);
-    for (size_t b = 0; b < nbatches; ++b) {
-        ptrs[b] = tmp.data() + offsets[b] * num_dim;
+    for (internal::BatchIndex b = 0; b < nbatches; ++b) {
+        ptrs[b] = tmp.data() + offsets[b] * num_dim; // already size_t's, so no need to cast to avoid overflow.
     }
 
-    for (size_t o = 0; o < num_obs; ++o) {
-        auto current = input + o * num_dim;
+    for (Index_ o = 0; o < num_obs; ++o) {
+        auto current = input + static_cast<std::size_t>(o) * num_dim; // cast to size_t to avoid overflow.
         auto& offset = offsets[batch[o]];
         auto destination = tmp.data() + num_dim * offset; // already size_t's, so no need to cast to avoid overflow.
         std::copy_n(current, num_dim, destination);

@@ -6,6 +6,10 @@
 #include "mnncorrect/fuse_nn_results.hpp"
 #include "knncolle/knncolle.hpp"
 
+#include <cstddef>
+#include <utility>
+#include <vector>
+
 TEST(DetermineLimitTest, LimitByClosest) {
     mnncorrect::internal::NeighborSet<int, double> closest(2);
 
@@ -88,8 +92,8 @@ TEST_P(CorrectTargetTest, CappedFindNns) {
 
     EXPECT_EQ(capped.size(), 23);
     EXPECT_GT(gap, 1);
-    for (size_t c = 0; c < capped.size(); ++c) {
-        EXPECT_EQ(full[static_cast<size_t>(c * gap)], capped[c]);
+    for (std::size_t c = 0; c < capped.size(); ++c) {
+        EXPECT_EQ(full[static_cast<std::size_t>(c * gap)], capped[c]);
     }
 
     // Same results in parallel.
@@ -130,7 +134,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
 
     // Checking that the centroids are all close to the expected values.
     std::vector<double> left_means(ndim);
-    for (size_t s = 0; s < left_mnn.size(); ++s) {
+    for (std::size_t s = 0; s < left_mnn.size(); ++s) {
         for (int d = 0; d < ndim; ++d) {
             left_means[d] += buffer_left[s * ndim + d];
         }
@@ -140,7 +144,7 @@ TEST_P(CorrectTargetTest, CenterOfMass) {
     }
 
     std::vector<double> right_means(ndim);
-    for (size_t s = 0; s < right_mnn.size(); ++s) {
+    for (std::size_t s = 0; s < right_mnn.size(); ++s) {
         for (int d = 0; d < ndim; ++d) {
             right_means[d] += buffer_right[s * ndim + d];
         }
@@ -181,7 +185,7 @@ TEST_P(CorrectTargetTest, Correction) {
         iterations,
         trim,
         buffer.data(),
-        /* mass_cap = */ -1, 
+        /* mass_cap = */ 0, 
         /* nthreads = */ 1
     );
 
@@ -223,7 +227,7 @@ TEST_P(CorrectTargetTest, Correction) {
             iterations,
             trim,
             par_buffer.data(),
-            /* mass_cap = */ -1, 
+            /* mass_cap = */ 0, 
             /* nthreads = */ 3 
         );
         EXPECT_EQ(par_buffer, buffer);
@@ -231,8 +235,6 @@ TEST_P(CorrectTargetTest, Correction) {
 
     // Different results with a cap.
     {
-        int mass_cap = 50;
-
         std::vector<double> cap_buffer(nright * ndim);
         mnncorrect::internal::correct_target(
             ndim,
@@ -247,10 +249,32 @@ TEST_P(CorrectTargetTest, Correction) {
             iterations,
             trim,
             cap_buffer.data(),
-            /* mass_cap = */ mass_cap, 
+            /* mass_cap = */ 50,
             /* nthreads = */ 1 
         );
         EXPECT_NE(cap_buffer, buffer);
+    }
+
+    // Unless the cap is larger than the number of observations.
+    {
+        std::vector<double> cap_buffer(nright * ndim);
+        mnncorrect::internal::correct_target(
+            ndim,
+            nleft,
+            left.data(),
+            nright,
+            right.data(),
+            pairings,
+            builder,
+            k,
+            nmads,
+            iterations,
+            trim,
+            cap_buffer.data(),
+            /* mass_cap = */ 5000,
+            /* nthreads = */ 1 
+        );
+        EXPECT_EQ(cap_buffer, buffer);
     }
 }
 

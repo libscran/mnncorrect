@@ -15,7 +15,7 @@ namespace internal {
 template<typename Index_>
 struct MnnPairs {
     std::unordered_map<Index_, std::vector<Index_> > matches;
-    size_t num_pairs = 0;
+    unsigned long long num_pairs = 0; // guarantee at least 64-bits to avoid overflow from many pairs.
 };
 
 template<typename Index_>
@@ -45,17 +45,19 @@ std::vector<Index_> unique_right(const MnnPairs<Index_>& input) {
 
 template<typename Index_, typename Float_>
 MnnPairs<Index_> find_mutual_nns(const NeighborSet<Index_, Float_>& left, const NeighborSet<Index_, Float_>& right) {
-    size_t nleft = left.size();
-    size_t nright = right.size();
+    Index_ nleft = left.size();
+    Index_ nright = right.size();
 
     MnnPairs<Index_> output;
     std::vector<std::vector<Index_> > neighbors_of_left(nleft);
-    std::vector<size_t> last(nleft);
 
-    for (size_t r = 0; r < nright; ++r) {
+    // Length of each vector in 'left'/'right' must be less than the number of
+    // points, thus each 'last' position must fit in Index_.
+    std::vector<Index_> last(nleft); 
+
+    for (Index_ r = 0; r < nright; ++r) {
         const auto& mine = right[r];
         std::vector<Index_> holder;
-        Index_ r0 = r;
 
         for (auto left_pair : mine) {
             auto left_neighbor = left_pair.first;
@@ -77,10 +79,10 @@ MnnPairs<Index_> find_mutual_nns(const NeighborSet<Index_, Float_>& left, const 
             // search earlier indices, because there were already processed
             // by an earlier iteration of 'r'.
             auto& position = last[left_neighbor];
-            size_t num_other = other.size();
+            Index_ num_other = other.size();
             for (; position < num_other; ++position) {
-                if (other[position] >= r0) {
-                    if (other[position] == r0) {
+                if (other[position] >= r) {
+                    if (other[position] == r) {
                         holder.push_back(left_neighbor);
                         ++output.num_pairs;
                     }
@@ -90,7 +92,7 @@ MnnPairs<Index_> find_mutual_nns(const NeighborSet<Index_, Float_>& left, const 
         }
 
         if (holder.size()) {
-            output.matches[r0] = std::move(holder);
+            output.matches[r] = std::move(holder);
         }
     }
 

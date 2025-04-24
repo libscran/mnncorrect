@@ -1,6 +1,6 @@
 #' @export
 #' @importFrom BiocNeighbors findMutualNN queryKNN
-mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, mass.cap=-1) {
+mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, mass.cap=0) {
     pairings <- findMutualNN(t(ref), t(target), k1=k)
     mnn.r <- unique(pairings$first)
     mnn.t <- unique(pairings$second)
@@ -9,7 +9,7 @@ mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, 
     r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, iterations=iterations, trim=trim, mass.cap=mass.cap)
     centers.r <- r.out$centers
 
-    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, iterations=iterations, trim=trim, mass.cap=-1)
+    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, iterations=iterations, trim=trim, mass.cap=0)
     closest.t <- t.out$closest
     centers.t <- t.out$centers
 
@@ -35,7 +35,7 @@ mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, 
 center_of_mass <- function(y, mnn, k, nmads, iterations, trim, mass.cap) {
     ty <- t(y)
 
-    if (mass.cap < 0 || ncol(y) <= mass.cap) {
+    if (mass.cap <= 0 || ncol(y) <= mass.cap) {
         chosen <- seq_len(ncol(y))
         closest <- queryKNN(query=ty, X=ty[mnn,,drop=FALSE], k=k)
     } else {

@@ -13,12 +13,13 @@ namespace mnncorrect {
 
 /**
  * @brief Options for `compute()`.
- * @tparam Index_ Integer type for the observation index of the neighbor search. 
- * @tparam Float_ Floating-point type for the distances in the neighbor search.
- * @tparam Matrix_ Class of the input data matrix.
+ * @tparam Index_ Integer type for the observation indices.
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
  */
-template<typename Index_ = int, typename Float_ = double, class Matrix_ = knncolle::Matrix<Index_, Float_> >
+template<typename Index_, typename Float_, class Matrix_ = knncolle::Matrix<Index_, Float_> >
 struct Options {
     /**
      * Number of neighbors used in various search steps, primarily to identify MNN pairs.
@@ -54,7 +55,7 @@ struct Options {
      * If this is empty and `Options::automatic_order = false`, batches are merged in the order that they were supplied in `compute()`.
      * If a `batch` array was supplied, the batches are merged in order of their identifiers, i.e., batch 0 is the reference.
      */
-    std::vector<size_t> order;
+    std::vector<std::size_t> order;
 
     /**
      * Should batches be merged in an automatically-determined order?
@@ -90,9 +91,9 @@ struct Options {
      * Cap on the number of observations used to compute the center of mass for each MNN-involved observation in the reference dataset.
      * The reference dataset is effectively downsampled to `mass_cap` observations for this specific calculation,
      * which speeds up multiple correction iterations at the cost of some precision.
-     * If -1, no cap is used.
+     * If zero, no cap is used.
      */
-    size_t mass_cap = -1;
+    Index_ mass_cap = 0;
 
     /**
      * Number of threads to use.

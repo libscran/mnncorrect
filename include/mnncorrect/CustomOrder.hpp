@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <vector>
-#include <cstdint>
+#include <cstddef>
 
 #include "knncolle/knncolle.hpp"
 
@@ -22,14 +22,14 @@ template<typename Index_, typename Float_, typename Matrix_>
 class CustomOrder {
 public:
     CustomOrder(
-        size_t ndim, 
-        const std::vector<size_t>& num_obs,
+        std::size_t ndim, 
+        const std::vector<Index_>& num_obs,
         const std::vector<const Float_*>& batches,
         Float_* corrected,
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors,
-        const std::vector<size_t>& order,
-        size_t mass_cap,
+        const std::vector<BatchIndex>& order,
+        Index_ mass_cap,
         int nthreads) 
     :
         my_ndim(ndim), 
@@ -43,7 +43,7 @@ public:
         my_mass_cap(mass_cap),
         my_nthreads(nthreads)
     {
-        size_t nbatches = my_num_obs.size();
+        BatchIndex nbatches = my_num_obs.size();
         if (nbatches != my_batches.size()) {
             throw std::runtime_error("length of 'num_obs' and 'batches' must be equal");
         }
@@ -54,7 +54,7 @@ public:
             return;
         }
 
-        std::vector<uint8_t> used(nbatches);
+        std::vector<unsigned char> used(nbatches);
         for (auto o : my_order) {
             if (o >= nbatches) {
                 throw std::runtime_error("'order' contains out-of-range indices for the batches");
@@ -65,17 +65,18 @@ public:
             used[o] = 1;
         }
 
-        parallelize(my_nthreads, nbatches, [&](int, size_t start, size_t length) -> void {
-            for (size_t b = start, end = start + length; b < end; ++b) {
+        parallelize(my_nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
+            for (BatchIndex b = start, end = start + length; b < end; ++b) {
                 my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, my_num_obs[b], my_batches[b]));
             }
         });
 
         // Picking the first batch to be our reference.
         auto first = my_order[0];
-        const size_t rnum = my_num_obs[first];
+        const Index_ rnum = my_num_obs[first];
         const Float_* rdata = my_batches[first];
-        std::copy(rdata, rdata + my_ndim * rnum, corrected);
+        std::copy(rdata, rdata + my_ndim * static_cast<std::size_t>(rnum), corrected); // cast to avoid overflow.
+
         my_ncorrected += rnum;
 
         if (my_num_obs.size() > 1) {
@@ -87,9 +88,9 @@ public:
 
 protected:
     int my_ndim;
-    const std::vector<size_t>& my_num_obs;
+    const std::vector<Index_>& my_num_obs;
     const std::vector<const Float_*>& my_batches;
-    const std::vector<size_t>& my_order;
+    const std::vector<BatchIndex>& my_order;
 
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
     std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
@@ -99,17 +100,17 @@ protected:
     NeighborSet<Index_, Float_> my_neighbors_target;
 
     Float_* my_corrected;
-    size_t my_ncorrected = 0;
-    std::vector<size_t> my_num_pairs;
+    Index_ my_ncorrected = 0;
+    std::vector<unsigned long long> my_num_pairs; // at least 64 bits to guarantee storage of many pairs.
 
-    size_t my_mass_cap;
+    Index_ my_mass_cap;
     int my_nthreads;
 
 protected:
-    void update(size_t position) {
+    void update(BatchIndex position) {
         auto latest = my_order[position];
-        size_t lnum = my_num_obs[latest]; 
-        const Float_* ldata = my_corrected + my_ncorrected * my_ndim;
+        Index_ lnum = my_num_obs[latest]; 
+        const Float_* ldata = my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim; // cast to avoid overflow.
         my_ncorrected += lnum;
 
         ++position;
@@ -127,20 +128,20 @@ protected:
         my_neighbors_ref.resize(my_ncorrected);
 
         // Progressively finding the best neighbors across the currently built batches.
-        size_t previous_ncorrected = 0;
-        for (size_t i = 0; i < position; ++i) {
+        Index_ previous_ncorrected = 0;
+        for (BatchIndex i = 0; i < position; ++i) {
             auto prev = my_order[i];
             const auto& prev_index = my_indices[prev];
 
             if (i == 0) {
                 my_neighbors_target.resize(next_num);
-                quick_find_nns(next_num, next_data, *prev_index, my_num_neighbors, my_nthreads, my_neighbors_target, 0);
+                quick_find_nns(next_num, next_data, *prev_index, my_num_neighbors, my_nthreads, my_neighbors_target, static_cast<Index_>(0));
             } else {
-                quick_fuse_nns(my_neighbors_target, next_data, *prev_index, my_num_neighbors, my_nthreads, static_cast<Index_>(previous_ncorrected));
+                quick_fuse_nns(my_neighbors_target, next_data, *prev_index, my_num_neighbors, my_nthreads, previous_ncorrected);
             }
 
             auto prev_num = my_num_obs[prev];
-            auto prev_data = my_corrected + previous_ncorrected * my_ndim;
+            auto prev_data = my_corrected + static_cast<std::size_t>(previous_ncorrected) * my_ndim; // cast to avoid overflow.
             quick_find_nns(prev_num, prev_data, *next_index, my_num_neighbors, my_nthreads, my_neighbors_ref, previous_ncorrected);
 
             previous_ncorrected += prev_num;
@@ -151,8 +152,8 @@ protected:
 
 public:
     void run(Float_ nmads, int robust_iterations, double robust_trim) {
-        size_t nbatches = my_batches.size();
-        for (size_t i = 1; i < nbatches; ++i) {
+        BatchIndex nbatches = my_batches.size();
+        for (BatchIndex i = 1; i < nbatches; ++i) {
             auto mnns = find_mutual_nns(my_neighbors_ref, my_neighbors_target);
             auto tnum = my_num_obs[my_order[i]];
             auto tdata = my_batches[my_order[i]];
@@ -169,7 +170,7 @@ public:
                 nmads,
                 robust_iterations,
                 robust_trim,
-                my_corrected + my_ncorrected * my_ndim,
+                my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim, // cast to avoid overflow.
                 my_mass_cap,
                 my_nthreads
             );

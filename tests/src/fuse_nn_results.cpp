@@ -10,11 +10,13 @@
 
 #include "mnncorrect/fuse_nn_results.hpp"
 #include "knncolle/knncolle.hpp"
+
 #include <vector>
+#include <cstddef>
 
 TEST(QuickFindNns, Basic) {
-    size_t NR = 10;
-    size_t NC = 100;
+    std::size_t NR = 10;
+    int NC = 100;
     auto contents = scran_tests::simulate_vector(NR * NC, []{
         scran_tests::SimulationParameters sparams;
         sparams.seed = 999;
@@ -30,7 +32,7 @@ TEST(QuickFindNns, Basic) {
 
     // Comparing to the reference.
     auto ref = knncolle::find_nearest_neighbors(*prebuilt, 5);
-    for (size_t c = 0; c < NC; ++c) {
+    for (int c = 0; c < NC; ++c) {
         EXPECT_EQ(output[c].size(), k);
         EXPECT_EQ(output[c][0].first, c); // self, duh...
         EXPECT_EQ(output[c][0].second, 0);
@@ -43,7 +45,7 @@ TEST(QuickFindNns, Basic) {
     // Works with multiple threads.
     auto poutput = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt, /* k = */ k, /* num_threads = */ 3);
     ASSERT_EQ(output.size(), poutput.size());
-    for (size_t c = 0; c < NC; ++c) {
+    for (int c = 0; c < NC; ++c) {
         EXPECT_EQ(output[c], poutput[c]);
     }
 
@@ -52,7 +54,7 @@ TEST(QuickFindNns, Basic) {
     mnncorrect::internal::quick_find_nns(50, contents.data(), *prebuilt, k, /* num_threads = */ 1, stepwise, 0);
     mnncorrect::internal::quick_find_nns(NC - 50, contents.data() + 50 * NR, *prebuilt, k, /* num_threads = */ 1, stepwise, 50);
     ASSERT_EQ(output.size(), stepwise.size());
-    for (size_t c = 0; c < NC; ++c) {
+    for (int c = 0; c < NC; ++c) {
         EXPECT_EQ(output[c], stepwise[c]);
     }
 }
@@ -142,12 +144,12 @@ TEST_P(FuseNnResultsTest, Randomized) {
     auto ref = base;
     ref.insert(ref.end(), alt.begin(), alt.end());
     std::sort(ref.begin(), ref.end(), comp);
-    if (static_cast<size_t>(nkeep) < ref.size()) {
+    if (static_cast<std::size_t>(nkeep) < ref.size()) {
         ref.resize(nkeep);
     }
 
     std::vector<std::pair<int, double> > output;
-    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output);
+    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output, /* shift = */ 0);
     EXPECT_EQ(ref, output);
 }
 
@@ -163,8 +165,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(FuseNnResults, Recovery) {
     // Recover the same NN results as just a direct search.
-    size_t NR = 10;
-    size_t NC = 100;
+    std::size_t NR = 10;
+    int NC = 100;
     auto contents = scran_tests::simulate_vector(NR * NC, []{
         scran_tests::SimulationParameters sparams;
         sparams.seed = 69;
@@ -183,7 +185,7 @@ TEST(FuseNnResults, Recovery) {
     mnncorrect::internal::quick_fuse_nns(output, contents.data(), *prebuilt_second, /* k = */ k, /* num_threads = */ 1, /* offset = */ 50);
 
     ASSERT_EQ(output.size(), ref.size());
-    for (size_t c = 0; c < NC; ++c) {
+    for (int c = 0; c < NC; ++c) {
         EXPECT_EQ(output[c], ref[c]);
     }
 }

@@ -13,7 +13,7 @@ Rcpp::List compute(
     Rcpp::Nullable<Rcpp::IntegerVector> order,
     bool auto_order)
 {
-    mnncorrect::Options opt;
+    mnncorrect::Options<int, double> opt;
     opt.num_neighbors = k;
     opt.num_mads = nmads;
     opt.robust_iterations = iterations;

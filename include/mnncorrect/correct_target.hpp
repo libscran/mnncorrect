@@ -13,33 +13,33 @@
 #include <vector>
 #include <memory>
 #include <cassert>
+#include <cstddef>
 
 namespace mnncorrect {
 
 namespace internal {
 
 template<typename Index_, typename Float_> 
-void subset_to_mnns(size_t ndim, const Float_* data, const std::vector<Index_>& in_mnn, Float_* buffer) {
-    size_t num_in_mnn = in_mnn.size();
-    for (size_t f = 0; f < num_in_mnn; ++f) {
-        size_t current = in_mnn[f];
-        auto curdata = data + current * ndim; // already size_t's so there's no chance of overflow.
-        std::copy_n(curdata, ndim, buffer);
-        buffer += ndim;
+void subset_to_mnns(std::size_t ndim, const Float_* data, const std::vector<Index_>& in_mnn, Float_* buffer) {
+    auto num_in_mnn = in_mnn.size();
+    for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
+        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * ndim; // cast to size_t's to avoid overflow.
+        std::copy_n(curdata, ndim, buffer + static_cast<std::size_t>(f) * ndim); // also casting to avoid overflow.
     }
 }
 
-inline size_t capped_index(size_t i, double gap) {
+template<typename Index_>
+Index_ capped_index(Index_ i, double gap) {
     return static_cast<double>(i) * gap; // truncation.
 }
 
 template<typename Index_, typename Float_>
 std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
-    size_t nobs,
+    Index_ nobs,
     const Float_* data,
     const knncolle::Prebuilt<Index_, Float_, Float_>& index,
     int k,
-    size_t mass_cap,
+    Index_ mass_cap,
     [[maybe_unused]] int nthreads) 
 {
     // This function should only be called if nobs > mass_cap, so the gap is
@@ -49,17 +49,17 @@ std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
     double gap = static_cast<double>(nobs) / mass_cap; 
 
     NeighborSet<Index_, Float_> output(mass_cap);
-    size_t ndim = index.num_dimensions();
+    std::size_t ndim = index.num_dimensions();
 
-    parallelize(nthreads, mass_cap, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, mass_cap, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
         auto searcher = index.initialize();
 
-        for (size_t o_ = start, end = start + length; o_ < end; ++o_) {
-            size_t o = capped_index(o_, gap);
-            searcher->search(data + o * ndim, k, &indices, &distances);
-            fill_pair_vector(indices, distances, output[o_]);
+        for (Index_ raw_o = start, end = start + length; raw_o < end; ++raw_o) {
+            Index_ o = capped_index(raw_o, gap);
+            searcher->search(data + static_cast<std::size_t>(o) * ndim, k, &indices, &distances);
+            fill_pair_vector(indices, distances, output[raw_o]);
         }
     });
 
@@ -75,7 +75,7 @@ Float_ limit_from_closest_distances(const NeighborSet<Index_, Float_>& found, Fl
     // Pooling all distances together.
     std::vector<Float_> all_distances;
     {
-        size_t full_size = 0;
+        std::size_t full_size = 0;
         for (const auto& f : found) {
             full_size += f.size();
         }
@@ -96,12 +96,13 @@ Float_ limit_from_closest_distances(const NeighborSet<Index_, Float_>& found, Fl
 
     // Under normality, most of the distribution should be obtained
     // within 3 sigma of the correction vector. 
+    constexpr double mad2sigma = 1.4826;
     return med + nmads * mad * static_cast<Float_>(mad2sigma);
 }
 
 template<typename Index_, typename Float_>
 void compute_center_of_mass(
-    size_t ndim,
+    std::size_t ndim,
     const std::vector<Index_>& mnn_ids,
     const std::vector<std::vector<Index_> >& mnn_neighbors,
     const Float_* data,
@@ -109,22 +110,23 @@ void compute_center_of_mass(
     const RobustAverageOptions& raopt,
     int nthreads)
 {
-    size_t num_mnns = mnn_ids.size();
+    Index_ num_mnns = mnn_ids.size();
 
-    parallelize(nthreads, num_mnns, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
         std::vector<std::pair<Float_, size_t> > deltas;
 
-        for (size_t g = start, end = start + length; g < end; ++g) {
+        for (Index_ g = start, end = start + length; g < end; ++g) {
+            const auto& inv = mnn_neighbors[g];
+            auto output = buffer + static_cast<std::size_t>(g) * ndim; // cast to avoid overflow.
+
             // Usually, the MNN is always included in its own neighbor list.
             // However, this may not be the case if a cap is applied. We don't
             // want to force it into the neighbor list, because that biases the
             // subsample towards the MNN (thus causing kissing effects). So, in
             // the unfortunate case when the MNN's neighbor list is empty, we
             // fall back to just setting the center of mass to the MNN itself.
-            const auto& inv = mnn_neighbors[g];
-            auto output = buffer + g * ndim;
             if (inv.empty()) {
-                auto ptr = data + static_cast<size_t>(mnn_ids[g]) * ndim;
+                auto ptr = data + static_cast<size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
                 std::copy_n(ptr, ndim, output);
             } else {
                 robust_average(ndim, inv, data, output, deltas, raopt);
@@ -138,9 +140,9 @@ void compute_center_of_mass(
 template<typename Index_, typename Float_, typename Matrix_>
 void correct_target(
     size_t ndim, 
-    size_t nref, 
+    Index_ nref, 
     const Float_* ref, 
-    size_t ntarget, 
+    Index_ ntarget, 
     const Float_* target, 
     const MnnPairs<Index_>& pairings, 
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
@@ -149,7 +151,7 @@ void correct_target(
     int robust_iterations,
     double robust_trim, // yes, this is a double, not a Float_. Doesn't really matter given where we're using it.
     Float_* output,
-    size_t mass_cap,
+    Index_ mass_cap,
     int nthreads) 
 {
     auto uniq_mnn_ref = unique_left(pairings);
@@ -160,7 +162,7 @@ void correct_target(
     std::vector<Float_> buffer_target(uniq_mnn_target.size() * ndim);
     std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index_ref, index_target;
 
-    parallelize(nthreads, 2, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, 2, [&](int, int start, int length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
             auto obs_ptr = (opt == 0 ? ref : target);
             const auto& uniq = (opt == 0 ? uniq_mnn_ref : uniq_mnn_target);
@@ -179,7 +181,7 @@ void correct_target(
     // amortizes the cost of the mass calculation over multiple merge steps to
     // counter the growth of the reference itself after each step (which would
     // otherwise cause each mass calculation to take longer).
-    bool is_capped = mass_cap < nref;
+    bool is_capped = mass_cap > 0 && mass_cap < nref;
     double gap = 0;
     NeighborSet<Index_, Float_> closest_mnn_ref;
     if (is_capped) {
@@ -200,7 +202,7 @@ void correct_target(
 
     // Parallelized limit calculation for reference/target.
     Float_ limit_closest_ref, limit_closest_target;
-    parallelize(nthreads, 2, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, 2, [&](int, int start, int length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
             auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
             const auto& mnn = (opt == 0 ? closest_mnn_ref : closest_mnn_target);
@@ -230,39 +232,40 @@ void correct_target(
     // Computing the correction vector for each target point as a robust
     // average of the correction vectors for the closest MNN-involved cells,
     // and then applying it to the target data.
-    parallelize(nthreads, ntarget, [&](int, size_t start, size_t length) -> void {
+    parallelize(nthreads, ntarget, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> corrections;
         std::vector<std::pair<Float_, size_t> > deltas;
 
-        for (size_t t = start, end = start + length; t < end; ++t) {
+        for (Index_ t = start, end = start + length; t < end; ++t) {
             const auto& target_closest = closest_mnn_target[t];
             corrections.clear();
-            size_t ncorrections = 0;
+            Index_ ncorrections = 0;
 
             for (const auto& tc : target_closest) {
-                const Float_* ptptr = buffer_target.data() + static_cast<size_t>(tc.first) * ndim; // cast to avoid overflow.
+                const Float_* ptptr = buffer_target.data() + static_cast<std::size_t>(tc.first) * ndim; // cast to avoid overflow.
                 const auto& ref_partners = pairings.matches.at(uniq_mnn_target[tc.first]);
 
-                size_t old_size = corrections.size();
-                corrections.resize(corrections.size() + ref_partners.size() * ndim);
+                auto old_size = corrections.size();
+                std::size_t num_to_add = ref_partners.size();
+                corrections.resize(old_size + num_to_add * ndim); // both size_t's no need to cast.
                 auto corptr = corrections.data() + old_size;
+                ncorrections += num_to_add;
 
                 for (auto rp : ref_partners) {
-                    const Float_* prptr = buffer_ref.data() + static_cast<size_t>(remap_ref[rp]) * ndim; // cast to avoid overflow.
-                    for (size_t d = 0; d < ndim; ++d) {
+                    const Float_* prptr = buffer_ref.data() + static_cast<std::size_t>(remap_ref[rp]) * ndim; // cast to avoid overflow.
+                    for (std::size_t d = 0; d < ndim; ++d) {
                         corptr[d] = prptr[d] - ptptr[d];
                     }
                     corptr += ndim;
-                    ++ncorrections;
                 }
             }
 
-            size_t toffset = static_cast<size_t>(t) * ndim; // cast to avoid overflow.
+            std::size_t toffset = static_cast<std::size_t>(t) * ndim; // cast to avoid overflow.
             auto optr = output + toffset;
             robust_average(ndim, ncorrections, corrections.data(), optr, deltas, raopt);
 
             auto tptr = target + toffset;
-            for (size_t d = 0; d < ndim; ++d) {
+            for (std::size_t d = 0; d < ndim; ++d) {
                 optr[d] += tptr[d];
             }
         }

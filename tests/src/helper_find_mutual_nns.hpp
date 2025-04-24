@@ -14,8 +14,8 @@ mnncorrect::MnnPairs<Index> find_mutual_nns(
     int k_right,
     int nthreads = 1)
 {
-    size_t nleft = left_index->nobs();
-    size_t nright = right_index->nobs();
+    std::size_t nleft = left_index->nobs();
+    std::size_t nright = right_index->nobs();
     auto neighbors_of_left = mnncorrect::quick_find_nns(nleft, left, right_index, k_left, nthreads);
     auto neighbors_of_right = mnncorrect::quick_find_nns(nright, right, left_index, k_right, nthreads);
     return mnncorrect::find_mutual_nns<Index, Float>(neighbors_of_left, neighbors_of_right);
