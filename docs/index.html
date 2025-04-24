@@ -101,35 +101,35 @@ $(function(){ initResizable(false); });
 <h1>Overview</h1>
 <p>This library provides functionality for batch correction of arbitrary data via the use of mutual nearest neighbors (MNNs). MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see <a href="https://doi.org/10.1038/nbt.4091">Haghverdi et al., 2018</a>) but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches. The MNN implementation here is based on the <code>fastMNN()</code> function in the <a href="https://bioconductor.org/packages/batchelor"><b>batchelor</b> package</a>, which provides a number of improvements and speed-ups over the original method in the Haghverdi paper.</p>
 <h1>Quick start</h1>
-<p>Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns, and a vector of integers specifying the batch of origin for each cell. These are supplied to the <code><a class="el" href="namespacemnncorrect.html#af743bee735cf1cf3c1b018065b64eeed">mnncorrect::compute()</a></code> function to compute corrected values:</p>
+<p>Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns, and a vector of integers specifying the batch of origin for each cell. These are supplied to the <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">mnncorrect::compute()</a></code> function to compute corrected values:</p>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &quot;mnncorrect/MnnCorrect.hpp&quot;</span></div>
 <div class="line"> </div>
 <div class="line">std::vector&lt;double&gt; matrix(ndim * nobs); <span class="comment">// fill with values...</span></div>
 <div class="line">std::vector&lt;int&gt; batch(nobs) <span class="comment">// fill with batch IDs from [0, num_batches)</span></div>
 <div class="line"> </div>
-<div class="line"><a class="code hl_struct" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a> opt;</div>
+<div class="line"><a class="code hl_struct" href="structmnncorrect_1_1Options.html">mnncorrect::Options&lt;int, double&gt;</a> opt;</div>
 <div class="line">std::vector&lt;double&gt; output(ndim * nobs);</div>
-<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#af743bee735cf1cf3c1b018065b64eeed">mnncorrect::compute</a>(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);</div>
-<div class="ttc" id="anamespacemnncorrect_html_af743bee735cf1cf3c1b018065b64eeed"><div class="ttname"><a href="namespacemnncorrect.html#af743bee735cf1cf3c1b018065b64eeed">mnncorrect::compute</a></div><div class="ttdeci">Details compute(size_t num_dim, const std::vector&lt; size_t &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> compute.hpp:132</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> Options.hpp:22</div></div>
+<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">mnncorrect::compute</a>(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);</div>
+<div class="ttc" id="anamespacemnncorrect_html_adb405eb08977f1680f1a717db3afd4a8"><div class="ttname"><a href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">mnncorrect::compute</a></div><div class="ttdeci">Details compute(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> compute.hpp:135</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> Options.hpp:23</div></div>
 </div><!-- fragment --><p>We also support batches in separate arrays, storing the corrected values for all batches in a single output array:</p>
-<div class="fragment"><div class="line"><span class="keywordtype">size_t</span> nbatches = 3;</div>
-<div class="line">std::vector&lt;size_t&gt; batch_size;</div>
+<div class="fragment"><div class="line"><span class="keywordtype">int</span> nbatches = 3;</div>
+<div class="line">std::vector&lt;int&gt; batch_size;</div>
 <div class="line">std::vector&lt;std::vector&lt;double&gt; &gt; batches;</div>
-<div class="line"><span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> b = 0; b &lt; 3; ++b) { <span class="comment">// mocking up three batches of different size.</span></div>
+<div class="line"><span class="keywordflow">for</span> (<span class="keywordtype">int</span> b = 0; b &lt; 3; ++b) { <span class="comment">// mocking up three batches of different size.</span></div>
 <div class="line">    batch_size.push_back((b + 1) * 100);</div>
 <div class="line">    batch.resize(ndim * batch_size.back()); <span class="comment">// fill with values...</span></div>
 <div class="line">}</div>
 <div class="line"> </div>
-<div class="line"><span class="keywordtype">size_t</span> total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);</div>
+<div class="line">std::size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);</div>
 <div class="line">std::vector&lt;double&gt; output(ndim * total_size);</div>
-<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#af743bee735cf1cf3c1b018065b64eeed">mnncorrect::compute</a>(ndim, batch_size, batch_ptrs, output.data(), opt);</div>
+<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">mnncorrect::compute</a>(ndim, batch_size, batch_ptrs, output.data(), opt);</div>
 </div><!-- fragment --><p>Advanced users can also fiddle with the options:</p>
 <div class="fragment"><div class="line">opt.num_neighbors = 10;</div>
 <div class="line">opt.num_threads = 3;</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Manually specify your own merge order:</span></div>
-<div class="line">opt.order = std::vector&lt;size_t&gt;{ 3, 1, 0, 2 };</div>
+<div class="line">opt.order = std::vector&lt;std::size_t&gt;{ 3, 1, 0, 2 };</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Change the nearest-neighbor search algorithm:</span></div>
 <div class="line">opt.builder.reset(<span class="keyword">new</span> knncolle_annoy::AnnoyBuilder&lt;Annoy::Euclidean&gt;);</div>

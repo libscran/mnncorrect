@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['mass_5fcap_0',['mass_cap',['../structmnncorrect_1_1Options.html#a2b865e235c9de327f32af93cca50bb13',1,'mnncorrect::Options']]],
-  ['merge_5forder_1',['merge_order',['../structmnncorrect_1_1Details.html#af091230c4416eecedeec23bccdaa3d08',1,'mnncorrect::Details']]]
+  ['mass_5fcap_0',['mass_cap',['../structmnncorrect_1_1Options.html#a24eeb8491341845c33b8fdf59bc081f5',1,'mnncorrect::Options']]],
+  ['merge_5forder_1',['merge_order',['../structmnncorrect_1_1Details.html#a08d8afbc5fc5d398dee8181dbd045dc9',1,'mnncorrect::Details']]]
 ];

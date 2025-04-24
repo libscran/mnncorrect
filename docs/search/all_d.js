@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['raw_0',['raw',['https://knncolle.github.io/knncolle/classknncolle_1_1DistanceMetric.html#a2124334e18679dc06dc8cfe8baee4bc5',1,'knncolle::DistanceMetric']]],
+  ['raw_0',['raw',['https://knncolle.github.io/knncolle/classknncolle_1_1DistanceMetric.html#a8ce1cf96534fffbc989ae0141cf74ef4',1,'knncolle::DistanceMetric']]],
   ['reference_5fpolicy_1',['reference_policy',['../structmnncorrect_1_1Options.html#aacb2b4821b13989b2c904cacceab009b',1,'mnncorrect::Options']]],
   ['referencepolicy_2',['ReferencePolicy',['../namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694',1,'mnncorrect']]],
   ['referencepolicy_2ehpp_3',['ReferencePolicy.hpp',['../ReferencePolicy_8hpp.html',1,'']]],
