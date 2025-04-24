@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
+#include <cstddef>
 
 namespace mnncorrect {
 
@@ -24,13 +25,9 @@ namespace internal {
  *   depending on the input order of observations.
  * - If trim = 1, the point closest to the mean is always retained,
  *   ensuring that the mean calculation in the next iteration is defined.
- * - If trim > 0, the furthest point is always removed. This ensures that
- *   some trimming is always performed (unless, of course, there was only
- *   one point, in which case that point is just retained).
  */
 
-class RobustAverageOptions {
-public:
+struct RobustAverageOptions {
     RobustAverageOptions(int iterations, double trim) : iterations(iterations), trim(trim) {
         if (trim < 0 || trim > 1) {
             throw std::runtime_error("trimming proportion must be in [0, 1]");
@@ -40,105 +37,106 @@ public:
         }
     }
 
-public:
-    int get_iterations() const {
-        return iterations;
-    }
-
-    double get_trim() const {
-        return trim;
-    }
-
-private:
     int iterations;
     double trim;
 };
 
-template<class Function_, typename Float_>
-void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
-    const auto iterations = options.get_iterations();
-    const auto trim = options.get_trim();
+template<typename Float_>
+struct RobustAverageWorkspace {
+    std::vector<Float_> deltas, copy;
+};
 
-    const size_t long_ndim = num_dim;
-    std::fill_n(output, long_ndim, 0);
+template<typename Float_>
+Float_ quantile(std::vector<Float_>& x, double quantile) {
+    auto num_pts = x.size(); // should be positive at this point.
+    const Float_ cut = (num_pts - 1) * quantile;
+    decltype(num_pts) lower = cut; // floor.
+
+    std::nth_element(x.begin(), x.begin() + lower, x.end());
+    auto lval = x[lower];
+    if (lower + 1 == num_pts) { // just in case we're dealing with quantile == 1 
+        return lval;
+    }
+
+    std::nth_element(x.begin() + lower, x.begin() + lower + 1, x.end());
+    auto uval = x[lower + 1];
+    Float_ gap = cut - lower;
+    return lval + gap * (uval - lval); // i.e., (1 - gap) * lval + gap * uval, equivalent to quantile() in R.
+}
+
+template<class Function_, typename Float_>
+void robust_average(std::size_t num_dim, std::size_t num_pts, Function_ indfun, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& work, const RobustAverageOptions& options) {
+    std::fill_n(output, num_dim, 0);
     if (num_pts == 0) {
         return;
     }
 
-    for (size_t i = 0; i < num_pts; ++i) {
-        const auto dptr = data + static_cast<size_t>(indfun(i)) * long_ndim; // cast to size_t to avoid overflow.
-        for (size_t d = 0; d < num_dim; ++d) {
+    for (std::size_t i = 0; i < num_pts; ++i) {
+        const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // cast to size_t to avoid overflow.
+        for (std::size_t d = 0; d < num_dim; ++d) {
             output[d] += dptr[d];
         }
     }
-
     const double denom = 1.0 / num_pts;
-    for (size_t d = 0; d < num_dim; ++d) {
+    for (std::size_t d = 0; d < num_dim; ++d) {
         output[d] *= denom;
+    }
+    if (options.trim == 0) {
+        return;
     }
 
     // The 'num_pts - 1' reflects the fact that we're comparing to a quantile.
     // The closest point is at 0%, while the furthest point is at 100%,
     // so we already spent one observation defining the boundaries.
-    const Float_ threshold = (num_pts - 1) * (1.0 - trim);
 
-    deltas.reserve(num_pts);
-    for (int it = 0; it < iterations; ++it) {
-        deltas.clear();
+    work.deltas.reserve(num_pts);
+    for (int it = 0; it < options.iterations; ++it) {
+        work.deltas.clear();
 
-        for (size_t i = 0; i < num_pts; ++i) {
-            auto j = indfun(i);
-            const auto dptr = data + static_cast<size_t>(j) * long_ndim; // cast to avoid overflow.
-
+        for (std::size_t i = 0; i < num_pts; ++i) {
+            const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // cast to avoid overflow.
             Float_ d2 = 0;
-            for (size_t d = 0; d < num_dim; ++d) {
+            for (std::size_t d = 0; d < num_dim; ++d) {
                 Float_ diff = output[d] - dptr[d];
                 d2 += diff * diff;
             }
-
-            deltas.emplace_back(d2, j);
+            work.deltas.push_back(d2);
         }
 
-        std::sort(deltas.begin(), deltas.end());
+        work.copy.clear();
+        work.copy.insert(work.copy.end(), work.deltas.begin(), work.deltas.end());
+        const Float_ q = quantile(work.copy, 1.0 - options.trim);
 
-        // We always keep at least the closest observation.
-        const auto first_ptr = data + static_cast<size_t>(deltas.front().second) * long_ndim; // cast to avoid overflow.
-        std::copy_n(first_ptr, num_dim, output);
-        Float_ counter = 1;
-        Float_ last = deltas.front().first;
+        // When considering ties, we need to account for numerical imprecision
+        // in the distance calculations. We do so by allowing a tolerance in
+        // the comparison - in this case, of 1e-10.
+        constexpr Float_ tol = 1.0000000001;
+        const Float_ threshold = q * tol; 
 
-        // Checking if we can add another observation without cutting into
-        // the specified trim proportion - 'counter/(npt - 1)' is the
-        // quantile of the current observation in the loop. The exception
-        // is if the threshold interrupts some ties, in which case all of
-        // them are retained to avoid arbitrary ordering effects.
-        for (size_t x = 1; x < num_pts; ++x) {
-
-            // When considering ties, we need to account for numerical
-            // imprecision in the distance calculations. We do so by
-            // allowing a tolerance in the comparison - in this case, of
-            // 1e-10. To avoid a sliding slope of inclusion, we fix our
-            // comparisons to the first element of a tied run and only
-            // consider subsequent elements to be tied if they are within
-            // the tolerance of the first element.
-            constexpr Float_ tol = 1.0000000001;
-            if (deltas[x].first > last * tol) { // i.e., not tied.
-                last = deltas[x].first;
-                if (counter > threshold) {
-                    break;
+        auto sum = [&](Float_ threshold) -> std::size_t {
+            std::size_t counter = 0;
+            std::fill_n(output, num_dim, 0);
+            for (std::size_t i = 0; i < num_pts; ++i) {
+                if (work.deltas[i] <= threshold) {
+                    const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // again, cast to avoid overflow.
+                    for (std::size_t d = 0; d < num_dim; ++d) {
+                        output[d] += dptr[d];
+                    }
+                    ++counter;
                 }
             }
+            return counter;
+        };
+        auto counter = sum(threshold);
 
-            const auto dptr = data + static_cast<size_t>(deltas[x].second) * long_ndim; // both are already size_t's to avoid overflow.
-            for (size_t d = 0; d < num_dim; ++d) {
-                output[d] += dptr[d];
-            }
-
-            ++counter;
+        if (counter == 0) {
+            // Failsafe in case numerical imprecision causes the quantile to be smaller than the minimum.
+            auto min = *std::min_element(work.deltas.begin(), work.deltas.end());
+            counter = sum(min);
         }
 
         const double denom = 1.0/counter;
-        for (size_t d = 0; d < num_dim; ++d) {
+        for (std::size_t d = 0; d < num_dim; ++d) {
             output[d] *= denom;
         }
     }
@@ -148,16 +146,16 @@ void robust_average(size_t num_dim, size_t num_pts, Function_ indfun, const Floa
 // number of MNN pairs being used as the 'num_pts', and that might exceed the
 // actual number of observations.
 template<typename Float_>
-void robust_average(size_t num_dim, size_t num_pts, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
-    robust_average(num_dim, num_pts, [](size_t i) -> size_t { return i; }, data, output, deltas, options);
+void robust_average(std::size_t num_dim, std::size_t num_pts, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
+    robust_average(num_dim, num_pts, [](std::size_t i) -> std::size_t { return i; }, data, output, deltas, options);
 }
 
 // Using size_t for 'num_obs', as 'indices' may contain duplicates from the
 // inverted neighbors; this causes 'indices.size()' to possibly exceed the
 // capacity of the 'Index_' type.
 template<typename Index_, typename Float_>
-void robust_average(size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, std::vector<std::pair<Float_, size_t> >& deltas, const RobustAverageOptions& options) {
-    robust_average(num_dim, indices.size(), [&](size_t i) -> size_t { return indices[i]; }, data, output, deltas, options);
+void robust_average(size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
+    robust_average(num_dim, indices.size(), [&](std::size_t i) -> Index_ { return indices[i]; }, data, output, deltas, options);
 }
 
 }

@@ -113,7 +113,7 @@ void compute_center_of_mass(
     Index_ num_mnns = mnn_ids.size();
 
     parallelize(nthreads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
-        std::vector<std::pair<Float_, size_t> > deltas;
+        RobustAverageWorkspace<Float_> rawork;
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
             const auto& inv = mnn_neighbors[g];
@@ -126,10 +126,10 @@ void compute_center_of_mass(
             // the unfortunate case when the MNN's neighbor list is empty, we
             // fall back to just setting the center of mass to the MNN itself.
             if (inv.empty()) {
-                auto ptr = data + static_cast<size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
+                auto ptr = data + static_cast<std::size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
                 std::copy_n(ptr, ndim, output);
             } else {
-                robust_average(ndim, inv, data, output, deltas, raopt);
+                robust_average(ndim, inv, data, output, rawork, raopt);
             }
         }
     });
@@ -234,7 +234,7 @@ void correct_target(
     // and then applying it to the target data.
     parallelize(nthreads, ntarget, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> corrections;
-        std::vector<std::pair<Float_, size_t> > deltas;
+        RobustAverageWorkspace<Float_> rawork;
 
         for (Index_ t = start, end = start + length; t < end; ++t) {
             const auto& target_closest = closest_mnn_target[t];
@@ -262,7 +262,7 @@ void correct_target(
 
             std::size_t toffset = static_cast<std::size_t>(t) * ndim; // cast to avoid overflow.
             auto optr = output + toffset;
-            robust_average(ndim, ncorrections, corrections.data(), optr, deltas, raopt);
+            robust_average(ndim, ncorrections, corrections.data(), optr, rawork, raopt);
 
             auto tptr = target + toffset;
             for (std::size_t d = 0; d < ndim; ++d) {

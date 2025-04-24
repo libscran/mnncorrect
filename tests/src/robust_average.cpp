@@ -8,21 +8,32 @@
 #include <numeric>
 #include <random>
 
+TEST(RobustAverage, Quantiles) {
+    // Reference values taken from the result of R's quantile().
+    std::vector<double> stuff { 0.38, 0.27, 0.79, 0.97, 0.32, 0.74, 0.28, 0.57, 0.64, 0.81 };
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 0.5), 0.605);
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 0.66), 0.734);
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 0.01), 0.2709);
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 0.99), 0.9556);
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 0), 0.27);
+    EXPECT_FLOAT_EQ(mnncorrect::internal::quantile(stuff, 1), 0.97);
+}
+
 std::vector<double> robust_average(int num_dim, int num_pts, const double* data, const mnncorrect::internal::RobustAverageOptions& options) {
     std::vector<double> output(num_dim);
-    std::vector<std::pair<double, std::size_t> > deltas;
-    mnncorrect::internal::robust_average(num_dim, num_pts, data, output.data(), deltas, options);
+    mnncorrect::internal::RobustAverageWorkspace<double> work;
+    mnncorrect::internal::robust_average(num_dim, num_pts, data, output.data(), work, options);
     return output;
 }
 
 std::vector<double> robust_average(int num_dim, const std::vector<int>& indices, const double* data, const mnncorrect::internal::RobustAverageOptions& options) {
     std::vector<double> output(num_dim);
-    std::vector<std::pair<double, std::size_t> > deltas;
-    robust_average(num_dim, indices, data, output.data(), deltas, options);
+    mnncorrect::internal::RobustAverageWorkspace<double> work;
+    robust_average(num_dim, indices, data, output.data(), work, options);
     return output;
 }
 
-TEST(RobustAverageTest, Basic) {
+TEST(RobustAverage, Basic) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 
     // Simple mean if there are no robustness iterations.
@@ -56,28 +67,27 @@ TEST(RobustAverageTest, Basic) {
     }
 }
 
-TEST(RobustAverageTest, Persistence) {
+TEST(RobustAverage, Persistence) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 
-    std::vector<std::pair<double, std::size_t> > deltas;
-    deltas.emplace_back(0.9, 1);
-    deltas.emplace_back(0.99, 10);
-    deltas.emplace_back(0.9999, -5);
-    deltas.emplace_back(0.01, 100);
-    deltas.emplace_back(0.05, 6);
-
     double ref;
+    mnncorrect::internal::RobustAverageWorkspace<double> work;
     mnncorrect::internal::RobustAverageOptions raopt(0, 0.25);
-    mnncorrect::internal::robust_average(1, data.size(), data.data(), &ref, deltas, raopt);
+    mnncorrect::internal::robust_average(1, data.size(), data.data(), &ref, work, raopt);
 
     // Gunk in the delta buffer is of no consequence.
+    work.deltas.emplace_back(0.9);
+    work.deltas.emplace_back(0.99);
+    work.deltas.emplace_back(0.99995);
+    work.copy.emplace_back(0.01);
+    work.copy.emplace_back(0.05);
     double output;
-    mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, deltas, raopt);
+    mnncorrect::internal::robust_average(1, data.size(), data.data(), &output, work, raopt);
 
     EXPECT_EQ(ref, output);
 }
 
-TEST(RobustAverageTest, EdgeCases) {
+TEST(RobustAverage, EdgeCases) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 
     // Taking the average if the trim is zero.
@@ -102,9 +112,23 @@ TEST(RobustAverageTest, EdgeCases) {
         double output = robust_average(1, 1, data.data(), mnncorrect::internal::RobustAverageOptions(1, 0))[0];
         EXPECT_FLOAT_EQ(output, 0.1);
     }
+
+    // Or no observations...
+    {
+        double output = robust_average(1, 0, data.data(), mnncorrect::internal::RobustAverageOptions(1, 1))[0];
+        EXPECT_FLOAT_EQ(output, 0);
+    }
+
+    // Trim > 1 should never be allowed, but we test it to trigger a failsafe that uses the minimum value as the threshold.
+    {
+        mnncorrect::internal::RobustAverageOptions raopt(1, 1);
+        raopt.trim = 1.001; // just slightly greater, so quantile is just slightly negative.
+        double output = robust_average(1, data.size(), data.data(), raopt)[0];
+        EXPECT_EQ(output, 0.5);
+    }
 }
 
-TEST(RobustAverageTest, Ties) {
+TEST(RobustAverage, Ties) {
     std::vector<double> data { 1, 2, 3, 4, 5 };
 
     // This should remove the furthest element, but as it's tied, we don't remove anything.
