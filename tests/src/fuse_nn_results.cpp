@@ -10,10 +10,12 @@
 
 #include "mnncorrect/fuse_nn_results.hpp"
 #include "knncolle/knncolle.hpp"
+
 #include <vector>
+#include <cstddef>
 
 TEST(QuickFindNns, Basic) {
-    size_t NR = 10;
+    std::size_t NR = 10;
     int NC = 100;
     auto contents = scran_tests::simulate_vector(NR * NC, []{
         scran_tests::SimulationParameters sparams;
@@ -142,7 +144,7 @@ TEST_P(FuseNnResultsTest, Randomized) {
     auto ref = base;
     ref.insert(ref.end(), alt.begin(), alt.end());
     std::sort(ref.begin(), ref.end(), comp);
-    if (static_cast<size_t>(nkeep) < ref.size()) {
+    if (static_cast<std::size_t>(nkeep) < ref.size()) {
         ref.resize(nkeep);
     }
 
@@ -163,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(FuseNnResults, Recovery) {
     // Recover the same NN results as just a direct search.
-    size_t NR = 10;
+    std::size_t NR = 10;
     int NC = 100;
     auto contents = scran_tests::simulate_vector(NR * NC, []{
         scran_tests::SimulationParameters sparams;

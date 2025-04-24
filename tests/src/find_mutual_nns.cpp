@@ -8,6 +8,7 @@
 #include <random>
 #include <vector>
 #include <algorithm>
+#include <cstddef>
 
 #include "mnncorrect/find_mutual_nns.hpp"
 #include "mnncorrect/fuse_nn_results.hpp"
@@ -18,23 +19,23 @@ protected:
         const mnncorrect::internal::NeighborSet<int, double>& left, 
         const mnncorrect::internal::NeighborSet<int, double>& right) 
     {
-        size_t nleft = left.size();
-        std::set<std::pair<size_t, size_t> > found;
-        for (size_t l = 0; l < nleft; ++l) {
+        std::size_t nleft = left.size();
+        std::set<std::pair<std::size_t, std::size_t> > found;
+        for (std::size_t l = 0; l < nleft; ++l) {
             const auto& current = left[l];
             for (const auto& x : current) {
-                found.insert(std::pair<size_t, size_t>(l, x.first));
+                found.insert(std::pair<std::size_t, std::size_t>(l, x.first));
             }
         }
 
-        size_t nright = right.size();
+        std::size_t nright = right.size();
         mnncorrect::internal::MnnPairs<int> output;
-        for (size_t r = 0; r < nright; ++r) {
+        for (std::size_t r = 0; r < nright; ++r) {
             const auto& current = right[r];
 
             std::vector<int> holder; 
             for (const auto& x : current) {
-                auto it = found.find(std::pair<size_t, size_t>(x.first, r));
+                auto it = found.find(std::pair<std::size_t, std::size_t>(x.first, r));
                 if (it != found.end()) {
                     holder.push_back(x.first);
                 }
@@ -78,7 +79,7 @@ TEST_P(FindMutualNNsTest, Check) {
     auto ref = compute_reference(neighbors_of_left, neighbors_of_right);
 
     // Checking that we do have some MNNs.
-    size_t np = 0;
+    std::size_t np = 0;
     for (const auto& x : ref.matches) {
         np += x.second.size();
     }

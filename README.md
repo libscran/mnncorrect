@@ -25,7 +25,7 @@ These are supplied to the `mnncorrect::compute()` function to compute corrected 
 std::vector<double> matrix(ndim * nobs); // fill with values...
 std::vector<int> batch(nobs) // fill with batch IDs from [0, num_batches)
 
-mnncorrect::Options opt;
+mnncorrect::Options<int, double> opt;
 std::vector<double> output(ndim * nobs);
 mnncorrect::compute(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);
 ```
@@ -33,15 +33,15 @@ mnncorrect::compute(ndim, nobs, matrix.data(), batch.data(), output.data(), opt)
 We also support batches in separate arrays, storing the corrected values for all batches in a single output array:
 
 ```cpp
-size_t nbatches = 3;
-std::vector<size_t> batch_size;
+int nbatches = 3;
+std::vector<int> batch_size;
 std::vector<std::vector<double> > batches;
-for (size_t b = 0; b < 3; ++b) { // mocking up three batches of different size.
+for (int b = 0; b < 3; ++b) { // mocking up three batches of different size.
     batch_size.push_back((b + 1) * 100);
     batch.resize(ndim * batch_size.back()); // fill with values...
 }
 
-size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);
+std::size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);
 std::vector<double> output(ndim * total_size);
 mnncorrect::compute(ndim, batch_size, batch_ptrs, output.data(), opt);
 ```
@@ -53,7 +53,7 @@ opt.num_neighbors = 10;
 opt.num_threads = 3;
 
 // Manually specify your own merge order:
-opt.order = std::vector<size_t>{ 3, 1, 0, 2 };
+opt.order = std::vector<std::size_t>{ 3, 1, 0, 2 };
 
 // Change the nearest-neighbor search algorithm:
 opt.builder.reset(new knncolle_annoy::AnnoyBuilder<Annoy::Euclidean>);

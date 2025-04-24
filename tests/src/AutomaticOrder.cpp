@@ -7,6 +7,7 @@
 #include "mnncorrect/AutomaticOrder.hpp"
 #include <random>
 #include <algorithm>
+#include <cstddef>
 
 TEST(AutomaticOrder, RunningVariances) {
     int ndim = 12;
@@ -67,7 +68,7 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double
         return my_neighbors_target;
     }
 
-    size_t get_ncorrected() const { 
+    std::size_t get_ncorrected() const { 
         return my_ncorrected;
     }
 
@@ -79,7 +80,7 @@ struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double
         return choose();
     }
 
-    void test_update(size_t latest) {
+    void test_update(std::size_t latest) {
         update<false>(latest);
         return;
     }
@@ -97,7 +98,7 @@ protected:
 
         data.resize(sizes.size());
         ptrs.resize(sizes.size());
-        for (size_t b = 0; b < sizes.size(); ++b) {
+        for (std::size_t b = 0; b < sizes.size(); ++b) {
             data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
                 scran_tests::SimulationParameters sparams;
                 sparams.lower = -2;
@@ -127,9 +128,9 @@ public:
 
 public:
     static void compare_to_naive(const std::vector<int>& indices, const std::vector<double>& distances, const std::vector<std::pair<int, double> >& updated) {
-        size_t n = indices.size();
+        std::size_t n = indices.size();
         ASSERT_EQ(n, updated.size());
-        for (size_t i = 0; i < n; ++i) {
+        for (std::size_t i = 0; i < n; ++i) {
             EXPECT_EQ(indices[i], updated[i].first);
             EXPECT_EQ(distances[i], updated[i].second);
         }
@@ -150,12 +151,12 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
         /* nthreads = */ 1
     );
 
-    size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
+    std::size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
     const auto& ord = coords.get_order();
     EXPECT_EQ(ord.size(), 1);
     EXPECT_EQ(ord[0], maxed);
 
-    size_t ncorrected = coords.get_ncorrected();
+    std::size_t ncorrected = coords.get_ncorrected();
     EXPECT_EQ(ncorrected, sizes[maxed]);
     EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[maxed]);
     EXPECT_EQ(coords.get_remaining().size(), sizes.size() - 1);
@@ -163,7 +164,7 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
     const auto& rneighbors = coords.get_neighbors_ref(); 
     const auto& lneighbors = coords.get_neighbors_target();
 
-    for (size_t b = 0; b < sizes.size(); ++b) {
+    for (std::size_t b = 0; b < sizes.size(); ++b) {
         if (b == maxed) { 
             continue; 
         }
@@ -198,7 +199,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
     std::vector<char> used(sizes.size());
     used[all_coords.front().get_order()[0]] = true;
 
-    for (size_t b = 1; b < sizes.size(); ++b) {
+    for (std::size_t b = 1; b < sizes.size(); ++b) {
         auto& coords0 = all_coords[0];
         int sofar = coords0.get_ncorrected();
 
@@ -209,7 +210,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, sofar, corrected));
 
             mnncorrect::internal::MnnPairs<int> output;
-            size_t chosen = 0;
+            std::size_t chosen = 0;
             for (auto r : coords0.get_remaining()) {
                 auto target_to_ref = mnncorrect::internal::quick_find_nns(sizes[r], data[r].data(), *ref_index, /* k = */ k, /* num_threads = */ 1);
                 auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, sizes[r], data[r].data()));
@@ -238,7 +239,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             }
         }
 
-        for (size_t i = 0; i < all_coords.size(); ++i) {
+        for (std::size_t i = 0; i < all_coords.size(); ++i) {
             auto chosen = all_coords[i].test_choose();
             EXPECT_EQ(chosen.first, simpler.first);
             EXPECT_EQ(chosen.second.num_pairs, simpler.second.num_pairs);
@@ -246,15 +247,15 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         }
 
         // Applying an update. We mock up some corrected data so that the builders work correctly.
-        size_t cursize = sizes[simpler.first];
+        std::size_t cursize = sizes[simpler.first];
         auto corrected = scran_tests::simulate_vector(ndim * cursize, [&]{
             scran_tests::SimulationParameters sparams;
             sparams.seed = ndim * 1000 + k + b + 69;
             return sparams;
         }());
 
-        size_t output_offset = ndim * sofar;
-        for (size_t i = 0; i < all_coords.size(); ++i) {
+        std::size_t output_offset = ndim * sofar;
+        for (std::size_t i = 0; i < all_coords.size(); ++i) {
             std::copy(corrected.begin(), corrected.end(), all_output[i].data() + output_offset);
             all_coords[i].test_update(simpler.first);
         }
@@ -262,7 +263,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
         // Check that the update works as expected.
         const auto& remaining = coords0.get_remaining();
         EXPECT_EQ(remaining.size(), sizes.size() - b - 1);
-        size_t new_sofar = coords0.get_ncorrected();
+        std::size_t new_sofar = coords0.get_ncorrected();
         EXPECT_EQ(sofar + sizes[simpler.first], new_sofar);
 
         const auto& ord = coords0.get_order();
@@ -278,7 +279,7 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
 
             std::vector<int> indices;
             std::vector<double> distances;
-            for (size_t x = sofar; x < new_sofar; ++x) {
+            for (std::size_t x = sofar; x < new_sofar; ++x) {
                 target_search->search(all_output[0].data() + x * ndim, k, &indices, &distances);
                 compare_to_naive(indices, distances, rcurrent[x]);
             }
@@ -309,12 +310,12 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
 TEST_P(AutomaticOrderTest, DifferentPolicies) {
     // Choosing the smallest batch to amplify the variance,
     // so that it's clear that we're using a different policy.
-    size_t chosen = std::min_element(sizes.begin(), sizes.end()) - sizes.begin();
+    std::size_t chosen = std::min_element(sizes.begin(), sizes.end()) - sizes.begin();
     for (auto& d : data[chosen]) {
         d *= 10;
     }
 
-    for (size_t iter = 0; iter < 4; ++iter) {
+    for (std::size_t iter = 0; iter < 4; ++iter) {
         mnncorrect::ReferencePolicy choice = mnncorrect::ReferencePolicy::INPUT;
         if (iter == 1) {
             choice = mnncorrect::ReferencePolicy::MAX_SIZE;
@@ -370,18 +371,18 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
 
         // Just checking that everything runs to completion under the non-default policies.
         if (choice != AutomaticOrder2::default_policy) {
-            for (size_t b = 1; b < sizes.size(); ++b) {
+            for (std::size_t b = 1; b < sizes.size(); ++b) {
                 auto chosen = coords.test_choose();
                 EXPECT_FALSE(used[chosen.first]);
                 used[chosen.first] = true;
 
-                size_t cursize = sizes[chosen.first];
+                std::size_t cursize = sizes[chosen.first];
                 auto corrected = scran_tests::simulate_vector(ndim * cursize, [&]{
                     scran_tests::SimulationParameters sparams;
                     sparams.seed = ndim * 1000 + k + b + 69;
                     return sparams;
                 }());
-                size_t offset = ndim * coords.get_ncorrected();
+                std::size_t offset = ndim * coords.get_ncorrected();
                 std::copy(corrected.begin(), corrected.end(), output.data() + offset);
                 coords.test_update(chosen.first);
 

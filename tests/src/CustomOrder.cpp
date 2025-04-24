@@ -7,8 +7,10 @@
 
 #include "mnncorrect/CustomOrder.hpp"
 #include "mnncorrect/find_mutual_nns.hpp"
+
 #include <random>
 #include <algorithm>
+#include <cstddef>
 
 struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, double, knncolle::Matrix<int, double> > {
     template<typename ... Args_>
@@ -21,11 +23,11 @@ struct CustomOrder2 : public mnncorrect::internal::CustomOrder<int, double, knnc
         return my_neighbors_target;
     }
 
-    size_t get_ncorrected() const { 
+    std::size_t get_ncorrected() const { 
         return my_ncorrected;
     }
 
-    void test_update(size_t latest) {
+    void test_update(std::size_t latest) {
         update(latest);
         return;
     }
@@ -44,7 +46,7 @@ protected:
 
         data.resize(sizes.size());
         ptrs.resize(sizes.size());
-        for (size_t b = 0; b < sizes.size(); ++b) {
+        for (std::size_t b = 0; b < sizes.size(); ++b) {
             data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
                 scran_tests::SimulationParameters sparams;
                 sparams.lower = -2;
@@ -75,9 +77,9 @@ protected:
 
 public:
     static void compare_to_naive(const std::vector<int>& indices, const std::vector<double>& distances, const std::vector<std::pair<int, double> >& updated) {
-        size_t n = indices.size();
+        std::size_t n = indices.size();
         ASSERT_EQ(n, updated.size());
-        for (size_t i = 0; i < n; ++i) {
+        for (std::size_t i = 0; i < n; ++i) {
             EXPECT_EQ(indices[i], updated[i].first);
             EXPECT_EQ(distances[i], updated[i].second);
         }
@@ -85,7 +87,7 @@ public:
 };
 
 TEST_P(CustomOrderTest, CheckInitialization) {
-    std::vector<size_t> ordering(sizes.size());
+    std::vector<std::size_t> ordering(sizes.size());
     std::iota(ordering.begin(), ordering.end(), 0);
     if (reversed) {
         std::reverse(ordering.begin(), ordering.end());
@@ -104,7 +106,7 @@ TEST_P(CustomOrderTest, CheckInitialization) {
         /* nthreads = */ 1
     );
 
-    size_t ncorrected = coords.get_ncorrected();
+    std::size_t ncorrected = coords.get_ncorrected();
     EXPECT_EQ(ncorrected, sizes[ordering[0]]);
     EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[ordering[0]]);
 
@@ -118,7 +120,7 @@ TEST_P(CustomOrderTest, CheckInitialization) {
 }
 
 TEST_P(CustomOrderTest, CheckUpdate) {
-    std::vector<size_t> ordering(sizes.size());
+    std::vector<std::size_t> ordering(sizes.size());
     std::iota(ordering.begin(), ordering.end(), 0);
     if (reversed) {
         std::reverse(ordering.begin(), ordering.end());
@@ -129,7 +131,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
     std::vector<std::vector<double> > all_output;
     all_output.reserve(2);
 
-    for (size_t t = 1; t <= 3; t += 2) {
+    for (std::size_t t = 1; t <= 3; t += 2) {
         all_output.emplace_back(total_size);
         all_coords.emplace_back(
             ndim,
@@ -144,11 +146,11 @@ TEST_P(CustomOrderTest, CheckUpdate) {
         );
     }
 
-    for (size_t b = 1; b < sizes.size(); ++b) {
+    for (std::size_t b = 1; b < sizes.size(); ++b) {
         auto& coords0 = all_coords[0];
-        size_t sofar = coords0.get_ncorrected();
+        std::size_t sofar = coords0.get_ncorrected();
         auto current = ordering[b];
-        size_t cursize = sizes[current];
+        std::size_t cursize = sizes[current];
 
         // Applying an update. We mock up some corrected data so that the builders work correctly.
         auto corrected = scran_tests::simulate_vector(cursize * ndim, [&]{
@@ -157,14 +159,14 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             return sparams;
         }());
 
-        size_t output_offset = ndim * sofar;
-        for (size_t i = 0; i < all_coords.size(); ++i) {
+        std::size_t output_offset = ndim * sofar;
+        for (std::size_t i = 0; i < all_coords.size(); ++i) {
             std::copy(corrected.begin(), corrected.end(), all_output[i].data() + output_offset);
             all_coords[i].test_update(b);
         }
 
         // Check that the update to the neighbors works as expected.
-        size_t new_sofar = coords0.get_ncorrected();
+        std::size_t new_sofar = coords0.get_ncorrected();
         EXPECT_EQ(sofar + cursize, new_sofar);
 
         if (b + 1 != sizes.size()) {
@@ -173,14 +175,14 @@ TEST_P(CustomOrderTest, CheckUpdate) {
             std::vector<double> distances;
 
             const auto& tdata = data[next];
-            size_t tnum = sizes[next];
+            std::size_t tnum = sizes[next];
 
             const auto& rneighbors = coords0.get_neighbors_ref();
             EXPECT_EQ(rneighbors.size(), new_sofar);
 
             auto target_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, tnum, tdata.data()));
             auto target_searcher = target_index->initialize();
-            for (size_t x = 0; x < new_sofar; ++x) {
+            for (std::size_t x = 0; x < new_sofar; ++x) {
                 target_searcher->search(all_output[0].data() + x * ndim, k, &indices, &distances);
                 compare_to_naive(indices, distances, rneighbors[x]);
             }
@@ -190,7 +192,7 @@ TEST_P(CustomOrderTest, CheckUpdate) {
 
             auto ref_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, new_sofar, all_output[0].data()));
             auto ref_searcher = ref_index->initialize();
-            for (size_t x = 0; x < tnum; ++x) {
+            for (std::size_t x = 0; x < tnum; ++x) {
                 ref_searcher->search(tdata.data() + x * ndim, k, &indices, &distances);
                 compare_to_naive(indices, distances, tneighbors[x]);
             }
@@ -225,7 +227,7 @@ TEST(CustomOrder, InitializationError) {
     double* output = NULL;
 
     scran_tests::expect_error([&]() {
-        std::vector<size_t> ordering;
+        std::vector<std::size_t> ordering;
         CustomOrder2 coords(
             ndim,
             sizes,
@@ -240,7 +242,7 @@ TEST(CustomOrder, InitializationError) {
     }, "number of batches");
 
     scran_tests::expect_error([&]() {
-        std::vector<size_t> ordering{ 0, 1, 2 };
+        std::vector<std::size_t> ordering{ 0, 1, 2 };
         CustomOrder2 coords(
             ndim,
             sizes,
@@ -255,7 +257,7 @@ TEST(CustomOrder, InitializationError) {
     }, "length of");
 
     scran_tests::expect_error([&]() {
-        std::vector<size_t> ordering(sizes.size(), 1);
+        std::vector<std::size_t> ordering(sizes.size(), 1);
         CustomOrder2 coords(
             ndim,
             sizes,
@@ -270,7 +272,7 @@ TEST(CustomOrder, InitializationError) {
     }, "duplicate");
 
     scran_tests::expect_error([&]() {
-        std::vector<size_t> ordering(sizes.size(), 3);
+        std::vector<std::size_t> ordering(sizes.size(), 3);
         CustomOrder2 coords(
             ndim,
             sizes,
@@ -292,7 +294,7 @@ TEST(CustomOrder, NoOp) {
     int k = 10;
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
     double* output = NULL;
-    std::vector<size_t> ordering;
+    std::vector<std::size_t> ordering;
 
     CustomOrder2 coords(
         ndim,

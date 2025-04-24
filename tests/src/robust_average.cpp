@@ -10,14 +10,14 @@
 
 std::vector<double> robust_average(int num_dim, int num_pts, const double* data, const mnncorrect::internal::RobustAverageOptions& options) {
     std::vector<double> output(num_dim);
-    std::vector<std::pair<double, size_t> > deltas;
+    std::vector<std::pair<double, std::size_t> > deltas;
     mnncorrect::internal::robust_average(num_dim, num_pts, data, output.data(), deltas, options);
     return output;
 }
 
 std::vector<double> robust_average(int num_dim, const std::vector<int>& indices, const double* data, const mnncorrect::internal::RobustAverageOptions& options) {
     std::vector<double> output(num_dim);
-    std::vector<std::pair<double, size_t> > deltas;
+    std::vector<std::pair<double, std::size_t> > deltas;
     robust_average(num_dim, indices, data, output.data(), deltas, options);
     return output;
 }
@@ -59,7 +59,7 @@ TEST(RobustAverageTest, Basic) {
 TEST(RobustAverageTest, Persistence) {
     std::vector<double> data { 0.1, 0.5, 0.2, 0.9, 0.12 };
 
-    std::vector<std::pair<double, size_t> > deltas;
+    std::vector<std::pair<double, std::size_t> > deltas;
     deltas.emplace_back(0.9, 1);
     deltas.emplace_back(0.99, 10);
     deltas.emplace_back(0.9999, -5);
@@ -139,7 +139,7 @@ class RobustAverageTest : public ::testing::TestWithParam<std::tuple<int, int, d
 
 TEST_P(RobustAverageTest, Multidimensional) {
     auto param = GetParam();
-    size_t nobs = std::get<0>(param);
+    std::size_t nobs = std::get<0>(param);
     int iterations = std::get<1>(param);
     double trim = std::get<2>(param);
 
@@ -153,7 +153,7 @@ TEST_P(RobustAverageTest, Multidimensional) {
 
     int ndim = 3;
     std::vector<double> copy(ndim * nobs);
-    for (size_t i = 0; i < nobs; ++i) {
+    for (std::size_t i = 0; i < nobs; ++i) {
         for (int d = 0; d < ndim; ++d) {
             copy[d + i * ndim] = data[i] + d;
         }
@@ -168,7 +168,7 @@ TEST_P(RobustAverageTest, Multidimensional) {
 
 TEST_P(RobustAverageTest, Indexed) {
     auto param = GetParam();
-    size_t nobs = std::get<0>(param);
+    std::size_t nobs = std::get<0>(param);
     int iterations = std::get<1>(param);
     double trim = std::get<2>(param);
 
@@ -183,7 +183,7 @@ TEST_P(RobustAverageTest, Indexed) {
     std::mt19937_64 rng(nobs * trim + iterations);
     std::uniform_int_distribution dist(0, static_cast<int>(nobs) - 1);
     std::vector<int> indices;
-    for (size_t i = 0; i < nobs; ++i) {
+    for (std::size_t i = 0; i < nobs; ++i) {
         indices.push_back(dist(rng));
     }
 
@@ -192,7 +192,7 @@ TEST_P(RobustAverageTest, Indexed) {
 
     // Reference calculation.
     std::vector<double> copy(ndim * indices.size());
-    for (size_t i = 0; i < indices.size(); ++i) {
+    for (std::size_t i = 0; i < indices.size(); ++i) {
         auto target = data.data() + indices[i] * ndim;
         std::copy(target, target + ndim, copy.begin() + i * ndim);
     }

@@ -6,6 +6,7 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 
 class OverallTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<int> > > {
 protected:
@@ -27,10 +28,10 @@ protected:
         }());
 
         ptrs.resize(sizes.size());
-        size_t sofar = 0;
-        for (size_t b = 0; b < sizes.size(); ++b) {
+        std::size_t sofar = 0;
+        for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
             auto current = data.data() + sofar;
-            size_t len = sizes[b] * ndim;
+            std::size_t len = sizes[b] * ndim;
             for (size_t i = 0; i < len; ++i) { // introducing our own batch effect.
                 current[i] += multiplier * b;
             }
