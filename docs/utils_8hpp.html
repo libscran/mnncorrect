@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.12.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>mnncorrect: mnncorrect/ReferencePolicy.hpp File Reference</title>
+<title>mnncorrect: mnncorrect/utils.hpp File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -99,37 +99,67 @@ $(function(){ initResizable(false); });
 <div class="header">
   <div class="summary">
 <a href="#namespaces">Namespaces</a> &#124;
+<a href="#typedef-members">Typedefs</a> &#124;
 <a href="#enum-members">Enumerations</a>  </div>
-  <div class="headertitle"><div class="title">ReferencePolicy.hpp File Reference</div></div>
+  <div class="headertitle"><div class="title">utils.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p>Automatic choice for the reference batch.  
+<p>Utilities for MNN correction.  
 <a href="#details">More...</a></p>
-<div class="textblock"><div class="dynheader">
+<div class="textblock"><code>#include &lt;vector&gt;</code><br />
+<code>#include &lt;limits&gt;</code><br />
+<code>#include &lt;type_traits&gt;</code><br />
+<code>#include &lt;algorithm&gt;</code><br />
+<code>#include &lt;cstddef&gt;</code><br />
+</div><div class="textblock"><div class="dynheader">
+Include dependency graph for utils.hpp:</div>
+<div class="dyncontent">
+<div class="center"><img src="utils_8hpp__incl.png" border="0" usemap="#amnncorrect_2utils_8hpp" alt=""/></div>
+<map name="amnncorrect_2utils_8hpp" id="amnncorrect_2utils_8hpp">
+<area shape="rect" title="Utilities for MNN correction." alt="" coords="134,5,272,31"/>
+<area shape="rect" title=" " alt="" coords="5,79,63,105"/>
+<area shape="poly" title=" " alt="" coords="176,34,78,75,76,70,174,29"/>
+<area shape="rect" title=" " alt="" coords="86,79,139,105"/>
+<area shape="poly" title=" " alt="" coords="190,34,141,72,138,67,186,29"/>
+<area shape="rect" title=" " alt="" coords="163,79,244,105"/>
+<area shape="poly" title=" " alt="" coords="206,31,206,63,201,63,201,31"/>
+<area shape="rect" title=" " alt="" coords="268,79,342,105"/>
+<area shape="poly" title=" " alt="" coords="222,29,276,67,273,72,219,34"/>
+<area shape="rect" title=" " alt="" coords="366,79,430,105"/>
+<area shape="poly" title=" " alt="" coords="237,29,352,71,350,76,235,34"/>
+</map>
+</div>
+</div><div class="textblock"><div class="dynheader">
 This graph shows which files directly or indirectly include this file:</div>
 <div class="dyncontent">
-<div class="center"><img src="ReferencePolicy_8hpp__dep__incl.png" border="0" usemap="#amnncorrect_2ReferencePolicy_8hppdep" alt=""/></div>
-<map name="amnncorrect_2ReferencePolicy_8hppdep" id="amnncorrect_2ReferencePolicy_8hppdep">
-<area shape="rect" title="Automatic choice for the reference batch." alt="" coords="95,5,304,31"/>
-<area shape="rect" href="Options_8hpp.html" title="Options for MNN correction." alt="" coords="61,79,220,105"/>
-<area shape="poly" title=" " alt="" coords="182,45,153,80,149,77,178,41"/>
-<area shape="rect" href="mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="118,226,297,252"/>
-<area shape="poly" title=" " alt="" coords="219,43,235,78,240,121,235,163,215,226,210,225,230,162,235,121,230,80,215,45"/>
+<div class="center"><img src="utils_8hpp__dep__incl.png" border="0" usemap="#amnncorrect_2utils_8hppdep" alt=""/></div>
+<map name="amnncorrect_2utils_8hppdep" id="amnncorrect_2utils_8hppdep">
+<area shape="rect" title="Utilities for MNN correction." alt="" coords="104,5,242,31"/>
+<area shape="rect" href="Options_8hpp.html" title="Options for MNN correction." alt="" coords="93,79,252,105"/>
+<area shape="poly" title=" " alt="" coords="176,46,176,79,170,79,170,46"/>
 <area shape="rect" href="compute_8hpp.html" title="Compute the MNN correction." alt="" coords="5,153,170,178"/>
-<area shape="poly" title=" " alt="" coords="125,119,99,154,94,151,121,115"/>
-<area shape="poly" title=" " alt="" coords="162,116,185,151,199,191,208,225,203,226,194,193,180,154,158,118"/>
+<area shape="poly" title=" " alt="" coords="127,40,102,57,83,80,78,98,77,118,85,152,80,153,72,118,72,97,78,78,99,53,124,36"/>
+<area shape="rect" href="mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="118,226,297,252"/>
+<area shape="poly" title=" " alt="" coords="222,36,247,53,267,78,274,98,275,120,263,162,242,200,221,227,216,224,237,197,259,160,270,120,269,99,263,80,243,57,219,40"/>
+<area shape="poly" title=" " alt="" coords="149,117,103,154,100,150,145,113"/>
+<area shape="poly" title=" " alt="" coords="182,119,207,225,202,226,177,120"/>
 <area shape="poly" title=" " alt="" coords="122,184,188,223,186,228,119,189"/>
 </map>
 </div>
 </div>
-<p><a href="ReferencePolicy_8hpp_source.html">Go to the source code of this file.</a></p>
+<p><a href="utils_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html">mnncorrect</a></td></tr>
 <tr class="memdesc:namespacemnncorrect"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction with mutual nearest neighbors. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
+Typedefs</h2></td></tr>
+<tr class="memitem:a67ab090aec935cd48ad2e5d3383926f7" id="r_a67ab090aec935cd48ad2e5d3383926f7"><td class="memItemLeft" align="right" valign="top">typedef std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></td></tr>
+<tr class="separator:a67ab090aec935cd48ad2e5d3383926f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
@@ -141,7 +171,7 @@ Enumerations</h2></td></tr>
 <tr class="separator:a628f306b43e4b2a96382aa7025940694"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Automatic choice for the reference batch. </p>
+<div class="textblock"><p>Utilities for MNN correction. </p>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

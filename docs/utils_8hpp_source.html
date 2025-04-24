@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.12.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>mnncorrect: mnncorrect/mnncorrect.hpp Source File</title>
+<title>mnncorrect: mnncorrect/utils.hpp Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -97,23 +97,36 @@ $(function(){ initResizable(false); });
 </div><!-- top -->
 <div id="doc-content">
 <div class="header">
-  <div class="headertitle"><div class="title">mnncorrect.hpp</div></div>
+  <div class="headertitle"><div class="title">utils.hpp</div></div>
 </div><!--header-->
 <div class="contents">
-<a href="mnncorrect_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#ifndef MNNCORRECT_HPP</span></div>
-<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#define MNNCORRECT_HPP</span></div>
+<a href="utils_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#ifndef MNNCORRECT_UTILS_HPP</span></div>
+<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#define MNNCORRECT_UTILS_HPP</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span> </div>
-<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &quot;<a class="code" href="Options_8hpp.html">Options.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &quot;<a class="code" href="utils_8hpp.html">utils.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &quot;<a class="code" href="compute_8hpp.html">compute.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span> </div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {}</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span> </div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="preprocessor">#endif</span></div>
-<div class="ttc" id="aOptions_8hpp_html"><div class="ttname"><a href="Options_8hpp.html">Options.hpp</a></div><div class="ttdoc">Options for MNN correction.</div></div>
-<div class="ttc" id="acompute_8hpp_html"><div class="ttname"><a href="compute_8hpp.html">compute.hpp</a></div><div class="ttdoc">Compute the MNN correction.</div></div>
+<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;vector&gt;</span></div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;limits&gt;</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;type_traits&gt;</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &lt;algorithm&gt;</span></div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &lt;cstddef&gt;</span></div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {</div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span> </div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">   20</a></span><span class="keyword">typedef</span> std::size_t <a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a>;</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">   38</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">ReferencePolicy</a> : <span class="keywordtype">char</span> { INPUT, MAX_SIZE, MAX_VARIANCE, MAX_RSS };</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span> </div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="keyword">namespace </span>internal {</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Distance_&gt;</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="keyword">using </span>NeighborSet = std::vector&lt;std::vector&lt;std::pair&lt;Index_, Distance_&gt; &gt; &gt;;</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>}</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>}</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> compute.hpp:25</div></div>
-<div class="ttc" id="autils_8hpp_html"><div class="ttname"><a href="utils_8hpp.html">utils.hpp</a></div><div class="ttdoc">Utilities for MNN correction.</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a628f306b43e4b2a96382aa7025940694"><div class="ttname"><a href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">mnncorrect::ReferencePolicy</a></div><div class="ttdeci">ReferencePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:38</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:20</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

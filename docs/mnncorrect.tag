@@ -5,6 +5,7 @@
     <path>mnncorrect/</path>
     <filename>compute_8hpp.html</filename>
     <includes id="Options_8hpp" name="Options.hpp" local="yes" import="no" module="no" objc="no">Options.hpp</includes>
+    <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
     <class kind="struct">mnncorrect::Details</class>
     <namespace>mnncorrect</namespace>
   </compound>
@@ -13,7 +14,7 @@
     <path>mnncorrect/</path>
     <filename>mnncorrect_8hpp.html</filename>
     <includes id="Options_8hpp" name="Options.hpp" local="yes" import="no" module="no" objc="no">Options.hpp</includes>
-    <includes id="ReferencePolicy_8hpp" name="ReferencePolicy.hpp" local="yes" import="no" module="no" objc="no">ReferencePolicy.hpp</includes>
+    <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
     <includes id="compute_8hpp" name="compute.hpp" local="yes" import="no" module="no" objc="no">compute.hpp</includes>
     <namespace>mnncorrect</namespace>
   </compound>
@@ -21,7 +22,7 @@
     <name>Options.hpp</name>
     <path>mnncorrect/</path>
     <filename>Options_8hpp.html</filename>
-    <includes id="ReferencePolicy_8hpp" name="ReferencePolicy.hpp" local="yes" import="no" module="no" objc="no">ReferencePolicy.hpp</includes>
+    <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
     <class kind="struct">mnncorrect::Options</class>
     <namespace>mnncorrect</namespace>
   </compound>
@@ -32,19 +33,19 @@
     <namespace>mnncorrect</namespace>
   </compound>
   <compound kind="file">
-    <name>ReferencePolicy.hpp</name>
+    <name>utils.hpp</name>
     <path>mnncorrect/</path>
-    <filename>ReferencePolicy_8hpp.html</filename>
+    <filename>utils_8hpp.html</filename>
     <namespace>mnncorrect</namespace>
   </compound>
   <compound kind="struct">
     <name>mnncorrect::Details</name>
     <filename>structmnncorrect_1_1Details.html</filename>
     <member kind="variable">
-      <type>std::vector&lt; std::size_t &gt;</type>
+      <type>std::vector&lt; BatchIndex &gt;</type>
       <name>merge_order</name>
       <anchorfile>structmnncorrect_1_1Details.html</anchorfile>
-      <anchor>a08d8afbc5fc5d398dee8181dbd045dc9</anchor>
+      <anchor>ae0fc3574cf34e251916cf6eadb56e62b</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -83,10 +84,10 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>std::vector&lt; std::size_t &gt;</type>
+      <type>std::vector&lt; BatchIndex &gt;</type>
       <name>order</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>ab2fb06491f25df8314b67fe8ec8bc3fa</anchor>
+      <anchor>af7fb23a91bf44aae00581e8d832c4351</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -137,6 +138,13 @@
     <filename>namespacemnncorrect.html</filename>
     <class kind="struct">mnncorrect::Details</class>
     <class kind="struct">mnncorrect::Options</class>
+    <member kind="typedef">
+      <type>std::size_t</type>
+      <name>BatchIndex</name>
+      <anchorfile>namespacemnncorrect.html</anchorfile>
+      <anchor>a67ab090aec935cd48ad2e5d3383926f7</anchor>
+      <arglist></arglist>
+    </member>
     <member kind="enumeration">
       <type></type>
       <name>ReferencePolicy</name>

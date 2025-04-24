@@ -117,8 +117,8 @@ Public Attributes</h2></td></tr>
 <tr class="separator:aa1257dbad59eb1fe7f3f74743b8a2aa7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7143d3f30635f258730d15fc2eff8e40" id="r_a7143d3f30635f258730d15fc2eff8e40"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html">knncolle::Builder</a>&lt; Index_, Float_, Float_, Matrix_ &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7143d3f30635f258730d15fc2eff8e40">builder</a></td></tr>
 <tr class="separator:a7143d3f30635f258730d15fc2eff8e40"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab2fb06491f25df8314b67fe8ec8bc3fa" id="r_ab2fb06491f25df8314b67fe8ec8bc3fa"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab2fb06491f25df8314b67fe8ec8bc3fa">order</a></td></tr>
-<tr class="separator:ab2fb06491f25df8314b67fe8ec8bc3fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af7fb23a91bf44aae00581e8d832c4351" id="r_af7fb23a91bf44aae00581e8d832c4351"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">order</a></td></tr>
+<tr class="separator:af7fb23a91bf44aae00581e8d832c4351"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb71da89c11ab9a91b2542460fe0b652" id="r_afb71da89c11ab9a91b2542460fe0b652"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">automatic_order</a> = true</td></tr>
 <tr class="separator:afb71da89c11ab9a91b2542460fe0b652"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a52b39e6d30a5f97358b0a5478c765d" id="r_a4a52b39e6d30a5f97358b0a5478c765d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4a52b39e6d30a5f97358b0a5478c765d">robust_iterations</a> = 2</td></tr>
@@ -158,9 +158,9 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
       </table>
 </div><div class="memdoc">
 <p>Should batches be merged in an automatically-determined order?</p>
-<p>If <code>true</code> and <code><a class="el" href="#ab2fb06491f25df8314b67fe8ec8bc3fa">Options::order</a></code> is empty, the largest batch is used as the reference and other batches are successively merged onto it. At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.</p>
+<p>If <code>true</code> and <code><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">Options::order</a></code> is empty, the largest batch is used as the reference and other batches are successively merged onto it. At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.</p>
 <p>If this is empty and <code><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">Options::automatic_order</a> = false</code>, batches are merged in the order that they were supplied in <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">compute()</a></code>. If a <code>batch</code> array was supplied, the batches are merged in order of their identifiers, i.e., batch 0 is the reference.</p>
-<p>If <code><a class="el" href="#ab2fb06491f25df8314b67fe8ec8bc3fa">Options::order</a></code> is non-empty, this setting is ignored and the manually specified order is always used. </p>
+<p>If <code><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">Options::order</a></code> is non-empty, this setting is ignored and the manually specified order is always used. </p>
 
 </div>
 </div>
@@ -250,8 +250,8 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
 
 </div>
 </div>
-<a id="ab2fb06491f25df8314b67fe8ec8bc3fa" name="ab2fb06491f25df8314b67fe8ec8bc3fa"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab2fb06491f25df8314b67fe8ec8bc3fa">&#9670;&#160;</a></span>order</h2>
+<a id="af7fb23a91bf44aae00581e8d832c4351" name="af7fb23a91bf44aae00581e8d832c4351"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7fb23a91bf44aae00581e8d832c4351">&#9670;&#160;</a></span>order</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -259,7 +259,7 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
 template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;std::size_t&gt; <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::order</td>
+          <td class="memname">std::vector&lt;<a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a>&gt; <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::order</td>
         </tr>
       </table>
 </div><div class="memdoc">

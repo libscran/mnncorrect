@@ -9,7 +9,7 @@ var searchData=
   ['matrixextractor_6',['MatrixExtractor',['https://knncolle.github.io/knncolle/classknncolle_1_1MatrixExtractor.html',1,'knncolle']]],
   ['matrixextractor_3c_20data_5f_20_3e_7',['MatrixExtractor&lt; Data_ &gt;',['https://knncolle.github.io/knncolle/classknncolle_1_1MatrixExtractor.html',1,'knncolle']]],
   ['matrixextractor_3c_20normalized_5f_20_3e_8',['MatrixExtractor&lt; Normalized_ &gt;',['https://knncolle.github.io/knncolle/classknncolle_1_1MatrixExtractor.html',1,'knncolle']]],
-  ['merge_5forder_9',['merge_order',['../structmnncorrect_1_1Details.html#a08d8afbc5fc5d398dee8181dbd045dc9',1,'mnncorrect::Details']]],
+  ['merge_5forder_9',['merge_order',['../structmnncorrect_1_1Details.html#ae0fc3574cf34e251916cf6eadb56e62b',1,'mnncorrect::Details']]],
   ['mnn_20correction_10',['C++ library for MNN correction',['../index.html',1,'']]],
   ['mnncorrect_11',['mnncorrect',['../namespacemnncorrect.html',1,'']]],
   ['mnncorrect_2ehpp_12',['mnncorrect.hpp',['../mnncorrect_8hpp.html',1,'']]]
