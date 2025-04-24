@@ -281,7 +281,7 @@ void correct_target(
         for (Index_ t = start, end = start + length; t < end; ++t) {
             const auto& target_closest = closest_mnn_target[t];
             corrections.clear();
-            std::size_t ncorrections = 0; // the number of correction vectors (i.e., pairs), which could be larger than the number of observations and beyond an Index_.
+            decltype(corrections.size()) ncorrections = 0; // the number of correction vectors (i.e., pairs), which could be larger than the number of observations and beyond an Index_.
 
             for (const auto& tc : target_closest) {
                 const Float_* ptptr = buffer_target.data() + static_cast<std::size_t>(tc.first) * ndim; // cast to avoid overflow.
@@ -289,8 +289,12 @@ void correct_target(
 
                 auto old_size = corrections.size();
                 std::size_t num_to_add = ref_partners.size();
-                corrections.resize(old_size + num_to_add * ndim); // both size_t's no need to cast.
-                auto corptr = corrections.data() + old_size;
+                corrections.insert( // unlike resize(), insert() gives us a chance to bad_alloc() if the request exceeds the max capacity of std::vector.
+                    corrections.end(),
+                    num_to_add * ndim, // both size_t's no need to cast.
+                    static_cast<Float_>(0)
+                );
+                auto corptr = corrections.data() + old_size; // make sure this is after the insert(), otherwise we could invalidate on reallocation.
                 ncorrections += num_to_add;
 
                 for (auto rp : ref_partners) {

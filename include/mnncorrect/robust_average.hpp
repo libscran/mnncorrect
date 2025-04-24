@@ -48,13 +48,13 @@ struct RobustAverageWorkspace {
 
 template<typename Float_>
 Float_ quantile(std::vector<Float_>& x, double quantile) {
-    auto num_pts = x.size(); // should be positive at this point.
-    const Float_ cut = (num_pts - 1) * quantile;
-    decltype(num_pts) lower = cut; // floor.
+    auto num = x.size(); // should be positive at this point.
+    const Float_ cut = (num - 1) * quantile;
+    decltype(num) lower = cut; // floor.
 
     std::nth_element(x.begin(), x.begin() + lower, x.end());
     auto lval = x[lower];
-    if (lower + 1 == num_pts) { // just in case we're dealing with quantile == 1 
+    if (lower + 1 == num) { // just in case we're dealing with quantile == 1 
         return lval;
     }
 
@@ -64,20 +64,20 @@ Float_ quantile(std::vector<Float_>& x, double quantile) {
     return lval + gap * (uval - lval); // i.e., (1 - gap) * lval + gap * uval, equivalent to quantile() in R.
 }
 
-template<class Function_, typename Float_>
-void robust_average(std::size_t num_dim, std::size_t num_pts, Function_ indfun, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& work, const RobustAverageOptions& options) {
+template<typename Number_, class Function_, typename Float_>
+void robust_average(std::size_t num_dim, Number_ num_vec, Function_ indfun, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& work, const RobustAverageOptions& options) {
     std::fill_n(output, num_dim, 0);
-    if (num_pts == 0) {
+    if (num_vec == 0) {
         return;
     }
 
-    for (std::size_t i = 0; i < num_pts; ++i) {
+    for (Number_ i = 0; i < num_vec; ++i) {
         const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // cast to size_t to avoid overflow.
         for (std::size_t d = 0; d < num_dim; ++d) {
             output[d] += dptr[d];
         }
     }
-    const double denom = 1.0 / num_pts;
+    const double denom = 1.0 / num_vec;
     for (std::size_t d = 0; d < num_dim; ++d) {
         output[d] *= denom;
     }
@@ -85,15 +85,15 @@ void robust_average(std::size_t num_dim, std::size_t num_pts, Function_ indfun, 
         return;
     }
 
-    // The 'num_pts - 1' reflects the fact that we're comparing to a quantile.
+    // The 'num_vec - 1' reflects the fact that we're comparing to a quantile.
     // The closest point is at 0%, while the furthest point is at 100%,
     // so we already spent one observation defining the boundaries.
 
-    work.deltas.reserve(num_pts);
+    work.deltas.reserve(num_vec);
     for (int it = 0; it < options.iterations; ++it) {
         work.deltas.clear();
 
-        for (std::size_t i = 0; i < num_pts; ++i) {
+        for (Number_ i = 0; i < num_vec; ++i) {
             const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // cast to avoid overflow.
             Float_ d2 = 0;
             for (std::size_t d = 0; d < num_dim; ++d) {
@@ -113,10 +113,10 @@ void robust_average(std::size_t num_dim, std::size_t num_pts, Function_ indfun, 
         constexpr Float_ tol = 1.0000000001;
         const Float_ threshold = q * tol; 
 
-        auto sum = [&](Float_ threshold) -> std::size_t {
-            std::size_t counter = 0;
+        auto sum = [&](Float_ threshold) -> Number_ {
+            Number_ counter = 0;
             std::fill_n(output, num_dim, 0);
-            for (std::size_t i = 0; i < num_pts; ++i) {
+            for (Number_ i = 0; i < num_vec; ++i) {
                 if (work.deltas[i] <= threshold) {
                     const auto dptr = data + static_cast<std::size_t>(indfun(i)) * num_dim; // again, cast to avoid overflow.
                     for (std::size_t d = 0; d < num_dim; ++d) {
@@ -142,20 +142,22 @@ void robust_average(std::size_t num_dim, std::size_t num_pts, Function_ indfun, 
     }
 }
 
-// Using 'size_t' as this function is called in 'correct_target()' with the
-// number of MNN pairs being used as the 'num_pts', and that might exceed the
-// actual number of observations.
-template<typename Float_>
-void robust_average(std::size_t num_dim, std::size_t num_pts, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
-    robust_average(num_dim, num_pts, [](std::size_t i) -> std::size_t { return i; }, data, output, deltas, options);
+template<typename Number_, typename Float_>
+void robust_average(std::size_t num_dim, Number_ num_vec, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
+    // Templating the number of points as this function is called in
+    // 'correct_target()' with the number of MNN pairs being used as the
+    // 'num_vec', and that might exceed the actual number of observations.
+    robust_average(num_dim, num_vec, [](Number_ i) -> Number_ { return i; }, data, output, deltas, options);
 }
 
-// Using size_t for 'num_obs', as 'indices' may contain duplicates from the
-// inverted neighbors; this causes 'indices.size()' to possibly exceed the
-// capacity of the 'Index_' type.
 template<typename Index_, typename Float_>
 void robust_average(size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
-    robust_average(num_dim, indices.size(), [&](std::size_t i) -> Index_ { return indices[i]; }, data, output, deltas, options);
+    // Using the size_type for 'num_obs', as 'indices' may contain duplicates
+    // from the inverted neighbors; this causes 'indices.size()' to possibly
+    // exceed the capacity of the 'Index_' type.
+    auto n_indices = indices.size();
+    typedef decltype(n_indices) Counter;
+    robust_average(num_dim, n_indices, [&](Counter i) -> Index_ { return indices[i]; }, data, output, deltas, options);
 }
 
 }
