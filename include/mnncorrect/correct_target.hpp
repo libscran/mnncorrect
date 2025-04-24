@@ -181,7 +181,7 @@ void compute_center_of_mass(
 
 template<typename Index_, typename Float_, typename Matrix_>
 void correct_target(
-    size_t ndim, 
+    std::size_t ndim, 
     Index_ nref, 
     const Float_* ref, 
     Index_ ntarget, 

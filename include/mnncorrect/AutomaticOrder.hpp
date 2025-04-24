@@ -147,7 +147,7 @@ protected:
 
 protected:
     template<bool purge_ = true>
-    void update(size_t latest) {
+    void update(BatchIndex latest) {
         auto lat_num = my_nobs[latest]; 
         const Float_* lat_data = my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim; // cast to avoid overflow.
 
@@ -194,7 +194,7 @@ protected:
         for (auto it = my_remaining.begin(); it != my_remaining.end(); ++it) { // hashsets don't have random access iterators, so we ned to manually iterate.
             if (counter == 0) {
                 partitions.push_back(it);
-                if (partitions.size() == static_cast<size_t>(my_nthreads)) {
+                if (partitions.size() == static_cast<decltype(partitions.size())>(my_nthreads)) {
                     break;
                 }
             }

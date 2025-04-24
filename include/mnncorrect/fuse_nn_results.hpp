@@ -54,7 +54,7 @@ void fuse_nn_results(
     Index_ offset) 
 {
     output.clear();
-    std::size_t num_neighbors = k; // converting into size_t for easier comparisons below.
+    decltype(output.size()) num_neighbors = k; // converting into size_type for easier comparisons below.
     if (num_neighbors == 0) {
         return;
     }

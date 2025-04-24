@@ -151,7 +151,7 @@ void robust_average(std::size_t num_dim, Number_ num_vec, const Float_* data, Fl
 }
 
 template<typename Index_, typename Float_>
-void robust_average(size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
+void robust_average(std::size_t num_dim, const std::vector<Index_>& indices, const Float_* data, Float_* output, RobustAverageWorkspace<Float_>& deltas, const RobustAverageOptions& options) {
     // Using the size_type for 'num_obs', as 'indices' may contain duplicates
     // from the inverted neighbors; this causes 'indices.size()' to possibly
     // exceed the capacity of the 'Index_' type.
