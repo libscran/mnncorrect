@@ -61,25 +61,29 @@ TEST_P(OverallTest, Basic) {
     }());
     size_t refbatch = ordering.merge_order.front();
 
-    // Heuristic: check that the differences in the mean are less than the
-    // standard deviation (default 1) in each dimension.
-    size_t sofar = 0;
-    for (size_t b = 0; b < sizes.size(); ++b) {
-        auto ptr = output.data() + sofar * ndim;
+    // Heuristic: check that the differences in the mean are much less than the
+    // range of simulated values within each batch (-2 to 2) in each dimension.
+    std::size_t sofar = 0;
+    for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
+        auto ptr = output.data() + sofar;
         std::vector<double> ref(ndim);
 
-        for (int s = 0; s < sizes[b]; ++s) {
+        auto num = sizes[b];
+        for (int s = 0; s < num; ++s) {
             for (int d = 0; d < ndim; ++d) {
                 ref[d] += ptr[d];                
             }
             ptr += ndim;
         }
 
-        for (auto& r : ref) {
-            r /= sizes[b];
-            double delta = std::abs(r - refbatch * multiplier);
-            EXPECT_TRUE(delta < 1);
+        for (auto r : ref) {
+            auto mean = r / sizes[b];
+            double expected = refbatch * multiplier;
+            double err = std::abs(mean - expected);
+            EXPECT_LT(err, 1); // The upper bound on this threshold is 4 (-2 to 2) but we are more stringent here.
         }
+
+        sofar += ndim * num;
     }
 
     // Check that the first batch is indeed unchanged.
