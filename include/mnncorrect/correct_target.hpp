@@ -78,7 +78,9 @@ NeighborSet<Index_, Distance_> invert_neighbors(std::size_t n, const NeighborSet
     }
     parallelize(nthreads, n, [&](int, Index_ start, Index_ length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
-            std::sort(output[i].begin(), output[i].end());
+            std::sort(output[i].begin(), output[i].end(), [](const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) -> bool {
+                return left.second < right.second;
+            });
         }
     });
     return output;
@@ -111,6 +113,7 @@ void compute_center_of_mass(
         std::vector<Float_> mean(ndim), sum_squares(ndim);
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
+            std::cout << "MNN is: " << g << std::endl;
             const auto& inv = mnn_neighbors[g];
             auto output = buffer + static_cast<std::size_t>(g) * ndim; // cast to avoid overflow.
 
@@ -134,15 +137,19 @@ void compute_center_of_mass(
             Index_ counter = 0;
             for (auto nn : inv) {
                 auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
+                std::cout << nn.first << "\t" << nn.second << std::endl;
 
                 if (counter > minimum_required) {
                     bool not_okay = false;
                     for (std::size_t d = 0; d < ndim; ++d) {
+                        std::cout << "\t" << (mean[d] - target[d]) << "\t" << std::sqrt(sum_squares[d] / (counter - 1)) << std::endl;
                         if (std::abs(mean[d] - target[d]) > nmads * std::sqrt(sum_squares[d] / (counter - 1))) {
                             not_okay = true;
+                            break;
                         }
                     }
                     if (not_okay) {
+                        std::cout << "NOOO!" << std::endl;
                         continue;
                     }
                 }
