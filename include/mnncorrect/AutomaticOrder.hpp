@@ -167,7 +167,7 @@ protected:
         const Float_* lat_data = my_corrected + static_cast<std::size_t>(previous_ncorrected) * my_ndim; // cast to avoid overflow.
         lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lat_num, lat_data));
 
-        // Updating MNN pairs for the remaining batches.
+        // Updating cross-batch NN hits for the remaining (unprocessed) batches.
         for (auto b : my_remaining) {
             auto& rem_ref_neighbors = my_neighbors_ref[b];
             rem_ref_neighbors.resize(my_ncorrected);
@@ -176,16 +176,16 @@ protected:
             quick_fuse_nns(my_neighbors_target[b], my_batches[b], *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
         }
 
-        // Updating self-NN results for the processed batches, in order to find new centers.
+        // Updating self-batch NN hits for the processed batches, in order to find new centers.
         my_corrected_neighbors.resize(my_ncorrected);
         quick_find_nns(*lat_index, my_num_neighbors, my_nthreads, my_corrected_neighbors, previous_ncorrected);
         Index_ sofar = 0;
         for (decltype(my_order.size()) i = 0, end = my_order.size() - 1; i < end; ++i) {
             auto b = my_order[i];
-            auto batch_size = my_nobs[b];
-            quick_fuse_nns(sofar, batch_size, my_corrected_neighbors, my_corrected, *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
+            auto batch_num = my_nobs[b];
+            quick_fuse_nns(sofar, batch_num, my_corrected_neighbors, my_corrected, *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
             quick_fuse_nns(previous_ncorrected, lat_num, my_corrected_neighbors, my_corrected, *(my_indices[b]), my_num_neighbors, my_nthreads, sofar);
-            sofar += batch_size;
+            sofar += batch_num;
         }
         find_local_centers(my_corrected_neighbors, my_corrected_centers);
     }
