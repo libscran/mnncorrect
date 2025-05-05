@@ -14,6 +14,7 @@
 #include <memory>
 #include <cassert>
 #include <cstddef>
+#include <cmath>
 
 namespace mnncorrect {
 
@@ -66,69 +67,20 @@ std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
     return std::make_pair(gap, std::move(output));
 }
 
-template<typename Float_>
-Float_ median(std::size_t n, Float_* ptr) {
-    if (!n) {
-        return std::numeric_limits<Float_>::quiet_NaN();
-    }
-    std::size_t half = n / 2;
-    bool is_even = n % 2 == 0;
-
-    std::nth_element(ptr, ptr + half, ptr + n);
-    Float_ mid = *(ptr + half);
-    if (!is_even) {
-        return mid;
-    }
-
-    std::nth_element(ptr, ptr + half - 1, ptr + n);
-    return (mid + *(ptr + half - 1)) / 2;
-}
-
-template<typename Index_, typename Float_>
-Float_ limit_from_closest_distances(const NeighborSet<Index_, Float_>& found, Float_ nmads) {
-    if (found.empty()) {
-        return 0;        
-    }
-
-    // Pooling all distances together.
-    std::vector<Float_> all_distances;
-    {
-        std::size_t full_size = 0;
-        for (const auto& f : found) {
-            full_size += f.size();
-        }
-        all_distances.reserve(full_size);
-    }
-    for (const auto& f : found) {
-        for (const auto& x : f) {
-            all_distances.push_back(x.second);
-        }
-    }
-
-    // Computing the median and MAD. 
-    Float_ med = median(all_distances.size(), all_distances.data());
-    for (auto& a : all_distances) {
-        a = std::abs(a - med);
-    }
-    Float_ mad = median(all_distances.size(), all_distances.data());
-
-    // Under normality, most of the distribution should be obtained
-    // within 3 sigma of the correction vector. 
-    constexpr double mad2sigma = 1.4826;
-    return med + nmads * mad * static_cast<Float_>(mad2sigma);
-}
-
 template<typename Index_, typename Distance_>
-std::vector<std::vector<Index_> > invert_neighbors(std::size_t n, const NeighborSet<Index_, Distance_>& neighbors, Distance_ limit) {
-    std::vector<std::vector<Index_> > output(n);
-    const Index_ num_neighbors = neighbors.size();
-    for (Index_ i = 0; i < num_neighbors; ++i) {
+NeighborSet<Index_, Distance_> invert_neighbors(std::size_t n, const NeighborSet<Index_, Distance_>& neighbors, int nthreads = 1) {
+    NeighborSet<Index_, Distance_> output(n);
+    Index_ n2 = neighbors.size();
+    for (Index_ i = 0; i < n2; ++i) {
         for (const auto& x : neighbors[i]) {
-            if (x.second <= limit) {
-                output[x.first].push_back(i);
-            }
+            output[x.first].emplace_back(i, x.second);
         }
     }
+    parallelize(nthreads, n, [&](int, Index_ start, Index_ length) -> void {
+        for (Index_ i = start, end = start + length; i < end; ++i) {
+            std::sort(output[i].begin(), output[i].end());
+        }
+    });
     return output;
 }
 
@@ -146,16 +98,17 @@ template<typename Index_, typename Float_>
 void compute_center_of_mass(
     std::size_t ndim,
     const std::vector<Index_>& mnn_ids,
-    const std::vector<std::vector<Index_> >& mnn_neighbors,
+    const NeighborSet<Index_, Float_>& mnn_neighbors,
     const Float_* data,
     Float_* buffer,
-    const RobustAverageOptions& raopt,
+    Index_ minimum_required,
+    double nmads,
     int nthreads)
 {
     Index_ num_mnns = mnn_ids.size();
 
     parallelize(nthreads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
-        RobustAverageWorkspace<Float_> rawork;
+        std::vector<Float_> mean(ndim), sum_squares(ndim);
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
             const auto& inv = mnn_neighbors[g];
@@ -170,9 +123,41 @@ void compute_center_of_mass(
             if (inv.empty()) {
                 auto ptr = data + static_cast<std::size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
                 std::copy_n(ptr, ndim, output);
-            } else {
-                robust_average(ndim, inv, data, output, rawork, raopt);
+                continue;
             }
+
+            // Using Welford's algorithm to compute the running mean and
+            // variance around the current center of mass. We filter out
+            // points that are outliers in any dimension. 
+            std::fill(mean.begin(), mean.end(), 0);
+            std::fill(sum_squares.begin(), sum_squares.end(), 0);
+            Index_ counter = 0;
+            for (auto nn : inv) {
+                auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
+
+                if (counter > minimum_required) {
+                    bool not_okay = false;
+                    for (std::size_t d = 0; d < ndim; ++d) {
+                        if (std::abs(mean[d] - target[d]) > nmads * std::sqrt(sum_squares[d] / (counter - 1))) {
+                            not_okay = true;
+                        }
+                    }
+                    if (not_okay) {
+                        continue;
+                    }
+                }
+
+                ++counter;
+                for (std::size_t d = 0; d < ndim; ++d) {
+                    auto val = target[d];
+                    auto& curmean = mean[d];
+                    double delta = val - curmean;
+                    curmean += delta / counter;
+                    sum_squares[d] += delta * (val - curmean);
+                }
+            }
+
+            std::copy(mean.begin(), mean.end(), output);
         }
     });
 
@@ -210,7 +195,6 @@ void correct_target(
             const auto& uniq = (opt == 0 ? uniq_mnn_ref : uniq_mnn_target);
             auto& buffer = (opt == 0 ? buffer_ref : buffer_target);
             auto& index = (opt == 0 ? index_ref : index_target);
-
             subset_to_mnns(ndim, obs_ptr, uniq, buffer.data());
             index = builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, uniq.size(), buffer.data()));
         }
@@ -242,31 +226,20 @@ void correct_target(
     auto closest_mnn_target = quick_find_nns(ntarget, target, *index_target, k, nthreads);
     index_target.reset();
 
-    // Parallelized limit calculation for reference/target.
-    Float_ limit_closest_ref, limit_closest_target;
-    parallelize(nthreads, 2, [&](int, int start, int length) -> void {
-        for (int opt = start, end = start + length; opt < end; ++opt) {
-            auto& limit = (opt == 0 ? limit_closest_ref : limit_closest_target);
-            const auto& mnn = (opt == 0 ? closest_mnn_ref : closest_mnn_target);
-            limit = limit_from_closest_distances(mnn, nmads);
-        }
-    });
-
     // Computing the centers of mass. We reuse the buffers to store the center coordinates.
-    RobustAverageOptions raopt(robust_iterations, robust_trim);
     {
-        auto ref_inverted = invert_neighbors(uniq_mnn_ref.size(), closest_mnn_ref, limit_closest_ref);
+        auto ref_inverted = invert_neighbors(uniq_mnn_ref.size(), closest_mnn_ref, nthreads);
         if (is_capped) {
             for (auto& ref_neighbors : ref_inverted) {
                 for (auto& x : ref_neighbors) {
-                    x = capped_index(x, gap);
+                    x.first = capped_index(x.first, gap);
                 }
             }
         }
-        compute_center_of_mass(ndim, uniq_mnn_ref, ref_inverted, ref, buffer_ref.data(), raopt, nthreads);
+        compute_center_of_mass(ndim, uniq_mnn_ref, ref_inverted, ref, buffer_ref.data(), k, nmads, nthreads);
 
-        auto target_inverted = invert_neighbors(uniq_mnn_target.size(), closest_mnn_target, limit_closest_target);
-        compute_center_of_mass(ndim, uniq_mnn_target, target_inverted, target, buffer_target.data(), raopt, nthreads);
+        auto target_inverted = invert_neighbors(uniq_mnn_target.size(), closest_mnn_target, nthreads);
+        compute_center_of_mass(ndim, uniq_mnn_target, target_inverted, target, buffer_target.data(), k, nmads, nthreads);
     }
 
     auto remap_ref = invert_indices(nref, uniq_mnn_ref);
@@ -274,6 +247,7 @@ void correct_target(
     // Computing the correction vector for each target point as a robust
     // average of the correction vectors for the closest MNN-involved cells,
     // and then applying it to the target data.
+    RobustAverageOptions raopt(robust_iterations, robust_trim);
     parallelize(nthreads, ntarget, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> corrections;
         RobustAverageWorkspace<Float_> rawork;
