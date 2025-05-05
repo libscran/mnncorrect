@@ -147,7 +147,6 @@ TEST_P(AutomaticOrderTest, CheckInitialization) {
         builder,
         /* num_neighbors = */ k,
         /* ref_policy = */ AutomaticOrder2::default_policy,
-        /* nobs_cap = */ -1,
         /* nthreads = */ 1
     );
 
@@ -191,7 +190,6 @@ TEST_P(AutomaticOrderTest, CheckUpdate) {
             builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ AutomaticOrder2::default_policy,
-            /* nobs_cap = */ -1,
             /* nthreads = */ t + 1
         );
     }
@@ -334,7 +332,6 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
             builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ choice,
-            /* nobs_cap = */ -1,
             /* nthreads = */ 1
         );
 
@@ -361,7 +358,6 @@ TEST_P(AutomaticOrderTest, DifferentPolicies) {
             builder,
             /* num_neighbors = */ k,
             /* ref_policy = */ choice,
-            /* nobs_cap = */ -1,
             /* nthreads = */ 3 
         );
         EXPECT_EQ(coords.get_order(), par_coords3.get_order());

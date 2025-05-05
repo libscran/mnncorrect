@@ -15,6 +15,7 @@
 #include "fuse_nn_results.hpp"
 #include "correct_target.hpp"
 #include "parallelize.hpp"
+#include "find_local_centers.hpp"
 
 namespace mnncorrect {
 
@@ -67,7 +68,6 @@ public:
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors, 
         ReferencePolicy ref_policy, 
-        Index_ nobs_cap, 
         int nthreads)
     :
         my_ndim(ndim), 
@@ -79,7 +79,6 @@ public:
         my_neighbors_ref(my_batches.size()), 
         my_neighbors_target(my_batches.size()), 
         my_corrected(corrected),
-        my_nobs_cap(nobs_cap),
         my_nthreads(nthreads)
     {
         auto nbatches = my_nobs.size();
@@ -132,33 +131,31 @@ protected:
     std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
 
     int my_num_neighbors;
-    std::vector<NeighborSet<Index_, Float_> > my_neighbors_ref;
-    std::vector<NeighborSet<Index_, Float_> > my_neighbors_target;
+    std::vector<NeighborSet<Index_, Float_> > my_neighbors_ref, my_neighbors_target;
 
     Float_* my_corrected;
     Index_ my_ncorrected = 0;
+    NeighborSet<Index_, Float_> my_corrected_neighbors;
+    std::vector<Index_> my_corrected_centers;
 
     std::vector<BatchIndex> my_order;
     std::unordered_set<BatchIndex> my_remaining;
     std::vector<unsigned long long> my_num_pairs; // at least 64 bits to guarantee storage of many pairs.
 
-    Index_ my_nobs_cap;
     int my_nthreads;
 
 protected:
     template<bool purge_ = true>
     void update(BatchIndex latest) {
-        auto lat_num = my_nobs[latest]; 
-        const Float_* lat_data = my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim; // cast to avoid overflow.
-
         my_order.push_back(latest);
+
+        auto lat_num = my_nobs[latest]; 
         Index_ previous_ncorrected = my_ncorrected;
         my_ncorrected += lat_num;
 
         if constexpr(purge_) { // try to free some memory if there are many batches.
             my_neighbors_ref[latest].clear();
             my_neighbors_ref[latest].shrink_to_fit(); 
-            my_indices[latest].reset();
         }
 
         my_remaining.erase(latest);
@@ -166,7 +163,11 @@ protected:
             return;
         }
 
-        auto lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lat_num, lat_data));
+        auto& lat_index = my_indices[latest];
+        const Float_* lat_data = my_corrected + static_cast<std::size_t>(previous_ncorrected) * my_ndim; // cast to avoid overflow.
+        lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lat_num, lat_data));
+
+        // Updating MNN pairs for the remaining batches.
         for (auto b : my_remaining) {
             auto& rem_ref_neighbors = my_neighbors_ref[b];
             rem_ref_neighbors.resize(my_ncorrected);
@@ -175,7 +176,18 @@ protected:
             quick_fuse_nns(my_neighbors_target[b], my_batches[b], *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
         }
 
-        return;
+        // Updating self-NN results for the processed batches, in order to find new centers.
+        my_corrected_neighbors.resize(my_ncorrected);
+        quick_find_nns(*lat_index, my_num_neighbors, my_nthreads, my_corrected_neighbors, previous_ncorrected);
+        Index_ sofar = 0;
+        for (decltype(my_order.size()) i = 0, end = my_order.size() - 1; i < end; ++i) {
+            auto b = my_order[i];
+            auto batch_size = my_nobs[b];
+            quick_fuse_nns(sofar, batch_size, my_corrected_neighbors, my_corrected, *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
+            quick_fuse_nns(previous_ncorrected, lat_num, my_corrected_neighbors, my_corrected, *(my_indices[b]), my_num_neighbors, my_nthreads, sofar);
+            sofar += batch_size;
+        }
+        find_local_centers(my_corrected_neighbors, my_corrected_centers);
     }
 
 protected:
@@ -285,18 +297,27 @@ protected:
 
 public:
     void run(Float_ nmads, int robust_iterations, double robust_trim) {
+        std::vector<Index_> target_centers;
+        NeighborSet<Index_, Float_> target_neighbors;
+
         while (my_remaining.size()) {
             auto output = choose();
             auto target = output.first;
             auto target_num = my_nobs[target];
             auto target_data = my_batches[target];
 
+            target_neighbors.resize(target_num);
+            quick_find_nns<Index_, Float_>(*(my_indices[target]), my_num_neighbors, my_nthreads, target_neighbors, 0);
+            find_local_centers(target_neighbors, target_centers);
+
             correct_target(
                 my_ndim, 
                 my_ncorrected, 
                 my_corrected, 
+                my_corrected_centers,
                 target_num, 
                 target_data, 
+                target_centers,
                 output.second, 
                 my_builder,
                 my_num_neighbors,
@@ -304,7 +325,6 @@ public:
                 robust_iterations,
                 robust_trim,
                 my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim, // cast to size_t to avoid overflow.
-                my_nobs_cap,
                 my_nthreads
             );
 
