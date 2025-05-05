@@ -10,49 +10,37 @@
 #include <utility>
 #include <vector>
 
-//TEST(CorrectTarget, InvertNeighbors) {
-//    mnncorrect::internal::NeighborSet<int, double> nns(4);
-//    nns[0].emplace_back(4, 0.12); // distances are more-or-less random. 
-//    nns[0].emplace_back(2, 1);
-//    nns[0].emplace_back(1, 0.32);
-//
-//    nns[1].emplace_back(3, 0.5);
-//    nns[1].emplace_back(4, 1);
-//    nns[1].emplace_back(2, 0.3);
-//
-//    nns[2].emplace_back(0, 0.1);
-//    nns[3].emplace_back(4, 1);
-//
-//    auto inv = mnncorrect::internal::invert_neighbors(5, nns, 1000.0);
-//    EXPECT_EQ(inv.size(), 5);
-//    {
-//        std::vector<int> exp0 { 2 };
-//        EXPECT_EQ(inv[0], exp0);
-//        std::vector<int> exp1 { 0 };
-//        EXPECT_EQ(inv[1], exp1);
-//        std::vector<int> exp2 { 0, 1 };
-//        EXPECT_EQ(inv[2], exp2);
-//        std::vector<int> exp3 { 1 };
-//        EXPECT_EQ(inv[3], exp3);
-//        std::vector<int> exp4 { 0, 1, 3 };
-//        EXPECT_EQ(inv[4], exp4);
-//    }
-//
-//    auto inv2 = mnncorrect::internal::invert_neighbors(5, nns, 0.5);
-//    EXPECT_EQ(inv2.size(), 5);
-//    {
-//        std::vector<int> exp0 { 2 };
-//        EXPECT_EQ(inv2[0], exp0);
-//        std::vector<int> exp1 { 0 };
-//        EXPECT_EQ(inv2[1], exp1);
-//        std::vector<int> exp2 { 1 };
-//        EXPECT_EQ(inv2[2], exp2);
-//        std::vector<int> exp3 { 1 };
-//        EXPECT_EQ(inv2[3], exp3);
-//        std::vector<int> exp4 { 0 };
-//        EXPECT_EQ(inv2[4], exp4);
-//    }
-//}
+TEST(CorrectTarget, InvertNeighbors) {
+    mnncorrect::internal::NeighborSet<int, double> nns(4);
+    nns[0].emplace_back(4, 0.12); // distances are more-or-less random. 
+    nns[0].emplace_back(1, 0.32);
+    nns[0].emplace_back(2, 1);
+
+    nns[1].emplace_back(2, 0.3);
+    nns[1].emplace_back(3, 0.5);
+    nns[1].emplace_back(4, 1);
+
+    nns[2].emplace_back(0, 0.1);
+    nns[3].emplace_back(4, 0.01);
+
+    auto inv = mnncorrect::internal::invert_neighbors(5, nns, /* num_threads = */ 1);
+    EXPECT_EQ(inv.size(), 5);
+    {
+        std::vector<std::pair<int, double> > exp0 { { 2, 0.1 } };
+        EXPECT_EQ(inv[0], exp0);
+        std::vector<std::pair<int, double> > exp1 { { 0, 0.32 } };
+        EXPECT_EQ(inv[1], exp1);
+        std::vector<std::pair<int, double> > exp2 { { 1, 0.3 }, { 0, 1 } };
+        EXPECT_EQ(inv[2], exp2);
+        std::vector<std::pair<int, double> > exp3 { { 1, 0.5 } };
+        EXPECT_EQ(inv[3], exp3);
+        std::vector<std::pair<int, double> > exp4 { { 3, 0.01 }, { 0, 0.12 }, { 1, 1 } };
+        EXPECT_EQ(inv[4], exp4);
+    }
+
+    auto pinv = mnncorrect::internal::invert_neighbors(5, nns, /* num_threads = */ 3);
+    EXPECT_EQ(inv, pinv);
+}
 
 TEST(CorrectTarget, InvertIndices) {
     {
@@ -136,68 +124,67 @@ TEST_P(CorrectTargetTest, CappedFindNns) {
     EXPECT_EQ(pcap_out.second, cap_out.second);
 }
 
-//TEST_P(CorrectTargetTest, CenterOfMass) {
-//    mnncorrect::internal::RobustAverageOptions raopt(/* iterations = */ 2, /* trim = */ 0.2);
-//    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-//
-//    // Setting up the values for a reasonable comparison.
-//    auto left_mnn = mnncorrect::internal::unique_left(pairings);
-//    std::vector<double> buffer_left(left_mnn.size() * ndim);
-//    {
-//        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, buffer_left.data());
-//        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, left_mnn.size(), buffer_left.data()));
-//        auto closest_mnn = mnncorrect::internal::quick_find_nns(nleft, left.data(), *index, k, /* nthreads = */ 1);
-//        auto inverted = mnncorrect::internal::invert_neighbors(left_mnn.size(), closest_mnn, /* limit = */ 1e8);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), buffer_left.data(), raopt, /* nthreads = */ 1);
-//
-//        // Same results in parallel.
-//        std::vector<double> par_buffer_left(left_mnn.size() * ndim);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), par_buffer_left.data(), raopt, /* nthreads = */ 3);
-//        EXPECT_EQ(par_buffer_left, buffer_left);
-//    }
-//
-//    auto right_mnn = mnncorrect::internal::unique_right(pairings);
-//    std::vector<double> buffer_right(right_mnn.size() * ndim);
-//    {
-//        mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, buffer_right.data());
-//        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), buffer_right.data()));
-//        auto closest_mnn = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
-//        auto inverted = mnncorrect::internal::invert_neighbors(right_mnn.size(), closest_mnn, /* limit = */ 1e8);
-//        mnncorrect::internal::compute_center_of_mass(ndim, right_mnn, inverted, right.data(), buffer_right.data(), raopt, /* nthreads = */ 1);
-//    }
-//
-//    // Checking that the centroids are all close to the expected values.
-//    std::vector<double> left_means(ndim);
-//    for (std::size_t s = 0; s < left_mnn.size(); ++s) {
-//        for (int d = 0; d < ndim; ++d) {
-//            left_means[d] += buffer_left[s * ndim + d];
-//        }
-//    }
-//    for (auto m : left_means) {
-//        EXPECT_LT(std::abs(m / left_mnn.size()), 0.5);
-//    }
-//
-//    std::vector<double> right_means(ndim);
-//    for (std::size_t s = 0; s < right_mnn.size(); ++s) {
-//        for (int d = 0; d < ndim; ++d) {
-//            right_means[d] += buffer_right[s * ndim + d];
-//        }
-//    }
-//    for (auto m : right_means) {
-//        EXPECT_LT(std::abs(m / right_mnn.size() - 5), 0.5);
-//    }
-//
-//    // Center of mass calculations work correctly if it's all empty.
-//    {
-//        std::vector<std::vector<int> > empty_inverted(left_mnn.size());
-//        std::vector<double> empty_buffer_left(left_mnn.size() * ndim);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, empty_inverted, left.data(), empty_buffer_left.data(), raopt, /* nthreads = */ 1);
-//
-//        std::vector<double> expected(left_mnn.size() * ndim);
-//        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, expected.data());
-//        EXPECT_EQ(empty_buffer_left, expected);
-//    }
-//}
+TEST_P(CorrectTargetTest, CenterOfMass) {
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    // Setting up the values for a reasonable comparison.
+    auto left_mnn = mnncorrect::internal::unique_left(pairings);
+    std::vector<double> buffer_left(left_mnn.size() * ndim);
+    {
+        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, buffer_left.data());
+        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, left_mnn.size(), buffer_left.data()));
+        auto closest_mnn = mnncorrect::internal::quick_find_nns(nleft, left.data(), *index, k, /* nthreads = */ 1);
+        auto inverted = mnncorrect::internal::invert_neighbors(left_mnn.size(), closest_mnn, /* nthreads = */ 1);
+        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), buffer_left.data(), /* minimum_required = */ k, /*  num_mads = */ 3, /* nthreads = */ 1);
+
+        // Same results in parallel.
+        std::vector<double> par_buffer_left(left_mnn.size() * ndim);
+        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), par_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 3);
+        EXPECT_EQ(par_buffer_left, buffer_left);
+    }
+
+    auto right_mnn = mnncorrect::internal::unique_right(pairings);
+    std::vector<double> buffer_right(right_mnn.size() * ndim);
+    {
+        mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, buffer_right.data());
+        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), buffer_right.data()));
+        auto closest_mnn = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
+        auto inverted = mnncorrect::internal::invert_neighbors(right_mnn.size(), closest_mnn, /* nthreads = */ 1);
+        mnncorrect::internal::compute_center_of_mass(ndim, right_mnn, inverted, right.data(), buffer_right.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
+    }
+
+    // Checking that the centroids are all close to the expected values.
+    std::vector<double> left_means(ndim);
+    for (std::size_t s = 0; s < left_mnn.size(); ++s) {
+        for (int d = 0; d < ndim; ++d) {
+            left_means[d] += buffer_left[s * ndim + d];
+        }
+    }
+    for (auto m : left_means) {
+        EXPECT_LT(std::abs(m / left_mnn.size()), 0.5);
+    }
+
+    std::vector<double> right_means(ndim);
+    for (std::size_t s = 0; s < right_mnn.size(); ++s) {
+        for (int d = 0; d < ndim; ++d) {
+            right_means[d] += buffer_right[s * ndim + d];
+        }
+    }
+    for (auto m : right_means) {
+        EXPECT_LT(std::abs(m / right_mnn.size() - 5), 0.5);
+    }
+
+    // Center of mass calculations work correctly if it's all empty.
+    {
+        mnncorrect::internal::NeighborSet<int, double> empty_inverted(left_mnn.size());
+        std::vector<double> empty_buffer_left(left_mnn.size() * ndim);
+        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, empty_inverted, left.data(), empty_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
+
+        std::vector<double> expected(left_mnn.size() * ndim);
+        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, expected.data());
+        EXPECT_EQ(empty_buffer_left, expected);
+    }
+}
 
 TEST_P(CorrectTargetTest, Correction) {
     double nmads = 3;
