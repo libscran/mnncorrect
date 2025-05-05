@@ -15,6 +15,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
+#include <iostream>
 
 namespace mnncorrect {
 
@@ -78,9 +79,18 @@ NeighborSet<Index_, Distance_> invert_neighbors(std::size_t n, const NeighborSet
     }
     parallelize(nthreads, n, [&](int, Index_ start, Index_ length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
-            std::sort(output[i].begin(), output[i].end(), [](const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) -> bool {
-                return left.second < right.second;
-            });
+            auto& curout = output[i];
+            std::sort(
+                curout.begin(),
+                curout.end(),
+                [](const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) -> bool {
+                    if (left.second == right.second) {
+                        return left.first < right.first;
+                    } else {
+                        return left.second < right.second;
+                    }
+                }
+            );
         }
     });
     return output;
@@ -134,13 +144,15 @@ void compute_center_of_mass(
             std::fill(mean.begin(), mean.end(), 0);
             std::fill(sum_squares.begin(), sum_squares.end(), 0);
             Index_ counter = 0;
+
             for (auto nn : inv) {
                 auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
 
                 if (counter > minimum_required) {
                     bool not_okay = false;
+                    Float_ multiplier = nmads / std::sqrt(counter - 1.0);
                     for (std::size_t d = 0; d < ndim; ++d) {
-                        if (std::abs(mean[d] - target[d]) > nmads * std::sqrt(sum_squares[d] / (counter - 1))) {
+                        if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
                             not_okay = true;
                             break;
                         }
