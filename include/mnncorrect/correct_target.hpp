@@ -15,7 +15,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
-#include <iostream>
 
 namespace mnncorrect {
 
@@ -148,7 +147,7 @@ void compute_center_of_mass(
             for (auto nn : inv) {
                 auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
 
-                if (counter > minimum_required) {
+                if (counter >= minimum_required) {
                     bool not_okay = false;
                     Float_ multiplier = nmads / std::sqrt(counter - 1.0);
                     for (std::size_t d = 0; d < ndim; ++d) {

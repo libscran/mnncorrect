@@ -2,8 +2,8 @@
 #' @importFrom BiocNeighbors findMutualNN queryKNN
 mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, mass.cap=0) {
     pairings <- findMutualNN(t(ref), t(target), k1=k)
-    mnn.r <- unique(pairings$first)
-    mnn.t <- unique(pairings$second)
+    mnn.r <- sort(unique(pairings$first))
+    mnn.t <- sort(unique(pairings$second))
 
     # Computing centers of mass for each MNN-involved cell.
     r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, mass.cap=mass.cap)
@@ -42,7 +42,6 @@ center_of_mass <- function(y, mnn, k, nmads, mass.cap) {
     } else {
         chosen <- floor(head(seq(from=1, to=ncol(y)+1, length.out=mass.cap+1), -1))
         closest <- queryKNN(query=ty[chosen,,drop=FALSE], X=ty[mnn,,drop=FALSE], k=k)
-        closest$index[] <- chosen[closest$index]
     }
 
     idx <- closest$index
