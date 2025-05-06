@@ -2,14 +2,14 @@
 #' @importFrom BiocNeighbors findMutualNN queryKNN
 mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, mass.cap=0) {
     pairings <- findMutualNN(t(ref), t(target), k1=k)
-    mnn.r <- unique(pairings$first)
-    mnn.t <- unique(pairings$second)
+    mnn.r <- sort(unique(pairings$first))
+    mnn.t <- sort(unique(pairings$second))
 
     # Computing centers of mass for each MNN-involved cell.
-    r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, iterations=iterations, trim=trim, mass.cap=mass.cap)
+    r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, mass.cap=mass.cap)
     centers.r <- r.out$centers
 
-    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, iterations=iterations, trim=trim, mass.cap=0)
+    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, mass.cap=0)
     closest.t <- t.out$closest
     centers.t <- t.out$centers
 
@@ -23,16 +23,17 @@ mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, 
 
         candidates <- centers.r[,match(used.ref, mnn.r),drop=FALSE] - centers.t[,match(used.target, mnn.t),drop=FALSE]
         correction <- robust_centroid(candidates, iterations=iterations, trim=trim) 
-        
+
         target[,x] <- target[,x] + correction
     }
 
     target 
 }
 
+#' @importFrom utils head tail
 #' @importFrom stats median mad
 #' @importFrom BiocNeighbors queryKNN
-center_of_mass <- function(y, mnn, k, nmads, iterations, trim, mass.cap) {
+center_of_mass <- function(y, mnn, k, nmads, mass.cap) {
     ty <- t(y)
 
     if (mass.cap <= 0 || ncol(y) <= mass.cap) {
@@ -43,17 +44,35 @@ center_of_mass <- function(y, mnn, k, nmads, iterations, trim, mass.cap) {
         closest <- queryKNN(query=ty[chosen,,drop=FALSE], X=ty[mnn,,drop=FALSE], k=k)
     }
 
-    limit <- median(closest$distance) + mad(closest$distance) * nmads
-
     idx <- closest$index
-    idx[closest$distance > limit] <- NA
     neighbors <- split(rep(chosen, k), idx)
+    min.required <- k
 
     centers <- y[,mnn,drop=FALSE] # the center of mass for any MNN-involved point without neighbors is just itself.
     for (i in names(neighbors)) {
         curneighbors <- neighbors[[i]]
         candidates <- y[,curneighbors,drop=FALSE]
-        centers[,as.integer(i)] <- robust_centroid(candidates, iterations=iterations, trim=trim)
+
+        dist2i <- colSums((candidates - centers[,as.integer(i)])^2)
+        o <- order(dist2i)
+
+        for_sure <- candidates[,head(o, min.required),drop=FALSE]
+        curmean <- rowMeans(for_sure)
+        curss2 <- rowSums((for_sure - curmean) ^ 2)
+
+        counter <- ncol(for_sure)
+        for (x in tail(o, -min.required)) {
+            curval <- candidates[,x]
+            delta <- curval - curmean
+            if (any(abs(delta) > nmads * sqrt(curss2 / (counter - 1))))  {
+                next
+            }
+            counter <- counter + 1L
+            curmean <- curmean + delta / counter
+            curss2 <- curss2 + delta * (curval - curmean)
+        }
+
+        centers[,as.integer(i)] <- curmean
     }
 
     list(closest=closest, centers=centers)

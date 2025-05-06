@@ -329,3 +329,81 @@ INSTANTIATE_TEST_SUITE_P(
         )
     )
 );
+
+TEST(Overall, Sanity) {
+    int ndim = 4;
+    std::vector<int> sizes{ 300, 400 }; // , 110 };
+    auto nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
+    auto data = scran_tests::simulate_vector(nobs * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.seed = 9999;
+        sparams.lower = -0.5;
+        sparams.upper = 0.5;
+        return sparams;
+    }());
+
+    constexpr double batch_multiplier = 10, within_multiplier = 20;
+    std::vector<const double*> ptrs(sizes.size());
+    std::size_t sofar = 0;
+    for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
+        auto current = data.data() + sofar;
+        auto len = sizes[b]; 
+        for (int c = 0; c < len; ++c) {
+            current[c * ndim] += batch_multiplier * b; // first dimension represents the batch effect.
+            current[c * ndim + b + 1] += (c % 2 == 1) * within_multiplier; // some other dimension represents within-batch structure, shifted for every second observation.
+        }
+        ptrs[b] = current;
+        sofar += ndim * len;
+    }
+
+    std::vector<double> output(ndim * nobs);
+    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{ 
+        mnncorrect::Options<int, double> opt;
+        opt.automatic_order = false;
+        return opt;
+    }());
+
+    size_t refbatch = ordering.merge_order.front();
+
+    sofar = 0;
+    for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
+        auto len = sizes[b];
+        auto ptr = output.data() + sofar;
+        std::vector<double> common(ndim);
+        std::vector<double> unique(ndim);
+
+        // Check that the differences in the mean for each common population are much less than the
+        // range of simulated values within each batch (-2 to 2) in each dimension.
+        for (int s = 0; s < len; ++s) {
+            auto cptr = (s % 2 == 0 ? common.data() : unique.data());
+            for (int d = 0; d < ndim; ++d) {
+                cptr[d] += ptr[d];                
+            }
+            ptr += ndim;
+        }
+
+        for (int d = 0; d < ndim; ++d) {
+            double expected = 0;
+            if (d == 0) {
+                expected = refbatch * batch_multiplier;
+            }
+            auto mean = common[d]/(len/2.0);
+            double err = std::abs(mean - expected);
+            EXPECT_LT(err, 1); // The upper bound on this threshold is 4 (-2 to 2) but we are more stringent here.
+        }
+
+        for (int d = 0; d < ndim; ++d) {
+            double expected = 0;
+            if (d == 0) {
+                expected = refbatch * batch_multiplier;
+            } else if (static_cast<std::size_t>(d) == b + 1) {
+                expected = within_multiplier;
+            }
+            auto mean = unique[d]/(len/2.0);
+            double err = std::abs(mean - expected);
+            EXPECT_LT(err, 1); // The upper bound on this threshold is 4 (-2 to 2) but we are more stringent here.
+        }
+
+        sofar += ndim * len;
+    }
+}
