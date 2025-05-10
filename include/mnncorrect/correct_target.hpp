@@ -4,9 +4,7 @@
 #include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "fuse_nn_results.hpp"
-#include "find_mutual_nns.hpp"
-#include "robust_average.hpp"
+#include "populate_cross_neighbors.hpp"
 #include "parallelize.hpp"
 
 #include <algorithm>
@@ -21,63 +19,164 @@ namespace mnncorrect {
 
 namespace internal {
 
-template<typename Index_, typename Float_> 
-void subset_to_mnns(std::size_t ndim, const Float_* data, const std::vector<Index_>& in_mnn, Float_* buffer) {
+template<typename Index_, typename Float_>
+struct CorrectTargetWorkspace {
+    std::vector<Float_> ref_buffer, target_buffer;
+    NeighborSet<Index_, Float_> neighbor_from, neighbor_to;
+    std::vector<Index_> mapping;
+    std::vector<Float_> ref_var_buffer, target_var_buffer; 
+};
+
+template<typename Index_, typename Float_, class Matrix_> 
+std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_index(
+    std::size_t ndim,
+    const Float_* data,
+    const std::vector<Index_>& in_mnn,
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
+    std::vector<Float_>& buffer)
+{
     auto num_in_mnn = in_mnn.size();
+    buffer.resize(ndim * static_cast<std::size_t>(num_in_mnn));
     for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
         auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * ndim; // cast to size_t's to avoid overflow.
-        std::copy_n(curdata, ndim, buffer + static_cast<std::size_t>(f) * ndim); // also casting to avoid overflow.
+        std::copy_n(curdata, ndim, buffer.begin() + static_cast<std::size_t>(f) * ndim); // also casting to avoid overflow.
+    }
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, uniq.size(), buffer.data()));
+}
+
+// Ensure each MNN-involved observation is part of its own neighbor set,
+// for simplicity. This is also more consistent with the expectation that
+// 'num_neighbors' is the lower bound on any subpopulation size; if we
+// excluded the self-neighbor, the lower bound with be 'num_neighbors + 1'.
+template<typename Index_, typename Float_>
+void force_self(std::vector<std::pair<Index_, Float_> >& current_neighbors, Index_ self, int num_neighbors) { 
+    for (const auto& y : current_neighbors) {
+        // Technically we could break out if y.second is not 0. But we should
+        // aim to be robust against NN algorithms where the distance to self is
+        // not exactly zero due to numerical precision issues.
+        if (y.first == self) {
+            return;
+        }
+    }
+
+    if (current_neighbors.size() == static_cast<std::size_t>(num_neighbors)) {
+        current_neighbors.pop_back(); // pop first to avoid re-allocation. 
+    }
+    current_neighbors.insert(current_neighbors.begin(), std::pair<Index_, Float_>(self, 0));
+}
+
+// Find all neighbors of each MNN-involved observation, only in its corresponding metabatch (i.e., reference or target). 
+// Here, 'output' will contain neighbor indices relative to the entire dataset.
+template<typename Index_, typename Float_>
+void search_for_neighbors_from_mnns(
+    Index_ num_total,
+    const std::vector<Index_>& ref_mnns_unique,
+    const std::vector<Index_>& target_mnns,
+    const Float_* data,
+    const std::vector<BatchInfo<Index_, Float_> >& references,
+    const BatchInfo<Index_, Float_>& target,
+    int num_neighbors,
+    int num_threads,
+    NeighborSet<Index_, Float_>& output)
+{
+    output.resize(num_total);
+    populate_batch_neighbors<Index_, Float_>(
+        target_mnns.size(),
+        [&](Index_ i) -> Index_ { return target_mnn[i]; },
+        data,
+        target,
+        num_neighbors,
+        false,
+        num_threads,
+        output
+    );
+    for (auto t : target_mnns) {
+        force_self(output[t], t, num_neighbors);
+    }
+
+    for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
+        populate_batch_neighbors<Index_, Float_>(
+            ref_mnns_unique.size(),
+            [&](Index_ i) -> Index_ { return ref_mnns_unique[i]; },
+            data,
+            references[b],
+            num_neighbors,
+            b > 0,
+            num_threads,
+            output
+        );
+    }
+    for (auto r : ref_mnns_unique) {
+        force_self(output[r], r, num_neighbors);
     }
 }
 
-template<typename Index_>
-Index_ capped_index(Index_ i, double gap) {
-    return static_cast<double>(i) * gap; // truncation.
-}
-
+// Find the MNN-involved observations that are neighbors of each observation in its corresponding metabatch (i.e., reference or target). 
+// Here, 'output' will contain neighbor indices relative to the subset of MNNs, i.e., 'mnns[output[0][0].first]' is the original index.
 template<typename Index_, typename Float_>
-std::pair<double, NeighborSet<Index_, Float_> > capped_find_nns(
-    Index_ nobs,
+void search_for_neighbors_to_mnns(
+    const std::vector<Index_>& ids,
     const Float_* data,
-    const knncolle::Prebuilt<Index_, Float_, Float_>& index,
-    int k,
-    Index_ mass_cap,
-    [[maybe_unused]] int nthreads) 
+    const std::vector<Index_>& mnns,
+    const knncolle::Prebuilt<Index_, Float_, Float_>& mnn_index,
+    int num_neighbors,
+    int num_threads,
+    NeighborSet<Index_, Float_>& output)
 {
-    // This function should only be called if nobs > mass_cap, so the gap is
-    // guaranteed to be > 1 here; there's no chance of jobs overlapping if
-    // we apply any type of truncation or rounding.
-    assert(nobs > mass_cap);
-    double gap = static_cast<double>(nobs) / mass_cap; 
-
-    NeighborSet<Index_, Float_> output(mass_cap);
-    std::size_t ndim = index.num_dimensions();
-
-    parallelize(nthreads, mass_cap, [&](int, Index_ start, Index_ length) -> void {
+    Index_ num_obs = ids.size();
+    parallelize(num_threads, num_obs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
-        auto searcher = index.initialize();
+        auto searcher = mnn_index->initialize();
 
-        for (Index_ raw_o = start, end = start + length; raw_o < end; ++raw_o) {
-            Index_ o = capped_index(raw_o, gap);
-            searcher->search(data + static_cast<std::size_t>(o) * ndim, k, &indices, &distances);
-            fill_pair_vector(indices, distances, output[raw_o]);
+        for (Index_ l = start, end = start + length; l < end; ++l) {
+            auto k = ids[l];
+            auto ptr = data + static_cast<std::size_t>(k) * ndim;
+            searcher->search(ptr, num_neighbors, &indices, &distances);
+            auto& curnn = output[k];
+            fill_pair_vector(indices, distances, curnn);
         }
     });
 
-    return std::make_pair(gap, std::move(output));
+    for (Index_ m = 0, mend = mnns.size(); m < mend; ++m) {
+        force_self(output[mnns[m]], m, num_neighbors);
+    }
 }
 
+template<typename Index_, typename Float_>
+void search_for_neighbors_to_mnns(
+    Index_ num_total,
+    const std::vector<Index_>& ref_ids,
+    const std::vector<Index_>& target_ids,
+    const Float_* data,
+    const std::vector<Index_>& ref_mnns_unique,
+    const knncolle::Prebuilt<Index_, Float_, Float_>& ref_mnn_index,
+    const std::vector<Index_>& target_mnns,
+    const knncolle::Prebuilt<Index_, Float_, Float_>& target_mnn_index,
+    int num_neighbors,
+    int num_threads,
+    NeighborSet<Index_, Float_>& output)
+{
+    output.resize(num_total);
+    search_for_neighbors_to_mnns(ref_ids, data, ref_mnns_unique, ref_mnn_index, num_neighbors, num_threads, output);
+    search_for_neighbors_to_mnns(target_ids, data, target_mnns, target_mnn_index, num_neighbors, num_threads, output);
+}
+
+// Here, output contains indices relative to the entire dataset again.  We
+// return a NeighborSet rather than reusing it, because the inner vectors could
+// be arbitrarily long and of variable length between merge steps; we want to
+// avoid accumulating very long allocations for the inner vectors.
 template<typename Index_, typename Distance_>
-NeighborSet<Index_, Distance_> invert_neighbors(std::size_t n, const NeighborSet<Index_, Distance_>& neighbors, int nthreads) {
-    NeighborSet<Index_, Distance_> output(n);
-    Index_ n2 = neighbors.size();
-    for (Index_ i = 0; i < n2; ++i) {
+NeighborSet<Index_, Distance_> invert_neighbors(Index_ num_mnns, const std::vector<Index_>& in_batch, const NeighborSet<Index_, Distance_>& neighbors, int num_threads) {
+    NeighborSet<Index_, Distance_> output(num_mnns);
+    Index_ num_in_batch = in_batch.size();
+    for (Index_ i = 0; i < num_in_batch; ++i) {
         for (const auto& x : neighbors[i]) {
             output[x.first].emplace_back(i, x.second);
         }
     }
-    parallelize(nthreads, n, [&](int, Index_ start, Index_ length) -> void {
+
+    parallelize(num_threads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
             auto& curout = output[i];
             std::sort(
@@ -93,50 +192,31 @@ NeighborSet<Index_, Distance_> invert_neighbors(std::size_t n, const NeighborSet
             );
         }
     });
-    return output;
-}
 
-template<typename Index_>
-std::vector<Index_> invert_indices(std::size_t n, const std::vector<Index_>& uniq) {
-    std::vector<Index_> output(n, static_cast<Index_>(-1)); // any value is fine, we don't check this anyway.
-    Index_ num_uniq = uniq.size();
-    for (Index_ u = 0; u < num_uniq; ++u) {
-        output[uniq[u]] = u;
-    }
     return output;
 }
 
 template<typename Index_, typename Float_>
-void compute_center_of_mass(
+void compute_initial_center_of_mass(
     std::size_t ndim,
-    const std::vector<Index_>& mnn_ids,
-    const NeighborSet<Index_, Float_>& mnn_neighbors,
+    const std::vector<Index_>& mnns,
+    const NeighborSet<Index_, Float_>& neighbors,
     const Float_* data,
-    Float_* buffer,
-    Index_ minimum_required,
-    double nmads,
-    int nthreads)
+    int num_threads,
+    double tolerance,
+    std::vector<double>& running_mean,
+    std::vector<double>& running_variance)
 {
-    Index_ num_mnns = mnn_ids.size();
+    Index_ num_mnns = mnns.size();
+    running_mean.resize(static_cast<std::size_t>(num_mnns) * ndim);
+    running_variance.resize(running_mean.size());
 
     parallelize(nthreads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> mean(ndim), sum_squares(ndim);
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
-            const auto& inv = mnn_neighbors[g];
-            auto output = buffer + static_cast<std::size_t>(g) * ndim; // cast to avoid overflow.
-
-            // Usually, the MNN is always included in its own neighbor list.
-            // However, this may not be the case if a cap is applied. We don't
-            // want to force it into the neighbor list, because that biases the
-            // subsample towards the MNN (thus causing kissing effects). So, in
-            // the unfortunate case when the MNN's neighbor list is empty, we
-            // fall back to just setting the center of mass to the MNN itself.
-//            if (inv.empty()) {
-                auto ptr = data + static_cast<std::size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
-                std::copy_n(ptr, ndim, output);
-                continue;
-//            }
+            auto m = mnns[g];
+            const auto& inv = neighbors[m];
 
             // Using Welford's algorithm to compute the running mean and
             // variance around the current center of mass. We filter out
@@ -148,20 +228,6 @@ void compute_center_of_mass(
             for (auto nn : inv) {
                 auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
 
-                if (counter > minimum_required) {
-                    bool not_okay = false;
-                    Float_ multiplier = nmads / std::sqrt(counter - 1.0);
-                    for (std::size_t d = 0; d < ndim; ++d) {
-                        if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
-                            not_okay = true;
-                            break;
-                        }
-                    }
-                    if (not_okay) {
-                        continue;
-                    }
-                }
-
                 ++counter;
                 for (std::size_t d = 0; d < ndim; ++d) {
                     auto val = target[d];
@@ -172,132 +238,89 @@ void compute_center_of_mass(
                 }
             }
 
-            std::copy(mean.begin(), mean.end(), output);
+            std::size_t output_offset = ndim * static_cast<std::size_t>(g);
+            std::copy(mean.begin(), mean.end(), running_mean.begin() + output_offset);
+            std::copy(sum_squares.begin(), sum_squares.end(), running_variance.begin() + output_offset);
         }
     });
 
     return;
 }
 
-template<typename Index_, typename Float_, typename Matrix_>
+template<typename Index_, typename Float_>
 void correct_target(
-    std::size_t ndim, 
-    Index_ nref, 
-    const Float_* ref, 
-    Index_ ntarget, 
-    const Float_* target, 
-    const MnnPairs<Index_>& pairings, 
+    Index_ num_total,
+    const std::vector<BatchInfo<Index_, Float_> >& references,
+    const std::vector<Index_>& ref_ids,
+    const BatchInfo<Index_, Float_>& target,
+    const std::vector<Index_>& target_ids,
+    Float_* data,
+    const FindClosestMnnWorkspace<Index_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
-    int k, 
-    Float_ nmads,
-    int robust_iterations,
-    double robust_trim, // yes, this is a double, not a Float_. Doesn't really matter given where we're using it.
-    Float_* output,
-    Index_ mass_cap,
-    int nthreads) 
+    int num_neighbors,
+    int num_threads,
+    double tolerance,
+    CorrectTargetWorkspace<Index_, Float_>& workspace) 
 {
-    auto uniq_mnn_ref = unique_left(pairings);
-    auto uniq_mnn_target = unique_right(pairings);
-
-    // Parallelized building of the MNN-only indices.
-    std::vector<Float_> buffer_ref(uniq_mnn_ref.size() * ndim);
-    std::vector<Float_> buffer_target(uniq_mnn_target.size() * ndim);
-    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index_ref, index_target;
-
+    // Build this first so that we can re-use the ref_buffers and target_buffers for the center of mass calculations.
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > ref_mnn_index;
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > target_mnn_index;
     parallelize(nthreads, 2, [&](int, int start, int length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
-            auto obs_ptr = (opt == 0 ? ref : target);
-            const auto& uniq = (opt == 0 ? uniq_mnn_ref : uniq_mnn_target);
-            auto& buffer = (opt == 0 ? buffer_ref : buffer_target);
-            auto& index = (opt == 0 ? index_ref : index_target);
-            subset_to_mnns(ndim, obs_ptr, uniq, buffer.data());
-            index = builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, uniq.size(), buffer.data()));
+            const auto& uniq = (opt == 0 ? mnns.ref_mnns_unique : mnns.target_mnns);
+            auto& buffer = (opt == 0 ? workspace.ref_buffer : workspace.target_buffer);
+            auto& index = (opt == 0 ? ref_mnn_index: target_mnn_index);
+            index = build_mnn_only_index(ndim, data, uniq, builder, buffer);
         }
     });
 
-    // Finding the closest MNN-involved point for each point in the reference
-    // dataset. If 'mass_cap' is smaller than 'nobs', we only do this search
-    // for every x-th point where 'x = nobs / mass_cap'; this subsamples the
-    // reference to save time in the mass calculation. In particular, this
-    // amortizes the cost of the mass calculation over multiple merge steps to
-    // counter the growth of the reference itself after each step (which would
-    // otherwise cause each mass calculation to take longer).
-    bool is_capped = mass_cap > 0 && mass_cap < nref;
-    double gap = 0;
-    NeighborSet<Index_, Float_> closest_mnn_ref;
-    if (is_capped) {
-        auto capped_out = capped_find_nns(nref, ref, *index_ref, k, mass_cap, nthreads);
-        gap = capped_out.first;
-        closest_mnn_ref = std::move(capped_out.second);
-    } else {
-        closest_mnn_ref = quick_find_nns(nref, ref, *index_ref, k, nthreads);
+    workspace.mapping.resize(num_total);
+    for (decltype(mnns.ref_ids.size()) rx = 0, rend = mnns.ref_ids.size(); r < rend; ++r) {
+        workspace.mapping[mnns.ref_ids[rx]] = rx;
     }
-    index_ref.reset();
-
-    // Don't apply the cap when searching for the closest MNN to each target
-    // point, as we need the MNN-neighbor information for each target point to
-    // compute its correction. Besides, the cap is only intended to avoid
-    // issues with the growth of the reference.
-    auto closest_mnn_target = quick_find_nns(ntarget, target, *index_target, k, nthreads);
-    index_target.reset();
-
-    // Computing the centers of mass. We reuse the buffers to store the center coordinates.
-    {
-        auto ref_inverted = invert_neighbors(uniq_mnn_ref.size(), closest_mnn_ref, nthreads);
-        if (is_capped) {
-            for (auto& ref_neighbors : ref_inverted) {
-                for (auto& x : ref_neighbors) {
-                    x.first = capped_index(x.first, gap);
-                }
-            }
-        }
-        compute_center_of_mass(ndim, uniq_mnn_ref, ref_inverted, ref, buffer_ref.data(), k, nmads, nthreads);
-
-        auto target_inverted = invert_neighbors(uniq_mnn_target.size(), closest_mnn_target, nthreads);
-        compute_center_of_mass(ndim, uniq_mnn_target, target_inverted, target, buffer_target.data(), k, nmads, nthreads);
+    for (decltype(mnns.target_ids.size()) tx = 0, tend = mnns.target_ids.size(); t < tend; ++t) {
+        workspace.mapping[mnns.target_ids[tx]] = tx;
     }
 
-    auto remap_ref = invert_indices(nref, uniq_mnn_ref);
+    // Computing an initial center of mass for each MNN-involved observation.
+    search_for_neighbors_from_mnns(
+        num_total,
+        mnns.ref_mnns_unique,
+        mnns.target_mnns,
+        data,
+        mnn_indices.ref_index,
+        mnn_indices.target_index,
+        num_neighbors,
+        num_threads,
+        workspace.neighbors_from
+    );
+    compute_initial_center_of_mass(mnns.ref_mnns_unique, workspace.neighbors, data, workspace.ref_buffer, num_threads, workspace.ref_var_buffer);
+    compute_initial_center_of_mass(mnns.target_mnns, workspace.neighbors, data, workspace.target_buffer, num_threads, workspace.target_var_buffer);
 
-    // Computing the correction vector for each target point as a robust
-    // average of the correction vectors for the closest MNN-involved cells,
-    // and then applying it to the target data.
-    RobustAverageOptions raopt(robust_iterations, robust_trim);
-    parallelize(nthreads, ntarget, [&](int, Index_ start, Index_ length) -> void {
-        std::vector<Float_> corrections;
-        RobustAverageWorkspace<Float_> rawork;
+    // Find the closest MNN-involved observation(s) to each observation in either metabatch.
+    search_for_neighbors_to_mnns(
+        num_total,
+        ref_ids,
+        target_ids,
+        data,
+        mnns.ref_mnns_unique,
+        ref_mnn_index,
+        mnns.target_mnns,
+        target_mnn_index,
+        num_neighbors,
+        num_threads,
+        workspace.neighbors_to
+    );
 
-        for (Index_ t = start, end = start + length; t < end; ++t) {
-            const auto& target_closest = closest_mnn_target[t];
-            corrections.clear();
-            decltype(corrections.size()) ncorrections = 0; // the number of correction vectors (i.e., pairs), which could be larger than the number of observations and beyond an Index_.
+    // Refining the center of mass.
+    auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), ref_ids, workspace.neighbors_to, num_threads);
+    auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), target_ids, workspace.neighbors_to, num_threads);
+    refine_center_of_mass(mnns.ref_mnns_unique, correct_workspace.neighbors, data, correct_workspace.ref_buffer, num_threads, correct_workspace.ref_var_buffer);
+    refine_center_of_mass(mnns.target_mnns, correct_workspace.neighbors, data, correct_workspace.target_buffer, num_threads, correct_workspace.target_var_buffer);
 
-            for (const auto& tc : target_closest) {
-                const Float_* ptptr = buffer_target.data() + static_cast<std::size_t>(tc.first) * ndim; // cast to avoid overflow.
-                const auto& ref_partners = pairings.matches.at(uniq_mnn_target[tc.first]);
+    // Apply the correction in the target based on its closest MNN-involved cell, and report the index of the closest MNN-involved cell.
 
-                auto old_size = corrections.size();
-                std::size_t num_to_add = ref_partners.size();
-                corrections.insert( // unlike resize(), insert() gives us a chance to bad_alloc() if the request exceeds the max capacity of std::vector.
-                    corrections.end(),
-                    num_to_add * ndim, // both size_t's no need to cast.
-                    static_cast<Float_>(0)
-                );
-                auto corptr = corrections.data() + old_size; // make sure this is after the insert(), otherwise we could invalidate on reallocation.
-                ncorrections += num_to_add;
-
-                for (auto rp : ref_partners) {
-                    const Float_* prptr = buffer_ref.data() + static_cast<std::size_t>(remap_ref[rp]) * ndim; // cast to avoid overflow.
-                    for (std::size_t d = 0; d < ndim; ++d) {
-                        corptr[d] = prptr[d] - ptptr[d];
-                    }
-                    corptr += ndim;
-                }
-            }
-
-            std::size_t toffset = static_cast<std::size_t>(t) * ndim; // cast to avoid overflow.
-            auto optr = output + toffset;
-            robust_average(ndim, ncorrections, corrections.data(), optr, rawork, raopt);
+}
 
             auto tptr = target + toffset;
             for (std::size_t d = 0; d < ndim; ++d) {

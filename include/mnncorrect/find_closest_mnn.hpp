@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <algorithm>
-#include <limits>
 
 #include "utils.hpp"
 
@@ -13,9 +12,9 @@ namespace internal {
 
 template<typename Index_, typename Float_>
 struct FindClosestMnnWorkspace {
-    std::vector<Index_> ref_mnns;
-    std::vector<Index_> target_mnns;
-    std::vector<Index_> ref_mnns_unique;
+    std::vector<Index_> target_mnns; // observation of the target metabatch in the MNN pair.
+    std::vector<Index_> ref_mnns_partner; // 1:1 with target_mnns, specifying the other observation of the MNN pair.
+    std::vector<Index_> ref_mnns_unique; // unique and sorted version of 'ref_mnns_partner'
 
     std::vector<std::vector<Index_> > reverse_neighbor_buffer;
     std::vector<unsigned char> ref_mnn_buffer;
@@ -32,30 +31,29 @@ void find_closest_mnn(
     const std::vector<Index_>& target_ids,
     FindClosestMnnWorkspace<Index_, Float_>& workspace)
 {
-    Index_ num_ref = ref_ids.size();
-    Index_ num_target = target_ids.size();
+    auto num_total = neighbors.size();
+    for (auto& rev : workspace.reverse_neighbor_buffer) {
+        rev.clear();
+    }
+    workspace.reverse_neighbor_buffer.resize(num_total);
+    std::fill(workspace.last_checked.begin(), workspace.last_checked.end(), 0);
+    workspace.last_checked.resize(num_total);
 
-    workspace.reverse_neighbor_buffer.resize(neighbors.size());
-    workspace.last_checked.clear();
-    workspace.last_checked.resize(neighbors.size());
-
-    workspace.ref_mnns.clear();
+    workspace.ref_mnns_partner.clear();
     workspace.target_mnns.clear();
 
     for (auto t : target_ids) {
         const auto& tvals = neighbors[t];
         bool best_found = false;
         Index_ best_ref = 0;
-        Float_ best_distance = std::numeric_limits<Float_>::max();
 
         // tvals should be sorted by distance, so we can quit early when
-        // we find the closest MNN.
+        // we find the first (and thus closest) MNN.
         for (auto tpair : tvals) {
             auto tneighbor = tpair.first;
             auto& other = workspace.reverse_neighbor_buffer[tneighbor];
 
-            if (other.empty()) {
-                // Only instantiate this when needed.
+            if (other.empty()) { // Only instantiate this when needed.
                 const auto& rvals = neighbors[tneighbor];
                 if (!rvals.empty()) {
                     other.reserve(rvals.size());
@@ -66,41 +64,40 @@ void find_closest_mnn(
                 }
             }
 
-            // Picking up our search from the last position; we don't need to
-            // search earlier indices, because there were already processed
-            // by an earlier iteration of 'r'.
+            // Picking up our search from the last checked position; we don't
+            // need to search earlier indices, because there were already
+            // processed by an earlier iteration of 't'.
             auto& position = workspace.last_checked[tneighbor];
             Index_ num_other = other.size();
             for (; position < num_other; ++position) {
                 if (other[position] >= t) {
                     if (other[position] == t) {
-                        if (best_distance <= tpair.second) {
-                            best_ref = tpair.first;
-                            best_found = true;
-                            break;
-                        }
+                        best_ref = tpair.first;
+                        best_found = true;
+                        break;
                     }
                 }
             }
 
             if (best_found) {
                 workspace.target_mnns.push_back(t);
-                workspace.ref_mnns.push_back(rbest);
+                workspace.ref_mnns_partner.push_back(best_ref);
                 break;
             }
         }
     }
 
     // Uniquifying.
-    workspace.ref_mnn_buffer.clear();
-    workspace.ref_mnn_buffer.resize(neighbors.size());
-    for (auto r : ref_mnns) {
+    std::fill(workspace.ref_mnn_buffer.begin(), workspace.ref_mnn_buffer.end(), false);
+    workspace.ref_mnn_buffer.resize(num_total);
+    for (auto r : ref_mnns_partner) {
         ref_mnn_buffer[r] = true;
     }
-    Index_ n = ref_mnn_buffer.size();
     workspace.ref_mnns_unique.clear();
-    for (Index_ r = 0; r < n; ++r) {
-        ref_mnns_unique.push_back(r);
+    for (Index_ r = 0, end = ref_mnn_buffer.size(); r < end; ++r) {
+        if (ref_mnn_buffer[r]) {
+            ref_mnns_unique.push_back(r);
+        }
     }
 }
 

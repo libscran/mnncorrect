@@ -14,48 +14,55 @@ namespace mnncorrect {
 
 namespace internal {
 
+template<typename Index_, typename Float_>
+struct PopulateCrossNeighborsWorkspace {
+    NeighborSet<Index_, Float_> neighbors;
+    std::vector<Index_> ref_ids, target_ids;
+    std::vector<BatchIndex> batch;
+};
+
 template<typename Index_, class GetId_, typename Float_>
-void populate_cross_neighbors(
+void populate_batch_neighbors(
     Index_ num_obs,
-    GetId_ get_id,
+    GetId_ get_data_id,
     const Float_* data,
-    const BatchInfo<Index_, Float_>& target,
+    const BatchInfo<Index_, Float_>& batch,
     int num_neighbors,
     bool fuse_neighbors,
     int num_threads,
-    NeighborSet<Index_, Float_>& neighbors)
+    NeighborSet<Index_, Float_>& output)
 {
     parallelize(num_threads, num_obs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
-        auto searcher = target.index->initialize();
+        auto searcher = batch.index->initialize();
 
         std::pair<std::pair<Index_, Float_> > fuse_buffer1, fuse_buffer2;
         auto store_nn = [&](Index_ k) -> void {
-            auto& curnn = neighbors[k];
+            auto& curnn = output[k];
             if (!fuse_neighbors) {
                 fill_pair_vector(indices, distances, curnn);
             } else {
                 fuse_buffer1.swap(curnn);
                 fill_pair_vector(indices, distances, fuse_buffer2);
-                fuse_nn_results(fuse_buffer1, fuse_buffer2, num_neighbors, curnn, 0);
+                fuse_nn_results(fuse_buffer1, fuse_buffer2, num_neighbors, curnn);
             }
         };
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
-            auto k = get_id(l);
+            auto k = get_data_id(l);
             auto ptr = data + static_cast<std::size_t>(k) * ndim;
             searcher->search(ptr, num_neighbors, &indices, &distances);
             for (auto& i : indices) {
-                i += target.offset;
+                i += batch.offset;
             }
             store_nn(k);
         }
 
-        for (auto extra : target.extras) {
+        for (auto extra : batch.extras) {
             auto searcher = extra.index->initialize();
             for (Index_ l = start, end = start + length; l < end; ++l) {
-                auto k = get_id(l);
+                auto k = get_data_id(l);
                 auto ptr = data + static_cast<std::size_t>(k) * ndim;
                 searcher->search(ptr, num_neighbors, &indices, &distances);
                 for (auto& i : indices) {
@@ -70,14 +77,14 @@ void populate_cross_neighbors(
 template<typename Index_, typename Float_>
 void populate_cross_neighbors(
     const BatchInfo<Index_, Float_>& ref,
-    const Float_* data,
     const BatchInfo<Index_, Float_>& target,
+    const Float_* data,
     int num_neighbors,
     bool fuse_neighbors,
     int num_threads,
-    NeighborSet<Index_, Float_>& neighbors)
+    NeighborSet<Index_, Float_>& output)
 {
-    populate_cross_neighbors(
+    populate_batch_neighbors(
         ref.num_obs,
         [&](Index_ l) -> Index_ { return l + ref.obs; },
         data,
@@ -85,11 +92,11 @@ void populate_cross_neighbors(
         num_neighbors,
         fuse_neighbors,
         num_threads,
-        neighbors
+        output 
     );
 
     for (const auto& extra : ref.extras) {
-        populate_cross_neighbors(
+        populate_batch_neighbors(
             static_cast<Index_>(extra.ids.size()),
             [&](Index_ l) -> Index_ { return extra.ids[l]; },
             data,
@@ -97,44 +104,57 @@ void populate_cross_neighbors(
             num_neighbors,
             fuse_neighbors,
             num_threads,
-            neighbors
+            output
         );
     }
 }
 
 template<typename Index_, typename Float_>
-struct ConsolidatedNeighborInfo {
-    std::vector<Index_> ref_ids, target_ids;
-    std::vector<BatchIndex> batch;
-};
+void populate_cross_neighbors(
+    Index_ num_total,
+    const std::vector<BatchInfo<Index_, Float_> >& references,
+    const BatchInfo<Index_, Float_>& target,
+    int num_neighbors,
+    int num_threads,
+    ConsolidatedNeighborWorkspace<Index_, Float_>& workspace)
+{
+    workspace.batch.resize(num_total);
+    workspace.ref_ids.clear();
+    workspace.neighbors.resize(num_total);
 
-template<typename Index_, typename Float_>
-void populate_neighbor_info(const std::vector<BatchInfo<Index_, Float_> >& references, const BatchInfo<Index_, Float_>& target, ConsolidatedNeighborInfo<Index_, Float_>& info) {
-    auto fill_batch = [&](const BatchInfo<Index_, Float_>& batch) {
-        for (Index_ i = 0; i < batch.nobs; ++i) {
-            info.ref_ids.push_back(i + batch.offset);
+    for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
+        const auto& curref = references[b];
+        populate_cross_neighbors(curref, corrected, target, num_neighbors, false, num_threads, workspace.neighbors);
+        populate_cross_neighbors(target, corrected, curref, num_neighbors, b > 0, num_threads, workspace.neighbors);
+
+        // Adding all the details about which observations are in the reference metabatch,
+        // and which of the inner batches they belonged to.
+        workspace.ref_ids.reserve(workspace.ref_ids.size() + curref.num_obs);
+        for (Index_ i = 0; i < curref.num_obs; ++i) {
+            workspace.ref_ids.push_back(i + curref.offset);
         }
-        std::fill(info.batch.begin() + batch.offset, batch.nobs, b);
+        std::fill(batch.begin() + curref.offset, curref.num_obs, b);
 
-        for (const auto& extra : batch.extras) {
-            info.ref_ids.insert(info.ref_ids.end(), extra.ids.begin(), extra.ids.end());
+        for (const auto& extra : curref.extras) {
+            ref_ids.insert(ref_ids.end(), extra.ids.begin(), extra.ids.end());
             for (auto e : extra.ids) {
-                info.batch[e] = b;
+                batch[e] = b;
             }
         }
     }
 
-    info.ref_ids.clear();
-    for (BatchIndex b = 0; b < my_unmerged; ++b) {
-        fill_batch(references[b]);
+    workspace.target_ids.clear();
+    workspace.ref_ids.reserve(workspace.ref_ids.size() + target.num_obs);
+    for (Index_ i = 0; i < target.num_obs; ++i) {
+        workspace.target_ids.push_back(i + target.offset);
     }
-    std::sort(info.ref_ids.begin(), info.ref_ids.end());
+    for (const auto& extra : target.extras) {
+        workspace.target_ids.insert(workspace.target_ids.end(), extra.ids.begin(), extra.ids.end());
+    }
 
-    info.target_ids.clear();
-    fill_batch(target);
-    std::sort(info.target_ids.begin(), info.target_ids.end());
+    std::sort(workspace.ref_ids.begin(), workspace.ref_ids.end());
+    std::sort(workspace.target_ids.begin(), workspace.target_ids.end());
 }
-
 
 }
 

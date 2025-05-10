@@ -26,8 +26,7 @@ void fuse_nn_results(
     const std::vector<std::pair<Index_, Distance_> >& base, 
     const std::vector<std::pair<Index_, Distance_> >& alt, 
     int k,
-    std::vector<std::pair<Index_, Distance_> >& output,
-    Index_ offset) 
+    std::vector<std::pair<Index_, Distance_> >& output)
 {
     output.clear();
     decltype(output.size()) num_neighbors = k; // converting into size_type for easier comparisons below.
@@ -47,7 +46,6 @@ void fuse_nn_results(
             auto aval = aIt->second;
             if (bval > aval) {
                 output.push_back(*aIt);
-                output.back().first += offset;
                 ++aIt;
                 if (aIt == aEnd) {
                     break;
@@ -61,7 +59,6 @@ void fuse_nn_results(
                
             } else if (bIt->first > aIt->first) { // handling the unlikely cases of equal distances...
                 output.push_back(*aIt);
-                output.back().first += offset;
                 ++aIt;
                 if (aIt == aEnd) {
                     break;
@@ -83,7 +80,6 @@ void fuse_nn_results(
 
     while (aIt != aEnd && output.size() < num_neighbors) {
         output.push_back(*aIt);
-        output.back().first += offset;
         ++aIt;
     }
 }

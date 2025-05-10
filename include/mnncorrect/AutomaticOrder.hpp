@@ -70,15 +70,13 @@ public:
             }
         });
 
-        Index_ sofar = 0;
+        my_num_total = 0;
         for (BatchIndex b = 0; b < nbatches; ++b) {
-            my_batches[b].original_offset = sofar;
-            std::copy_n(batches[b], static_cast<std::size_t>(my_nobs[b]) * ndim, my_corrected + static_cast<std::size_t>(sofar) * ndim); // cast to size_t to avoid overflow.
-            sofar += my_nobs[b];
+            my_batches[b].original_offset = my_num_total;
+            std::copy_n(batches[b], static_cast<std::size_t>(my_nobs[b]) * ndim, my_corrected + static_cast<std::size_t>(my_num_total) * ndim); // cast to size_t to avoid overflow.
+            my_num_total += my_nobs[b];
         }
 
-        my_neighbors.resize(sofar);
-        my_ids.batch.reserve(sofar);
         my_target = nbatches - 1;
     }
 
@@ -88,12 +86,14 @@ protected:
     std::vector<BatchInfo<Index_, Float_> > my_batches;
 
     Float_* my_corrected;
+    Index_ my_num_total;
     std::vector<BatchIndex> my_order;
     BatchIndex my_target;
 
     NeighborSet<Index_, Float_> my_neighbors;
     ConsolidatedNeighborInfo<Index_, Float_> my_ids;
     FindMnnWorkspace<Index_, Float_> my_mnns;
+    CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
 
     int my_num_neighbors;
     int my_nthreads;
@@ -103,18 +103,20 @@ public:
         BatchInfo<Index_, Float_> target_batch(std::move(my_batches[my_target]));
         my_batches.pop_back();
 
-        for (decltype(my_batches.size()) b = 0, end = my_batches.size(); b < end; ++b) {
-            populate_cross_neighbors(my_batches[b], my_corrected, target_batch, my_num_neighbors, false, my_num_threads, my_neighbors);
-            populate_cross_neighbors(target_batch, my_corrected, my_batches[b], my_num_neighbors, b > 0, my_num_threads, my_neighbors);
-        }
-
-        populate_neighbor_info(my_batches, target_batch, my_ids);
+        // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
+        // because they are agglomerations of the original batches. The idea is
+        // to always merge two metabatches at each call to 'next()'.
+        populate_cross_neighbors(my_num_total, my_batches, target_batch, my_corrected, my_num_neighbors, my_num_threads, my_neighbors, my_ids);
 
         find_closest_mnn(my_neighbors, my_ids.ref_ids, my_ids.target_ids, my_mnns);
 
+        // First computing the neighbors of each MNN-involved observation, so we 
+        search_for_neighbors_from_mnns(my_mnns.ref_mnns, my_mnns.target_mnns, my_corrected, mnn_indices.ref_index, mnn_indices.target_index, my_correct_workspace.neighbors);
+
+
+        search_for_neighbors_to_mnns(my_batches, target_batch, my_corrected, my_mnns.ref_mnns, my_mnns.target_mnns, mnn_indices.ref_index, mnn_indices.target_index, my_correct_workspace.neighbors);
+
         // TODO:
-        // - Build indices for the MNN-involved cells.
-        // - Search for the closest neighbors of the MNN-involved cells in each batch.
         // - Search each batch for the closest MNN-involved cells.
         // - Calculate the center of mass based on the nearby cells.
         // - Calculate the correction in the target based on its closest MNN-involved cell.
