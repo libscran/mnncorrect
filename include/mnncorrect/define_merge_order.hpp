@@ -1,5 +1,5 @@
-#ifndef MNNCORRECT_DEFINE_ORDER_HPP
-#define MNNCORRECT_DEFINE_ORDER_HPP
+#ifndef MNNCORRECT_DEFINE_MERGE_ORDER_HPP
+#define MNNCORRECT_DEFINE_MERGE_ORDER_HPP
 
 #include <algorithm>
 #include <vector>
@@ -48,7 +48,7 @@ std::vector<Float_> compute_total_variances(std::size_t ndim, const std::vector<
 }
 
 template<typename Stat_>
-void define_order(const std::vector<Stat_>& stat, std::vector<BatchIndex>& order) {
+void define_merge_order(const std::vector<Stat_>& stat, std::vector<BatchIndex>& order) {
     auto nbatches = stat.size();
     std::vector<std::pair<Stat_, BatchIndex> > ordering;
     ordering.reserve(nbatches);
