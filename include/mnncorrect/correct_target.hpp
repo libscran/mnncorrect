@@ -132,11 +132,11 @@ void compute_center_of_mass(
             // subsample towards the MNN (thus causing kissing effects). So, in
             // the unfortunate case when the MNN's neighbor list is empty, we
             // fall back to just setting the center of mass to the MNN itself.
-            if (inv.empty()) {
+//            if (inv.empty()) {
                 auto ptr = data + static_cast<std::size_t>(mnn_ids[g]) * ndim; // cast to avoid overflow. 
                 std::copy_n(ptr, ndim, output);
                 continue;
-            }
+//            }
 
             // Using Welford's algorithm to compute the running mean and
             // variance around the current center of mass. We filter out

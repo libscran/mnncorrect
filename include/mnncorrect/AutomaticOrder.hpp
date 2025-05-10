@@ -21,40 +21,18 @@ namespace mnncorrect {
 namespace internal {
 
 template<typename Index_, typename Float_>
-Float_ compute_total_variance(std::size_t ndim, Index_ nobs, const Float_* values, std::vector<Float_>& mbuffer, bool as_rss) {
-    std::fill(mbuffer.begin(), mbuffer.end(), 0);
-
-    Float_ total = 0;
-    for (Index_ i = 0; i < nobs; ++i) {
-        for (std::size_t d = 0; d < ndim; ++d) {
-            auto curval = values[d];
-            auto& curmean = mbuffer[d];
-            Float_ delta = curval - curmean;
-            curmean += delta/(i + 1);
-            total += delta * (curval -  curmean);
-        }
-        values += ndim;
-    }
-
-    if (!as_rss) {
-        total /= nobs - 1;
-    }
-    return total;
-}
+struct Corrected {
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
+    std::vector<Index_> ids;
+};
 
 template<typename Index_, typename Float_>
-std::vector<Float_> compute_total_variances(std::size_t ndim, const std::vector<Index_>& nobs, const std::vector<const Float_*>& batches, bool as_rss, int nthreads) {
-    BatchIndex nbatches = nobs.size();
-    std::vector<Float_> vars(nbatches);
-    parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
-        std::vector<Float_> mean_buffer(ndim);
-        for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);
-        }
-    });
-
-    return vars;
-}
+struct BatchInfo {
+    Index_ original_offset;
+    Index_ original_nobs;
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > original_index;
+    std::vector<Corrected<Index_, Float_> > extras;
+};
 
 template<typename Index_, typename Float_, typename Matrix_>
 class AutomaticOrder {
@@ -67,22 +45,15 @@ public:
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors, 
         ReferencePolicy ref_policy, 
-        Index_ nobs_cap, 
         int nthreads)
     :
         my_ndim(ndim), 
-        my_nobs(nobs), 
-        my_batches(batches),
         my_builder(builder),
-        my_indices(my_batches.size()),
-        my_num_neighbors(num_neighbors),
-        my_neighbors_ref(my_batches.size()), 
-        my_neighbors_target(my_batches.size()), 
         my_corrected(corrected),
-        my_nobs_cap(nobs_cap),
+        my_num_neighbors(num_neighbors),
         my_nthreads(nthreads)
     {
-        auto nbatches = my_nobs.size();
+        BatchIndex nbatches = my_nobs.size();
         if (nbatches != my_batches.size()) {
             throw std::runtime_error("length of 'nobs' and 'batches' must be equal");
         }
@@ -90,232 +61,158 @@ public:
             return;
         }
 
-        parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
-            for (BatchIndex b = start, end = start + length; b < end; ++b) {
-                my_indices[b] = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
-            }
-        });
-
-        // Different policies to pick the first batch. The default is to use
-        // the first input batch, so first == Input is already covered.
-        BatchIndex ref = 0;
+        // Different policies to choose the batch order. 'my_order' is filled
+        // in reverse order of batches to merge, with the first batch being unchanged. 
         if (ref_policy == ReferencePolicy::MAX_SIZE) {
-            ref = std::max_element(my_nobs.begin(), my_nobs.end()) - my_nobs.begin();
+            define_order(my_nobs, my_order);
         } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
             bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
             std::vector<Float_> vars = compute_total_variances(my_ndim, my_nobs, my_batches, as_rss, my_nthreads);
-            ref = std::max_element(vars.begin(), vars.end()) - vars.begin();
+            define_order(vars, my_order);
+        } else { // i.e., ref_policy = INPUT.
+            my_order.resize(nbatches);
+            std::iota(my_order.begin(), my_order.end(), 0);
         }
 
-        const Index_ refnum = my_nobs[ref];
-        const Float_* refdata = my_batches[ref];
-        std::copy_n(refdata, ndim * static_cast<std::size_t>(refnum), my_corrected); // cast to size_t to avoid overflow.
-        my_ncorrected += refnum;
-        my_order.push_back(ref);
-
-        for (BatchIndex b = 0; b < nbatches; ++b) {
-            if (b == ref) {
-                continue;
+        my_batches.resize(nbatches);
+        parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
+            for (BatchIndex b = start, end = start + length; b < end; ++b) {
+                auto& curbatch = my_batches[b];
+                curbatch.original_nobs = nobs[b];
+                curbatch.original_values = batches[b];
+                curbatch.original_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
             }
-            my_remaining.insert(b);
-            my_neighbors_target[b] = quick_find_nns(my_nobs[b], my_batches[b], *my_indices[ref], my_num_neighbors, my_nthreads);
-            my_neighbors_ref[b] = quick_find_nns(refnum, refdata, *my_indices[b], my_num_neighbors, my_nthreads);
+        });
+
+        Index_ sofar = 0;
+        for (BatchIndex b = 0; b < nbatches; ++b) {
+            my_batches[b].original_offset = sofar;
+            std::copy_n(batches[b], static_cast<std::size_t>(my_nobs[b]) * ndim, my_corrected + static_cast<std::size_t>(sofar) * ndim); // cast to size_t to avoid overflow.
+            sofar += my_nobs[b];
         }
+
+        my_neighbors.resize(sofar);
+        my_ref_ids.reserve(sofar);
+        my_target_ids.reserve(sofar);
+        my_target = nbatches - 1;
     }
 
 protected:
     std::size_t my_ndim;
-    const std::vector<Index_>& my_nobs;
-    const std::vector<const Float_*>& my_batches;
-
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
-    std::vector<std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > > my_indices;
-
-    int my_num_neighbors;
-    std::vector<NeighborSet<Index_, Float_> > my_neighbors_ref;
-    std::vector<NeighborSet<Index_, Float_> > my_neighbors_target;
+    std::vector<BatchInfo<Index_, Float_> > my_batches;
 
     Float_* my_corrected;
-    Index_ my_ncorrected = 0;
-
     std::vector<BatchIndex> my_order;
-    std::unordered_set<BatchIndex> my_remaining;
-    std::vector<unsigned long long> my_num_pairs; // at least 64 bits to guarantee storage of many pairs.
+    BatchIndex my_target;
 
-    Index_ my_nobs_cap;
+    NeighborSet<Index_, Float_> my_neighbors;
+    std::vector<Index_> my_ref_ids, my_target_ids;
+    MnnPairs<Index_, Float_> my_mnns;
+
+    int my_num_neighbors;
     int my_nthreads;
 
-protected:
-    template<bool purge_ = true>
-    void update(BatchIndex latest) {
-        auto lat_num = my_nobs[latest]; 
-        const Float_* lat_data = my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim; // cast to avoid overflow.
+private:
+    template<class GetId_>
+    void populate_neighbors(Index_ nobs, GetId_ get_id, const BatchInfo<Index_, Float_>& target, bool fuse) {
+        parallelize(my_nthreads, nobs, [&](int, Index_ start, Index_ length) -> void {
+            std::vector<Index_> indices;
+            std::vector<Float_> distances;
+            auto searcher = target.original_index->initialize();
 
-        my_order.push_back(latest);
-        Index_ previous_ncorrected = my_ncorrected;
-        my_ncorrected += lat_num;
-
-        if constexpr(purge_) { // try to free some memory if there are many batches.
-            my_neighbors_ref[latest].clear();
-            my_neighbors_ref[latest].shrink_to_fit(); 
-            my_indices[latest].reset();
-        }
-
-        my_remaining.erase(latest);
-        if (my_remaining.empty()) {
-            return;
-        }
-
-        auto lat_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_ndim, lat_num, lat_data));
-        for (auto b : my_remaining) {
-            auto& rem_ref_neighbors = my_neighbors_ref[b];
-            rem_ref_neighbors.resize(my_ncorrected);
-            const auto& rem_index = my_indices[b];
-            quick_find_nns(lat_num, lat_data, *rem_index, my_num_neighbors, my_nthreads, rem_ref_neighbors, previous_ncorrected);
-            quick_fuse_nns(my_neighbors_target[b], my_batches[b], *lat_index, my_num_neighbors, my_nthreads, previous_ncorrected);
-        }
-
-        return;
-    }
-
-protected:
-    std::pair<BatchIndex, MnnPairs<Index_> > choose() {
-        // Splitting up the remaining batches across threads. The idea is that
-        // each thread reports the maximum among its assigned batches, and then
-        // we compare the number of MNN pairs across the per-thread maxima.
-        auto nremaining = my_remaining.size();
-        BatchIndex per_thread = (nremaining / my_nthreads) + (nremaining % my_nthreads > 0);
-
-        auto it = my_remaining.begin();
-        std::vector<decltype(it)> partitions;
-        partitions.reserve(my_nthreads + 1);
-
-        BatchIndex counter = 0;
-        for (auto it = my_remaining.begin(); it != my_remaining.end(); ++it) { // hashsets don't have random access iterators, so we ned to manually iterate.
-            if (counter == 0) {
-                partitions.push_back(it);
-                if (partitions.size() == static_cast<decltype(partitions.size())>(my_nthreads)) {
-                    break;
+            std::pair<std::pair<Index_, Float_> > fuse_buffer1, fuse_buffer2;
+            auto store_nn = [&](Index_ k) -> void {
+                auto& curnn = my_neighbors[k];
+                if (fuse) {
+                    fill_pair_vector(indices, distances, curnn);
+                } else {
+                    fuse_buffer1.swap(curnn);
+                    fill_pair_vector(indices, distances, fuse_buffer2);
+                    fuse_nn_results(fuse_buffer1, fuse_buffer2, my_num_neighbors, curnn, 0);
                 }
-            }
-            ++counter;
-            if (counter == per_thread) {
-                counter = 0;
-            }
-        }
+            };
 
-        int actual_nthreads = partitions.size(); // avoid having to check for threads that don't do any work.
-        std::vector<MnnPairs<Index_> > collected(actual_nthreads);
-        std::vector<BatchIndex> best(actual_nthreads);
-
-        partitions.push_back(my_remaining.end()); // to easily check for the terminator in the last thread.
-
-        // This should be a trivial allocation when njobs = nthreads.
-        parallelize(actual_nthreads, actual_nthreads, [&](int, int start, int length) -> void {
-            for (int t = start, end = start + length; t < end; ++t) {
-                // Within each thread, scanning for the maximum among the allocated batches.
-                auto startIt = partitions[t], endIt = partitions[t + 1];
-
-                MnnPairs<Index_> best_pairs;
-                BatchIndex chosen = *startIt;
-
-                while (startIt != endIt) {
-                    auto b = *startIt;
-                    auto& nnref = my_neighbors_ref[b];
-                    auto tmp = find_mutual_nns(nnref, my_neighbors_target[b]);
-
-                    /* If a cell in the reference set is not in an MNN pair
-                     * with an unmerged batch at iteration X, it can never be
-                     * in an MNN pair at iteration X+1 or later. This is based
-                     * on the fact that the corrected coordinates of that cell
-                     * will not change across iterations, nor do the
-                     * coordinates of the uncorrected batch; and the only
-                     * change across iterations is the addition of cells from
-                     * the newly corrected batches to the reference, which
-                     * would not cause the non-MNN cell in the existing
-                     * reference to suddenly become an MNN (and if anything,
-                     * would compete in the NN search).
-                     *
-                     * As such, we can free the memory stores for those
-                     * never-MNN cells, which should substantially lower memory
-                     * consumption when there are many batches. 
-                     */
-                    {
-                        auto bsize = nnref.size();
-                        std::vector<unsigned char> present(bsize);
-                        for (const auto& x : tmp.matches) {
-                            for (auto y : x.second) {
-                                present[y] = 1;
-                            }
-                        }
-
-                        for (decltype(bsize) i = 0; i < bsize; ++i) {
-                            auto& current = nnref[i];
-                            if (!present[i] && !current.empty()) {
-                                current.clear();
-                                current.shrink_to_fit();
-                            }
-                        }
-                    }
-
-                    // Now, deciding if it's the best.
-                    if (tmp.num_pairs > best_pairs.num_pairs) {
-                        best_pairs = std::move(tmp);
-                        chosen = b;
-                    }
-                    ++startIt;
+            for (Index_ l = start, end = start + length; l < end; ++l) {
+                auto k = get_id(l);
+                auto ptr = my_corrected + static_cast<std::size_t>(k) * ndim;
+                searcher->search(ptr, my_num_neighbors, &indices, &distances);
+                for (auto& i : indices) {
+                    i += target.original_offset;
                 }
+                store_nn(k);
+            }
 
-                collected[t] = std::move(best_pairs);
-                best[t] = chosen;
+            for (auto extra : target.extras) {
+                auto searcher = extra.index->initialize();
+                for (Index_ l = start, end = start + length; l < end; ++l) {
+                    auto k = get_id(l);
+                    auto ptr = my_corrected + static_cast<std::size_t>(k) * ndim;
+                    searcher->search(ptr, my_num_neighbors, &indices, &distances);
+                    for (auto& i : indices) {
+                        i = extra.ids[i];
+                    }
+                    store_nn(k);
+                }
             }
         });
+    }
 
-        // Scanning across threads for the maximum. (We assume that results
-        // from at least one thread are available.) 
-        BatchIndex best_index = 0;
-        for (int t = 1; t < actual_nthreads; ++t) {
-            if (collected[t].num_pairs > collected[best_index].num_pairs) {
-                best_index = t;
-            }
+    void populate_neighbors(const BatchInfo<Index_, Float_>& ref, const BatchInfo<Index_, Float_>& target, bool fuse) {
+        populate_neighbors(ref.original_nobs, [&](Index_ l) -> Index_ { return l + ref.original_obs; }, target, fuse);
+        for (const auto& extra : ref.extras) {
+            populate_neighbors(extra.ids.size(), [&](Index_ l) -> Index_ { return extra.ids[l]; }, target, true);
         }
+    }
 
-        return std::pair<BatchIndex, MnnPairs<Index_> >(best[best_index], std::move(collected[best_index]));
+    static void fill_ids(const BatchInfo<Index_, Float_>& batch, std::vector<Index_>& ids) {
+        for (Index_ i = 0; i < batch.original_nobs; ++i) {
+            ids.push_back(i + batch.original_offset);
+        }
+        for (const auto& extra : batch.extras) {
+            ids.insert(ids.end(), extra.ids.begin(), extra.ids.end());
+        }
     }
 
 public:
-    void run(Float_ nmads, int robust_iterations, double robust_trim) {
-        while (my_remaining.size()) {
-            auto output = choose();
-            auto target = output.first;
-            auto target_num = my_nobs[target];
-            auto target_data = my_batches[target];
-
-            correct_target(
-                my_ndim, 
-                my_ncorrected, 
-                my_corrected, 
-                target_num, 
-                target_data, 
-                output.second, 
-                my_builder,
-                my_num_neighbors,
-                nmads,
-                robust_iterations,
-                robust_trim,
-                my_corrected + static_cast<std::size_t>(my_ncorrected) * my_ndim, // cast to size_t to avoid overflow.
-                my_nobs_cap,
-                my_nthreads
-            );
-
-            update(output.first);
-            my_num_pairs.push_back(output.second.num_pairs);
+    void next(Float_ num_sds) {
+        // Finding all of the neighbors.
+        const auto& target_batch = my_batches[my_unmerged];
+        for (BatchIndex b = 0; b < my_unmerged; ++b) {
+            populate_neighbors(my_batches[b], target_batch, true);
+            populate_neighbors(target_batch, my_batches[b], b > 0);
         }
+
+        // Prefilling the IDs.
+        my_ref_ids.clear();
+        for (BatchIndex b = 0; b < my_unmerged; ++b) {
+            fill_ids(curbatch, my_ref_ids);
+        }
+        std::sort(my_ref_ids.begin(), my_ref_ids.end());
+
+        my_target_ids.clear();
+        fill_ids(curbatch, my_target_ids);
+        std::sort(my_target_ids.begin(), my_target_ids.end());
+
+        // Find MNN pairs.
+        find_mutual_nns(my_neighbors, my_ref_ids, my_target_ids, my_mnns);
+
+        // Perform correction.
+        correct_target(
+            my_ndim, 
+            my_ref_ids,
+            my_target_ids,
+            my_corrected, 
+            my_mnns,
+            my_corrected_batches,
+            my_builder,
+            my_num_neighbors,
+            num_sds,
+            my_nthreads
+        );
+
+        --my_unmerged;
     }
-
-    const auto& get_order() const { return my_order; }
-
-    const auto& get_num_pairs() const { return my_num_pairs; }
 };
 
 }
