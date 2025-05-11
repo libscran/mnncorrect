@@ -6,7 +6,6 @@
 #include <cstddef>
 
 #include "parallelize.hpp"
-#include "BatchInfo.hpp"
 #include "fuse_nn_results.hpp"
 #include "utils.hpp"
 
@@ -20,6 +19,16 @@ struct PopulateCrossNeighborsWorkspace {
     std::vector<Index_> ref_ids, target_ids;
     std::vector<BatchIndex> batch;
 };
+
+template<typename Index_, typename Float_>
+void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Float_>& distances, std::vector<std::pair<Index_, Float_> >& output) {
+    auto found = indices.size();
+    output.clear();
+    output.reserve(found);
+    for (decltype(found) i = 0; i < found; ++i) {
+        output.emplace_back(indices[i], distances[i]);
+    }
+}
 
 template<typename Index_, class GetId_, typename Float_>
 void populate_batch_neighbors(

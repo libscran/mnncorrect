@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cstddef>
 
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+#include "subpar/subpar.hpp"
+#endif
+
 /**
  * @file utils.hpp
  * @brief Utilities for MNN correction.
@@ -38,12 +42,48 @@ typedef std::size_t BatchIndex;
 enum class ReferencePolicy : char { INPUT, MAX_SIZE, MAX_VARIANCE, MAX_RSS };
 
 /**
+ * @tparam Task_ Integer type for the number of tasks.
+ * @tparam Run_ Function to execute a range of tasks.
+ *
+ * @param num_workers Number of workers.
+ * @param num_tasks Number of tasks.
+ * @param run_task_range Function to iterate over a range of tasks within a worker.
+ *
+ * By default, this is an alias to `subpar::parallelize_range()`.
+ * However, if the `MNNCORRECT_CUSTOM_PARALLEL` function-like macro is defined, it is called instead. 
+ * Any user-defined macro should accept the same arguments as `subpar::parallelize_range()`.
+ */
+template<typename Task_, class Run_>
+void parallelize(int num_workers, Task_ num_tasks, Run_ run_task_range) {
+#ifndef MNNCORRECT_CUSTOM_PARALLEL
+    // Methods could allocate or throw, so nothrow_ = false is safest.
+    subpar::parallelize_range<false>(num_workers, num_tasks, std::move(run_task_range));
+#else
+    MNNCORRECT_CUSTOM_PARALLEL(num_workers, num_tasks, run_task_range);
+#endif
+}
+
+/**
  * @cond
  */
 namespace internal {
 
 template<typename Index_, typename Distance_>
 using NeighborSet = std::vector<std::vector<std::pair<Index_, Distance_> > >;
+
+template<typename Index_, typename Float_>
+struct Corrected {
+    Corrected(std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index, std::vector<Index_> ids) : index(std::move(index)), ids(std::move(ids)) {}
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
+    std::vector<Index_> ids;
+};
+
+template<typename Index_, typename Float_>
+struct BatchInfo {
+    Index_ offset, num_obs;
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
+    std::vector<Corrected<Index_, Float_> > extras;
+};
 
 }
 /**

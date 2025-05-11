@@ -14,7 +14,6 @@
 #include "find_mutual_nns.hpp"
 #include "populate_neighbors.hpp"
 #include "correct_target.hpp"
-#include "parallelize.hpp"
 
 namespace mnncorrect {
 
@@ -102,7 +101,7 @@ protected:
     double my_tolerance;
 
 public:
-    void next() {
+    bool next() {
         // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
         // because they are agglomerations of the original batches. The idea is
         // to always merge two metabatches at each call to 'next()'.
@@ -167,6 +166,11 @@ public:
         });
 
         --my_unmerged;
+        return my_unmerged > 0;
+    }
+
+    void merge() {
+        while (next()) {}
     }
 };
 

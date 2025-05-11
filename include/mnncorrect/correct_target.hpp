@@ -5,7 +5,6 @@
 
 #include "utils.hpp"
 #include "populate_cross_neighbors.hpp"
-#include "parallelize.hpp"
 
 #include <algorithm>
 #include <vector>

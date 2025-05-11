@@ -10,7 +10,6 @@
 #include "knncolle/knncolle.hpp"
 
 #include "AutomaticOrder.hpp"
-#include "CustomOrder.hpp"
 #include "Options.hpp"
 #include "restore_order.hpp"
 #include "utils.hpp"
@@ -21,7 +20,55 @@
  * @brief Compute the MNN correction. 
  */
 
+/**
+ * @namespace mnncorrect
+ * @brief Batch correction with mutual nearest neighbors.
+ */
 namespace mnncorrect {
+
+/**
+ * @brief Options for `compute()`.
+ * @tparam Index_ Integer type for the observation indices.
+ * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Matrix_ Class of the input data matrix for the neighbor search.
+ * This should satisfy the `knncolle::Matrix` interface.
+ * Alternatively, it may be a `knncolle::SimpleMatrix`.
+ */
+template<typename Index_, typename Float_, class Matrix_ = knncolle::Matrix<Index_, Float_> >
+struct Options {
+    /**
+     * Number of neighbors used in various search steps, primarily to identify MNN pairs.
+     * Larger values increase the number of MNN pairs and improve the stability of the correction, 
+     * at the cost of reduced resolution of matching subpopulations across batches.
+     *
+     * The number of neighbors is also used to identify the closest MNN pairs when computing the average correction vector for each target observation.
+     * Again, this improves stability at the cost of resolution for local variations in the correction vectors.
+     */
+    int num_neighbors = 15;
+
+    /**
+     * Number of standard deviations to use to define the distance threshold for the center of mass calculations.
+     * Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
+     */
+    double tolerance = 3;
+
+    /**
+     * Algorithm to use for building the nearest-neighbor search indices.
+     * If NULL, defaults to an exact search via `knncolle::VptreeBuilder` with Euclidean distances.
+     */
+    std::shared_ptr<knncolle::Builder<Index_, Float_, Float_, Matrix_> > builder;
+
+    /**
+     * Policy to use to choose the reference batch when `Options::automatic_order = true`.
+     */
+    ReferencePolicy reference_policy = ReferencePolicy::MAX_RSS;
+
+    /**
+     * Number of threads to use.
+     * The parallelization scheme is defined by `parallelize()`.
+     */
+    int num_threads = 1;
+};
 
 /**
  * @brief Correction details from `compute()`.
@@ -64,23 +111,19 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
         builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
     }
 
-    if (!options.order.empty()) {
-        CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.order, options.mass_cap, options.num_threads);
-        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
-        return Details(runner.get_order(), runner.get_num_pairs());
+    AutomaticOrder<Index_, Float_, Matrix_> runner(
+        num_dim,
+        num_obs,
+        batches,
+        output,
+        *builder,
+        options.num_neighbors,
+        options.tolerance,
+        options.reference_policy,
+        options.num_threads
+    );
 
-    } else if (options.automatic_order) {
-        AutomaticOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, options.reference_policy, options.mass_cap, options.num_threads);
-        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
-        return Details(runner.get_order(), runner.get_num_pairs());
-
-    } else {
-        std::vector<BatchIndex> trivial_order(num_obs.size());
-        std::iota(trivial_order.begin(), trivial_order.end(), static_cast<BatchIndex>(0));
-        CustomOrder<Index_, Float_, Matrix_> runner(num_dim, num_obs, batches, output, *builder, options.num_neighbors, trivial_order, options.mass_cap, options.num_threads);
-        runner.run(options.num_mads, options.robust_iterations, options.robust_trim);
-        return Details(std::move(trivial_order), runner.get_num_pairs());
-    }
+    runner.merge();
 }
 
 }

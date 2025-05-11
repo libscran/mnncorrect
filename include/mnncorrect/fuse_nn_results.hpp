@@ -2,24 +2,15 @@
 #define MNNCORRECT_FUSE_NN_RESULTS_HPP
 
 #include <vector>
+#include <utility>
 
 #include "knncolle/knncolle.hpp"
+
 #include "utils.hpp"
-#include "parallelize.hpp"
 
 namespace mnncorrect {
 
 namespace internal {
-
-template<typename Index_, typename Distance_>
-void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Distance_>& distances, std::vector<std::pair<Index_, Distance_> >& output) {
-    auto found = indices.size();
-    output.clear();
-    output.reserve(found);
-    for (decltype(found) i = 0; i < found; ++i) {
-        output.emplace_back(indices[i], distances[i]);
-    }
-}
 
 template<typename Index_, typename Distance_>
 void fuse_nn_results(

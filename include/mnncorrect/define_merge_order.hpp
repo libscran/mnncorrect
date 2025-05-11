@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstddef>
 
-#include "parallelize.hpp"
+#include "utils.hpp"
 
 namespace mnncorrect {
 
