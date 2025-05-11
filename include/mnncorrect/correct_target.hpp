@@ -29,19 +29,19 @@ struct CorrectTargetWorkspace {
 
 template<typename Index_, typename Float_, class Matrix_> 
 std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_index(
-    std::size_t ndim,
+    std::size_t num_dim,
     const Float_* data,
     const std::vector<Index_>& in_mnn,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
     std::vector<Float_>& buffer)
 {
     auto num_in_mnn = in_mnn.size();
-    buffer.resize(ndim * static_cast<std::size_t>(num_in_mnn));
+    buffer.resize(num_dim * static_cast<std::size_t>(num_in_mnn));
     for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
-        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * ndim; // cast to size_t's to avoid overflow.
-        std::copy_n(curdata, ndim, buffer.begin() + static_cast<std::size_t>(f) * ndim); // also casting to avoid overflow.
+        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * num_dim; // cast to size_t's to avoid overflow.
+        std::copy_n(curdata, num_dim, buffer.begin() + static_cast<std::size_t>(f) * num_dim); // also casting to avoid overflow.
     }
-    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, uniq.size(), buffer.data()));
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, uniq.size(), buffer.data()));
 }
 
 // Ensure each MNN-involved observation is part of its own neighbor set,
@@ -156,7 +156,7 @@ void search_for_neighbors_to_mnns(
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
             auto k = ids[l];
-            auto ptr = data + static_cast<std::size_t>(k) * ndim;
+            auto ptr = data + static_cast<std::size_t>(k) * num_dim;
             searcher->search(ptr, num_neighbors, &indices, &distances);
             auto& curnn = output[k];
             fill_pair_vector(indices, distances, curnn);
@@ -215,7 +215,7 @@ NeighborSet<Index_, Distance_> invert_neighbors(Index_ num_mnns, const std::vect
 
 template<typename Index_, typename Float_>
 void compute_center_of_mass(
-    std::size_t ndim,
+    std::size_t num_dim,
     const std::vector<Index_>& mnns,
     const NeighborSet<Index_, Float_>& neighbors_from,
     const NeighborSet<Index_, Float_>& inverted_neighbors_to,
@@ -225,10 +225,10 @@ void compute_center_of_mass(
     std::vector<double>& running_mean)
 {
     Index_ num_mnns = mnns.size();
-    running_mean.resize(static_cast<std::size_t>(num_mnns) * ndim); // cast to avoid overflow.
+    running_mean.resize(static_cast<std::size_t>(num_mnns) * num_dim); // cast to avoid overflow.
 
     parallelize(num_threads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
-        std::vector<Float_> mean(ndim), sum_squares(ndim);
+        std::vector<Float_> mean(num_dim), sum_squares(num_dim);
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
             // Using Welford's algorithm to compute the running mean and
@@ -243,9 +243,9 @@ void compute_center_of_mass(
              */
             const auto& nn_from = neighbors_from[mnns[g]];
             for (auto nn : nn_from) {
-                auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
+                auto target = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
                 ++counter;
-                for (std::size_t d = 0; d < ndim; ++d) {
+                for (std::size_t d = 0; d < num_dim; ++d) {
                     auto val = target[d];
                     auto& curmean = mean[d];
                     double delta = val - curmean;
@@ -279,7 +279,7 @@ void compute_center_of_mass(
                 // Checking if the new observation is beyond the tolerance on any dimension.
                 bool outside_range = false;
                 Float_ multiplier = tolerance / std::sqrt(counter - 1.0);
-                for (std::size_t d = 0; d < ndim; ++d) {
+                for (std::size_t d = 0; d < num_dim; ++d) {
                     if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
                         outside_range = true;
                         break;
@@ -290,9 +290,9 @@ void compute_center_of_mass(
                 }
 
                 // If it's good, we proceed to add it.
-                auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
+                auto target = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
                 ++counter;
-                for (std::size_t d = 0; d < ndim; ++d) {
+                for (std::size_t d = 0; d < num_dim; ++d) {
                     auto val = target[d];
                     auto& curmean = mean[d];
                     double delta = val - curmean;
@@ -304,7 +304,7 @@ void compute_center_of_mass(
             /**
              * Copying the result into the output vector.
              */
-            std::size_t output_offset = ndim * static_cast<std::size_t>(g); // cast to avoid overflow.
+            std::size_t output_offset = num_dim * static_cast<std::size_t>(g); // cast to avoid overflow.
             std::copy(mean.begin(), mean.end(), running_mean.begin() + output_offset);
         }
     });
@@ -314,7 +314,7 @@ void compute_center_of_mass(
 
 template<typename Index_, typename Float_>
 void correct_target(
-    std::size_t ndim,
+    std::size_t num_dim,
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
@@ -335,7 +335,7 @@ void correct_target(
             const auto& uniq = (opt == 0 ? mnns.ref_mnns_unique : mnns.target_mnns);
             auto& buffer = (opt == 0 ? workspace.ref_buffer : workspace.target_buffer);
             auto& index = (opt == 0 ? ref_mnn_index: target_mnn_index);
-            index = build_mnn_only_index(ndim, data, uniq, builder, buffer);
+            index = build_mnn_only_index(num_dim, data, uniq, builder, buffer);
         }
     });
 
@@ -375,8 +375,8 @@ void correct_target(
     // Computing the center of mass.
     auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), pop.ref_ids, workspace.neighbors_to, num_threads);
     auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), pop.target_ids, workspace.neighbors_to, num_threads);
-    compute_center_of_mass(ndim, mnns.ref_mnns_unique, workspace.neighbors_from, ref_inverted, data, num_threads, tolerance, workspace.ref_buffer);
-    compute_center_of_mass(ndim, mnns.target_mnns, workspace.neighbors_from, target_inverted, data, num_threads, tolerance, workspace.target_buffer);
+    compute_center_of_mass(num_dim, mnns.ref_mnns_unique, workspace.neighbors_from, ref_inverted, data, num_threads, tolerance, workspace.ref_buffer);
+    compute_center_of_mass(num_dim, mnns.target_mnns, workspace.neighbors_from, target_inverted, data, num_threads, tolerance, workspace.target_buffer);
 
     // Apply the correction in the target based on its closest MNN-involved cell.
     Index_ num_target = pop.target_ids.size();
@@ -384,16 +384,16 @@ void correct_target(
     parallelize(num_threads, num_target, [&](int, int start, int length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
             auto t = pop.target_ids[i];
-            auto tptr = data + static_cast<std::size_t>(t) * ndim; // cast to avoid overflow.
+            auto tptr = data + static_cast<std::size_t>(t) * num_dim; // cast to avoid overflow.
 
             auto closest_mnn = workspace.neighbors_to[t][0].first; // this index is already defined with respect to the target_mnns subset.
-            auto tcenter = workspace.target_buffer.data() + static_cast<std::size_t>(closest_mnn) * ndim; // casting again.
+            auto tcenter = workspace.target_buffer.data() + static_cast<std::size_t>(closest_mnn) * num_dim; // casting again.
 
             auto ref_partner = mnn.ref_mnns_partner[closest_mnn];
             auto ridx = workspace.mapping[ref_partner];
-            auto rcenter = workspace.ref_buffer.data() + static_cast<std::size_t>(ridx) * ndim; // ditto.
+            auto rcenter = workspace.ref_buffer.data() + static_cast<std::size_t>(ridx) * num_dim; // ditto.
 
-            for (std::size_t d = 0; d < ndim; ++d) {
+            for (std::size_t d = 0; d < num_dim; ++d) {
                 tptr[d] += (recenter[d] - tcenter[d]);
             }
 

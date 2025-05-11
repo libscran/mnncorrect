@@ -24,8 +24,8 @@ template<typename Index_, typename Float_, typename Matrix_>
 class AutomaticOrder {
 public:
     AutomaticOrder(
-        std::size_t ndim,
-        const std::vector<Index_>& nobs,
+        std::size_t num_dim,
+        const std::vector<Index_>& num_obs,
         const std::vector<const Float_*>& batches, 
         Float_* corrected,
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
@@ -34,16 +34,16 @@ public:
         ReferencePolicy ref_policy, 
         int nthreads)
     :
-        my_ndim(ndim), 
+        my_num_dim(num_dim), 
         my_builder(builder),
         my_corrected(corrected),
         my_num_neighbors(num_neighbors),
         my_tolerance(tolerance)
-        my_nthreads(nthreads),
+        my_num_threads(nthreads),
     {
-        BatchIndex nbatches = my_nobs.size();
+        BatchIndex nbatches = my_num_obs.size();
         if (nbatches != my_batches.size()) {
-            throw std::runtime_error("length of 'nobs' and 'batches' must be equal");
+            throw std::runtime_error("length of 'num_obs' and 'batches' must be equal");
         }
         if (nbatches == 0) {
             return;
@@ -52,10 +52,10 @@ public:
         // Different policies to choose the batch order. 'my_order' is filled
         // in reverse order of batches to merge, with the first batch being unchanged. 
         if (ref_policy == ReferencePolicy::MAX_SIZE) {
-            define_order(my_nobs, my_order);
+            define_order(my_num_obs, my_order);
         } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
             bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
-            std::vector<Float_> vars = compute_total_variances(my_ndim, my_nobs, my_batches, as_rss, my_nthreads);
+            std::vector<Float_> vars = compute_total_variances(my_num_dim, my_num_obs, my_batches, as_rss, my_num_threads);
             define_order(vars, my_order);
         } else { // i.e., ref_policy = INPUT.
             my_order.resize(nbatches);
@@ -66,24 +66,24 @@ public:
         parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
             for (BatchIndex b = start, end = start + length; b < end; ++b) {
                 auto& curbatch = my_batches[b];
-                curbatch.original_nobs = nobs[b];
+                curbatch.original_num_obs = num_obs[b];
                 curbatch.original_values = batches[b];
-                curbatch.original_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(ndim, my_nobs[b], my_batches[b]));
+                curbatch.original_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, my_num_obs[b], my_batches[b]));
             }
         });
 
         my_num_total = 0;
         for (BatchIndex b = 0; b < nbatches; ++b) {
             my_batches[b].original_offset = my_num_total;
-            std::copy_n(batches[b], static_cast<std::size_t>(my_nobs[b]) * ndim, my_corrected + static_cast<std::size_t>(my_num_total) * ndim); // cast to size_t to avoid overflow.
-            my_num_total += my_nobs[b];
+            std::copy_n(batches[b], static_cast<std::size_t>(my_num_obs[b]) * num_dim, my_corrected + static_cast<std::size_t>(my_num_total) * num_dim); // cast to size_t to avoid overflow.
+            my_num_total += my_num_obs[b];
         }
 
         my_target = nbatches - 1;
     }
 
 protected:
-    std::size_t my_ndim;
+    std::size_t my_num_dim;
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& my_builder;
     std::vector<BatchInfo<Index_, Float_> > my_batches;
 
@@ -95,13 +95,14 @@ protected:
     PopulateCrossNeighborsWorkspace<Index_, Float_> my_pop_workspace;
     FindMnnWorkspace<Index_, Float_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
+    std::vector<Float_> 
 
     int my_num_neighbors;
-    int my_nthreads;
+    int my_num_threads;
     double my_tolerance;
 
 public:
-    void next(Float_ tolerance) {
+    void next() {
         // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
         // because they are agglomerations of the original batches. The idea is
         // to always merge two metabatches at each call to 'next()'.
@@ -109,6 +110,7 @@ public:
         my_batches.pop_back();
 
         populate_cross_neighbors(
+            my_num_dim,
             my_num_total,
             my_batches,
             target_batch,
@@ -121,7 +123,7 @@ public:
         find_closest_mnn(my_pop_workspace, my_mnn_workspace);
 
         correct_target(
-            my_ndim,
+            my_num_dim,
             my_num_total,
             my_batches,
             my_target,
@@ -135,8 +137,34 @@ public:
             my_correct_workspace
         );
 
-        // TODO:
-        // - Build indices for the newly reassigned cells in each remaining batch. 
+        // Reassigning the target batch's observations to the various reference batches.
+        BatchIndex num_remaining = my_batches.size();
+        std::vector<std::vector<Index_> > reassigned(num_remaining);
+        for (auto t : my_pop_workspace.target_mnns) {
+            reassigned[my_correct_workspace.chosen_batch[t]].push_back(t);
+        }
+
+        parallelize(my_num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
+            std::vector<Float_> buffer;
+            for (BatchIndex b = start, end = start + length; b < end; ++b) {
+                auto& reass = reassigned[b];
+                buffer.resize(static_cast<std::size_t>(reass.size()) * my_num_dim); // cast to avoid overflow.
+
+                auto num_reass = reass.size();
+                for (decltype(num_reass) i = 0; i < num_reass; ++i) {
+                    std::copy_n(
+                        my_corrected + static_cast<std::size_t>(reass[i]) * my_num_dim, // ditto.
+                        my_num_dim, 
+                        buffer.begin() + static_cast<std::size_t>(i) * my_num_dim
+                    );
+                }
+
+                my_batches[b].emplace_back(
+                    my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, buffer.data())),
+                    std::move(reass)
+                );
+            }
+        });
 
         --my_unmerged;
     }

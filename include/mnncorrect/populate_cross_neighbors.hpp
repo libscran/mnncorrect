@@ -23,6 +23,7 @@ struct PopulateCrossNeighborsWorkspace {
 
 template<typename Index_, class GetId_, typename Float_>
 void populate_batch_neighbors(
+    std::size_t num_dim,
     Index_ num_obs,
     GetId_ get_data_id,
     const Float_* data,
@@ -51,7 +52,7 @@ void populate_batch_neighbors(
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
             auto k = get_data_id(l);
-            auto ptr = data + static_cast<std::size_t>(k) * ndim;
+            auto ptr = data + static_cast<std::size_t>(k) * num_dim;
             searcher->search(ptr, num_neighbors, &indices, &distances);
             for (auto& i : indices) {
                 i += batch.offset;
@@ -63,7 +64,7 @@ void populate_batch_neighbors(
             auto searcher = extra.index->initialize();
             for (Index_ l = start, end = start + length; l < end; ++l) {
                 auto k = get_data_id(l);
-                auto ptr = data + static_cast<std::size_t>(k) * ndim;
+                auto ptr = data + static_cast<std::size_t>(k) * num_dim;
                 searcher->search(ptr, num_neighbors, &indices, &distances);
                 for (auto& i : indices) {
                     i = extra.ids[i];
@@ -76,6 +77,7 @@ void populate_batch_neighbors(
 
 template<typename Index_, typename Float_>
 void populate_cross_neighbors(
+    std::size_t num_dim,
     const BatchInfo<Index_, Float_>& ref,
     const BatchInfo<Index_, Float_>& target,
     const Float_* data,
@@ -111,6 +113,7 @@ void populate_cross_neighbors(
 
 template<typename Index_, typename Float_>
 void populate_cross_neighbors(
+    std::size_t num_dim,
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
