@@ -24,7 +24,7 @@ struct CorrectTargetWorkspace {
     std::vector<Float_> ref_buffer, target_buffer;
     NeighborSet<Index_, Float_> neighbor_from, neighbor_to;
     std::vector<Index_> mapping;
-    std::vector<Float_> ref_var_buffer, target_var_buffer; 
+    std::vector<Index_> chosen_batch;
 };
 
 template<typename Index_, typename Float_, class Matrix_> 
@@ -65,6 +65,29 @@ void force_self(std::vector<std::pair<Index_, Float_> >& current_neighbors, Inde
     current_neighbors.insert(current_neighbors.begin(), std::pair<Index_, Float_>(self, 0));
 }
 
+// While knncolle's interface guarantees that the output neighbors are sorted
+// by distance, it doesn't say anything about the order of neighbors when they
+// are tied. So we just make sure that earlier indices are sorted first,
+// which is useful for ensuring that sorted vectors can be compared safely.
+template<typename Index_, typename Distance_>
+struct SortBySecond {
+    bool operator()(const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) const {
+        if (left.second == right.second) {
+            return left.first < right.first;
+        } else {
+            return left.second < right.second;
+        }
+    }
+};
+
+template<typename Index_, typename Distance_>
+void ensure_sort(std::vector<std::pair<Index_, Float_> >& current_neighbors) { 
+    SortBySecond<Index_, Distance_> cmp;
+    if (std::is_unsorted(current_neighbors.begin(), current_neighbors.end(), cmp)) {
+        std::sort(current_neighbors.begin(), current_neighbors.end(), cmp);
+    }
+}
+
 // Find all neighbors of each MNN-involved observation, only in its corresponding metabatch (i.e., reference or target). 
 // Here, 'output' will contain neighbor indices relative to the entire dataset.
 template<typename Index_, typename Float_>
@@ -92,6 +115,7 @@ void search_for_neighbors_from_mnns(
     );
     for (auto t : target_mnns) {
         force_self(output[t], t, num_neighbors);
+        ensure_sort(output[t]);
     }
 
     for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
@@ -108,6 +132,7 @@ void search_for_neighbors_from_mnns(
     }
     for (auto r : ref_mnns_unique) {
         force_self(output[r], r, num_neighbors);
+        ensure_sort(output[r]);
     }
 }
 
@@ -138,9 +163,11 @@ void search_for_neighbors_to_mnns(
         }
     });
 
-    for (Index_ m = 0, mend = mnns.size(); m < mend; ++m) {
-        force_self(output[mnns[m]], m, num_neighbors);
-    }
+    // We'll guarantee sortedness for tied distances during the inversion, so
+    // no need to do it here. There's also no need to force each MNN-involved
+    // cell to be reported as its own neighbor as that should have been done in
+    // the neighbors_from function. So, each MNN-involved cell should already
+    // participate in the calculation of its own center of mas.
 }
 
 template<typename Index_, typename Float_>
@@ -179,17 +206,7 @@ NeighborSet<Index_, Distance_> invert_neighbors(Index_ num_mnns, const std::vect
     parallelize(num_threads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
             auto& curout = output[i];
-            std::sort(
-                curout.begin(),
-                curout.end(),
-                [](const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) -> bool {
-                    if (left.second == right.second) {
-                        return left.first < right.first;
-                    } else {
-                        return left.second < right.second;
-                    }
-                }
-            );
+            std::sort(curout.begin(), curout.end(), SortBySecond<Index_, Distance_>());
         }
     });
 
@@ -197,27 +214,23 @@ NeighborSet<Index_, Distance_> invert_neighbors(Index_ num_mnns, const std::vect
 }
 
 template<typename Index_, typename Float_>
-void compute_initial_center_of_mass(
+void compute_center_of_mass(
     std::size_t ndim,
     const std::vector<Index_>& mnns,
-    const NeighborSet<Index_, Float_>& neighbors,
+    const NeighborSet<Index_, Float_>& neighbors_from,
+    const NeighborSet<Index_, Float_>& inverted_neighbors_to,
     const Float_* data,
     int num_threads,
     double tolerance,
-    std::vector<double>& running_mean,
-    std::vector<double>& running_variance)
+    std::vector<double>& running_mean)
 {
     Index_ num_mnns = mnns.size();
-    running_mean.resize(static_cast<std::size_t>(num_mnns) * ndim);
-    running_variance.resize(running_mean.size());
+    running_mean.resize(static_cast<std::size_t>(num_mnns) * ndim); // cast to avoid overflow.
 
-    parallelize(nthreads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
+    parallelize(num_threads, num_mnns, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> mean(ndim), sum_squares(ndim);
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
-            auto m = mnns[g];
-            const auto& inv = neighbors[m];
-
             // Using Welford's algorithm to compute the running mean and
             // variance around the current center of mass. We filter out
             // points that are outliers in any dimension. 
@@ -225,9 +238,12 @@ void compute_initial_center_of_mass(
             std::fill(sum_squares.begin(), sum_squares.end(), 0);
             Index_ counter = 0;
 
-            for (auto nn : inv) {
+            /**
+             * Computing the initial seed.
+             */
+            const auto& nn_from = neighbors_from[mnns[g]];
+            for (auto nn : nn_from) {
                 auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
-
                 ++counter;
                 for (std::size_t d = 0; d < ndim; ++d) {
                     auto val = target[d];
@@ -238,9 +254,58 @@ void compute_initial_center_of_mass(
                 }
             }
 
-            std::size_t output_offset = ndim * static_cast<std::size_t>(g);
+            /**
+             * Refining the seed based on the inverted neighbors.
+             */
+            decltype(nn_from.size()) checked = 0, limit = nn_from.size();
+            SortBySecond<Index_, Distance_> cmp;
+            for (auto nn : inverted_neighbors_to[g]) {
+                // Iterating over both to/from sorted lists, to avoid re-adding
+                // observations that were added in the seed.
+                bool found = false;
+                while (checked < limit) {
+                    if (cmp(nn, nn_from[checked])) {
+                        break;
+                    if (nn_from[checked].first == nn.first) {
+                        found = true;
+                        break;
+                    }
+                    ++checked;
+                }
+                if (found) {
+                    continue;
+                }
+
+                // Checking if the new observation is beyond the tolerance on any dimension.
+                bool outside_range = false;
+                Float_ multiplier = tolerance / std::sqrt(counter - 1.0);
+                for (std::size_t d = 0; d < ndim; ++d) {
+                    if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
+                        outside_range = true;
+                        break;
+                    }
+                }
+                if (outside_range) {
+                    continue;
+                }
+
+                // If it's good, we proceed to add it.
+                auto target = data + static_cast<std::size_t>(nn.first) * ndim; // cast to avoid overflow.
+                ++counter;
+                for (std::size_t d = 0; d < ndim; ++d) {
+                    auto val = target[d];
+                    auto& curmean = mean[d];
+                    double delta = val - curmean;
+                    curmean += delta / counter;
+                    sum_squares[d] += delta * (val - curmean);
+                }
+            }
+
+            /**
+             * Copying the result into the output vector.
+             */
+            std::size_t output_offset = ndim * static_cast<std::size_t>(g); // cast to avoid overflow.
             std::copy(mean.begin(), mean.end(), running_mean.begin() + output_offset);
-            std::copy(sum_squares.begin(), sum_squares.end(), running_variance.begin() + output_offset);
         }
     });
 
@@ -249,23 +314,23 @@ void compute_initial_center_of_mass(
 
 template<typename Index_, typename Float_>
 void correct_target(
+    std::size_t ndim,
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
-    const std::vector<Index_>& ref_ids,
     const BatchInfo<Index_, Float_>& target,
-    const std::vector<Index_>& target_ids,
-    Float_* data,
+    const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop,
     const FindClosestMnnWorkspace<Index_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     int num_neighbors,
     int num_threads,
     double tolerance,
+    Float_* data,
     CorrectTargetWorkspace<Index_, Float_>& workspace) 
 {
     // Build this first so that we can re-use the ref_buffers and target_buffers for the center of mass calculations.
     std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > ref_mnn_index;
     std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > target_mnn_index;
-    parallelize(nthreads, 2, [&](int, int start, int length) -> void {
+    parallelize(num_threads, 2, [&](int, int start, int length) -> void {
         for (int opt = start, end = start + length; opt < end; ++opt) {
             const auto& uniq = (opt == 0 ? mnns.ref_mnns_unique : mnns.target_mnns);
             auto& buffer = (opt == 0 ? workspace.ref_buffer : workspace.target_buffer);
@@ -275,33 +340,28 @@ void correct_target(
     });
 
     workspace.mapping.resize(num_total);
-    for (decltype(mnns.ref_ids.size()) rx = 0, rend = mnns.ref_ids.size(); r < rend; ++r) {
-        workspace.mapping[mnns.ref_ids[rx]] = rx;
-    }
-    for (decltype(mnns.target_ids.size()) tx = 0, tend = mnns.target_ids.size(); t < tend; ++t) {
-        workspace.mapping[mnns.target_ids[tx]] = tx;
+    for (decltype(mnns.ref_mnns_unique.size()) rx = 0, rend = mnns.ref_mnns_unique.size(); r < rend; ++r) {
+        workspace.mapping[mnns.ref_mnns_unique[rx]] = rx;
     }
 
-    // Computing an initial center of mass for each MNN-involved observation.
+    // Find the closest neighbors of each MNN-involved observation in either metabatch.
     search_for_neighbors_from_mnns(
         num_total,
         mnns.ref_mnns_unique,
         mnns.target_mnns,
         data,
-        mnn_indices.ref_index,
-        mnn_indices.target_index,
+        references,
+        target,
         num_neighbors,
         num_threads,
         workspace.neighbors_from
     );
-    compute_initial_center_of_mass(mnns.ref_mnns_unique, workspace.neighbors, data, workspace.ref_buffer, num_threads, workspace.ref_var_buffer);
-    compute_initial_center_of_mass(mnns.target_mnns, workspace.neighbors, data, workspace.target_buffer, num_threads, workspace.target_var_buffer);
 
-    // Find the closest MNN-involved observation(s) to each observation in either metabatch.
+    // Find the closest MNN-involved observation(s) of each observation in either metabatch.
     search_for_neighbors_to_mnns(
         num_total,
-        ref_ids,
-        target_ids,
+        pop.ref_ids,
+        pop.target_ids,
         data,
         mnns.ref_mnns_unique,
         ref_mnn_index,
@@ -312,20 +372,32 @@ void correct_target(
         workspace.neighbors_to
     );
 
-    // Refining the center of mass.
-    auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), ref_ids, workspace.neighbors_to, num_threads);
-    auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), target_ids, workspace.neighbors_to, num_threads);
-    refine_center_of_mass(mnns.ref_mnns_unique, correct_workspace.neighbors, data, correct_workspace.ref_buffer, num_threads, correct_workspace.ref_var_buffer);
-    refine_center_of_mass(mnns.target_mnns, correct_workspace.neighbors, data, correct_workspace.target_buffer, num_threads, correct_workspace.target_var_buffer);
+    // Computing the center of mass.
+    auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), pop.ref_ids, workspace.neighbors_to, num_threads);
+    auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), pop.target_ids, workspace.neighbors_to, num_threads);
+    compute_center_of_mass(ndim, mnns.ref_mnns_unique, workspace.neighbors_from, ref_inverted, data, num_threads, tolerance, workspace.ref_buffer);
+    compute_center_of_mass(ndim, mnns.target_mnns, workspace.neighbors_from, target_inverted, data, num_threads, tolerance, workspace.target_buffer);
 
-    // Apply the correction in the target based on its closest MNN-involved cell, and report the index of the closest MNN-involved cell.
+    // Apply the correction in the target based on its closest MNN-involved cell.
+    Index_ num_target = pop.target_ids.size();
+    workspace.chosen_batch.resize(num_total);
+    parallelize(num_threads, num_target, [&](int, int start, int length) -> void {
+        for (Index_ i = start, end = start + length; i < end; ++i) {
+            auto t = pop.target_ids[i];
+            auto tptr = data + static_cast<std::size_t>(t) * ndim; // cast to avoid overflow.
 
-}
+            auto closest_mnn = workspace.neighbors_to[t][0].first; // this index is already defined with respect to the target_mnns subset.
+            auto tcenter = workspace.target_buffer.data() + static_cast<std::size_t>(closest_mnn) * ndim; // casting again.
 
-            auto tptr = target + toffset;
+            auto ref_partner = mnn.ref_mnns_partner[closest_mnn];
+            auto ridx = workspace.mapping[ref_partner];
+            auto rcenter = workspace.ref_buffer.data() + static_cast<std::size_t>(ridx) * ndim; // ditto.
+
             for (std::size_t d = 0; d < ndim; ++d) {
-                optr[d] += tptr[d];
+                tptr[d] += (recenter[d] - tcenter[d]);
             }
+
+            workspace.chosen_batch[t] = pop.batch[ref_partner]; // report the full index of the closest MNN-involved cell.
         }
     });
 

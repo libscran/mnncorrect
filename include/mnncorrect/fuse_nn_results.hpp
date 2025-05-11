@@ -89,4 +89,3 @@ void fuse_nn_results(
 }
 
 #endif
-
