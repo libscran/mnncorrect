@@ -4,7 +4,8 @@
 #include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "populate_cross_neighbors.hpp"
+#include "find_batch_neighbors.hpp"
+#include "find_closest_mnn.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -103,7 +104,7 @@ void search_for_neighbors_from_mnns(
     NeighborSet<Index_, Float_>& output)
 {
     output.resize(num_total);
-    populate_batch_neighbors(
+    find_batch_neighbors(
         num_dim,
         static_cast<Index_>(target_mnns.size()),
         [&](Index_ i) -> Index_ { return target_mnns[i]; },
@@ -120,7 +121,7 @@ void search_for_neighbors_from_mnns(
     }
 
     for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
-        populate_batch_neighbors<Index_>(
+        find_batch_neighbors(
             num_dim,
             static_cast<Index_>(ref_mnns_unique.size()),
             [&](Index_ i) -> Index_ { return ref_mnns_unique[i]; },
@@ -321,7 +322,7 @@ void correct_target(
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
-    const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop,
+    const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
     const FindClosestMnnWorkspace<Index_, Float_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     int num_neighbors,
@@ -365,8 +366,8 @@ void correct_target(
     search_for_neighbors_to_mnns(
         num_dim,
         num_total,
-        pop.ref_ids,
-        pop.target_ids,
+        batch_nns.ref_ids,
+        batch_nns.target_ids,
         data,
         *ref_mnn_index,
         *target_mnn_index,
@@ -376,17 +377,17 @@ void correct_target(
     );
 
     // Computing the center of mass.
-    auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), pop.ref_ids, workspace.neighbors_to, num_threads);
-    auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), pop.target_ids, workspace.neighbors_to, num_threads);
+    auto ref_inverted = invert_neighbors<Index_, Float_>(mnns.ref_mnns_unique.size(), batch_nns.ref_ids, workspace.neighbors_to, num_threads);
+    auto target_inverted = invert_neighbors<Index_, Float_>(mnns.target_mnns.size(), batch_nns.target_ids, workspace.neighbors_to, num_threads);
     compute_center_of_mass(num_dim, mnns.ref_mnns_unique, workspace.neighbors_from, ref_inverted, data, num_threads, tolerance, workspace.ref_buffer);
     compute_center_of_mass(num_dim, mnns.target_mnns, workspace.neighbors_from, target_inverted, data, num_threads, tolerance, workspace.target_buffer);
 
     // Apply the correction in the target based on its closest MNN-involved cell.
-    Index_ num_target = pop.target_ids.size();
+    Index_ num_target = batch_nns.target_ids.size();
     workspace.chosen_batch.resize(num_total);
     parallelize(num_threads, num_target, [&](int, int start, int length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
-            auto t = pop.target_ids[i];
+            auto t = batch_nns.target_ids[i];
             auto tptr = data + static_cast<std::size_t>(t) * num_dim; // cast to avoid overflow.
 
             auto closest_mnn = workspace.neighbors_to[t][0].first; // this index is already defined with respect to the target_mnns subset.
@@ -400,7 +401,7 @@ void correct_target(
                 tptr[d] += (rcenter[d] - tcenter[d]);
             }
 
-            workspace.chosen_batch[t] = pop.batch[ref_partner]; // report the full index of the closest MNN-involved cell.
+            workspace.chosen_batch[t] = batch_nns.batch[ref_partner]; // report the full index of the closest MNN-involved cell.
         }
     });
 

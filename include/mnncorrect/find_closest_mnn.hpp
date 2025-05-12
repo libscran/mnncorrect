@@ -5,7 +5,7 @@
 #include <algorithm>
 
 #include "utils.hpp"
-#include "populate_cross_neighbors.hpp"
+#include "find_batch_neighbors.hpp"
 
 namespace mnncorrect {
 
@@ -26,9 +26,9 @@ struct FindClosestMnnWorkspace {
 };
 
 template<typename Index_, typename Float_>
-void find_closest_mnn(const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop, FindClosestMnnWorkspace<Index_, Float_>& workspace) {
-    const auto& neighbors = pop.neighbors;
-    const auto& target_ids = pop.target_ids;
+void find_closest_mnn(const FindBatchNeighborsResults<Index_, Float_>& batch_nns, FindClosestMnnWorkspace<Index_, Float_>& workspace) {
+    const auto& neighbors = batch_nns.neighbors;
+    const auto& target_ids = batch_nns.target_ids;
 
     auto num_total = neighbors.size();
     for (auto& rev : workspace.reverse_neighbor_buffer) {

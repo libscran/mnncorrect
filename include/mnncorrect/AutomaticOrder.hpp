@@ -12,7 +12,7 @@
 
 #include "utils.hpp"
 #include "find_closest_mnn.hpp"
-#include "populate_cross_neighbors.hpp"
+#include "find_batch_neighbors.hpp"
 #include "correct_target.hpp"
 #include "define_merge_order.hpp"
 
@@ -91,7 +91,7 @@ protected:
     std::vector<BatchIndex> my_order;
     BatchIndex my_target;
 
-    PopulateCrossNeighborsWorkspace<Index_, Float_> my_pop_workspace;
+    FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnWorkspace<Index_, Float_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
 
@@ -107,7 +107,7 @@ public:
         BatchInfo<Index_, Float_> target_batch(std::move(my_batches[my_target]));
         my_batches.pop_back();
 
-        populate_cross_neighbors(
+        find_batch_neighbors(
             my_num_dim,
             my_num_total,
             my_batches,
@@ -115,17 +115,17 @@ public:
             my_corrected,
             my_num_neighbors,
             my_num_threads,
-            my_pop_workspace
+            my_batch_nns
         );
 
-        find_closest_mnn(my_pop_workspace, my_mnn_workspace);
+        find_closest_mnn(my_batch_nns, my_mnn_workspace);
 
         correct_target(
             my_num_dim,
             my_num_total,
             my_batches,
             target_batch,
-            my_pop_workspace,
+            my_batch_nns,
             my_mnn_workspace,
             my_builder,
             my_num_neighbors,
@@ -138,7 +138,7 @@ public:
         // Reassigning the target batch's observations to the various reference batches.
         BatchIndex num_remaining = my_batches.size();
         std::vector<std::vector<Index_> > reassigned(num_remaining);
-        for (auto t : my_pop_workspace.target_ids) {
+        for (auto t : my_batch_nns.target_ids) {
             reassigned[my_correct_workspace.chosen_batch[t]].push_back(t);
         }
 

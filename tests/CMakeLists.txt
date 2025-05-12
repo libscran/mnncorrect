@@ -18,6 +18,7 @@ macro(create_test name)
     add_executable(
         ${name} 
         src/fuse_nn_results.cpp
+        src/find_batch_neighbors.cpp
 #        src/find_mutual_nns.cpp
 #        src/correct_target.cpp
 #        src/AutomaticOrder.cpp
