@@ -10,7 +10,6 @@
 #include "knncolle/knncolle.hpp"
 
 #include "AutomaticOrder.hpp"
-#include "Options.hpp"
 #include "restore_order.hpp"
 #include "utils.hpp"
 
@@ -104,7 +103,7 @@ struct Details {
 namespace internal {
 
 template<typename Index_, typename Float_, class Matrix_>
-Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     auto builder = options.builder;
     if (!builder) {
         typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
@@ -170,14 +169,10 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
  * On output, the first `num_obs[0]` columns contain the corrected values of the first batch, 
  * the second `num_obs[1]` columns contain the corrected values of the second batch, and so on.
  * @param options Further options.
- *
- * @return Statistics about the merge process.
  */
 template<typename Index_, typename Float_, class Matrix_>
-Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
-    auto stats = internal::compute(num_dim, num_obs, batches, output, options);
-    internal::restore_order(num_dim, stats.merge_order, num_obs, output);
-    return stats;
+void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+    internal::compute(num_dim, num_obs, batches, output, options);
 }
 
 /**
@@ -200,18 +195,16 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const s
  * On output, the first `num_obs[0]` columns contain the corrected values of the first batch, 
  * the second `num_obs[1]` columns contain the corrected values of the second batch, and so on.
  * @param options Further options.
- *
- * @return Statistics about the merge process.
  */
 template<typename Index_, typename Float_, class Matrix_>
-Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     std::vector<const Float_*> batches;
     batches.reserve(num_obs.size());
     for (auto n : num_obs) {
         batches.push_back(input);
         input += static_cast<std::size_t>(n) * num_dim; // cast to size_t's to avoid overflow.
     }
-    return compute(num_dim, num_obs, batches, output, options);
+    compute(num_dim, num_obs, batches, output, options);
 }
 
 /**
@@ -234,11 +227,9 @@ Details compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const F
  * @param[out] output Pointer to an array containing a column-major matrix of the same dimensions as that in `input`, where the corrected values for all batches are stored.
  * The order of observations in `output` is the same as that in the `input`. 
  * @param options Further options.
- *
- * @return Statistics about the merge process.
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
-Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
     const BatchIndex nbatches = (num_obs ? static_cast<BatchIndex>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
     std::vector<Index_> sizes(nbatches);
     for (Index_ o = 0; o < num_obs; ++o) {
@@ -255,7 +246,8 @@ Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const 
        }
     }
     if (already_sorted) {
-        return compute(num_dim, sizes, input, output, options);
+        compute(num_dim, sizes, input, output, options);
+        return;
     }
 
     std::size_t accumulated = 0; // use size_t to avoid overflow issues during later multiplication.
@@ -280,9 +272,10 @@ Details compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const 
         ++offset;
     }
 
-    auto stats = internal::compute(num_dim, sizes, ptrs, output, options);
-    internal::restore_order(num_dim, stats.merge_order, sizes, batch, output);
-    return stats;
+    internal::compute(num_dim, sizes, ptrs, output, options);
+    std::vector<BatchIndex> mock_order(nbatches); // TODO: get rid of this, we don't need it.
+    std::iota(mock_order.begin(), mock_order.end(), 0);
+    internal::restore_order(num_dim, mock_order, sizes, batch, output);
 }
 
 }

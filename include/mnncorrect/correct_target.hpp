@@ -21,7 +21,7 @@ namespace internal {
 template<typename Index_, typename Float_>
 struct CorrectTargetWorkspace {
     std::vector<Float_> ref_buffer, target_buffer;
-    NeighborSet<Index_, Float_> neighbor_from, neighbor_to;
+    NeighborSet<Index_, Float_> neighbors_from, neighbors_to;
     std::vector<Index_> mapping;
     std::vector<Index_> chosen_batch;
 };
@@ -40,7 +40,7 @@ std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_inde
         auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * num_dim; // cast to size_t's to avoid overflow.
         std::copy_n(curdata, num_dim, buffer.begin() + static_cast<std::size_t>(f) * num_dim); // also casting to avoid overflow.
     }
-    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, uniq.size(), buffer.data()));
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_in_mnn, buffer.data()));
 }
 
 // Ensure each MNN-involved observation is part of its own neighbor set,
@@ -68,9 +68,9 @@ void force_self(std::vector<std::pair<Index_, Float_> >& current_neighbors, Inde
 // by distance, it doesn't say anything about the order of neighbors when they
 // are tied. So we just make sure that earlier indices are sorted first,
 // which is useful for ensuring that sorted vectors can be compared safely.
-template<typename Index_, typename Distance_>
+template<typename Index_, typename Float_>
 struct SortBySecond {
-    bool operator()(const std::pair<Index_, Distance_>& left, const std::pair<Index_, Distance_>& right) const {
+    bool operator()(const std::pair<Index_, Float_>& left, const std::pair<Index_, Float_>& right) const {
         if (left.second == right.second) {
             return left.first < right.first;
         } else {
@@ -79,10 +79,10 @@ struct SortBySecond {
     }
 };
 
-template<typename Index_, typename Distance_>
+template<typename Index_, typename Float_>
 void ensure_sort(std::vector<std::pair<Index_, Float_> >& current_neighbors) { 
-    SortBySecond<Index_, Distance_> cmp;
-    if (std::is_unsorted(current_neighbors.begin(), current_neighbors.end(), cmp)) {
+    SortBySecond<Index_, Float_> cmp;
+    if (!std::is_sorted(current_neighbors.begin(), current_neighbors.end(), cmp)) {
         std::sort(current_neighbors.begin(), current_neighbors.end(), cmp);
     }
 }
@@ -91,6 +91,7 @@ void ensure_sort(std::vector<std::pair<Index_, Float_> >& current_neighbors) {
 // Here, 'output' will contain neighbor indices relative to the entire dataset.
 template<typename Index_, typename Float_>
 void search_for_neighbors_from_mnns(
+    std::size_t num_dim,
     Index_ num_total,
     const std::vector<Index_>& ref_mnns_unique,
     const std::vector<Index_>& target_mnns,
@@ -102,9 +103,10 @@ void search_for_neighbors_from_mnns(
     NeighborSet<Index_, Float_>& output)
 {
     output.resize(num_total);
-    populate_batch_neighbors<Index_, Float_>(
-        target_mnns.size(),
-        [&](Index_ i) -> Index_ { return target_mnn[i]; },
+    populate_batch_neighbors(
+        num_dim,
+        static_cast<Index_>(target_mnns.size()),
+        [&](Index_ i) -> Index_ { return target_mnns[i]; },
         data,
         target,
         num_neighbors,
@@ -118,8 +120,9 @@ void search_for_neighbors_from_mnns(
     }
 
     for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
-        populate_batch_neighbors<Index_, Float_>(
-            ref_mnns_unique.size(),
+        populate_batch_neighbors<Index_>(
+            num_dim,
+            static_cast<Index_>(ref_mnns_unique.size()),
             [&](Index_ i) -> Index_ { return ref_mnns_unique[i]; },
             data,
             references[b],
@@ -139,9 +142,9 @@ void search_for_neighbors_from_mnns(
 // Here, 'output' will contain neighbor indices relative to the subset of MNNs, i.e., 'mnns[output[0][0].first]' is the original index.
 template<typename Index_, typename Float_>
 void search_for_neighbors_to_mnns(
+    std::size_t num_dim,
     const std::vector<Index_>& ids,
     const Float_* data,
-    const std::vector<Index_>& mnns,
     const knncolle::Prebuilt<Index_, Float_, Float_>& mnn_index,
     int num_neighbors,
     int num_threads,
@@ -151,7 +154,7 @@ void search_for_neighbors_to_mnns(
     parallelize(num_threads, num_obs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
-        auto searcher = mnn_index->initialize();
+        auto searcher = mnn_index.initialize();
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
             auto k = ids[l];
@@ -171,21 +174,20 @@ void search_for_neighbors_to_mnns(
 
 template<typename Index_, typename Float_>
 void search_for_neighbors_to_mnns(
+    std::size_t num_dim,
     Index_ num_total,
     const std::vector<Index_>& ref_ids,
     const std::vector<Index_>& target_ids,
     const Float_* data,
-    const std::vector<Index_>& ref_mnns_unique,
     const knncolle::Prebuilt<Index_, Float_, Float_>& ref_mnn_index,
-    const std::vector<Index_>& target_mnns,
     const knncolle::Prebuilt<Index_, Float_, Float_>& target_mnn_index,
     int num_neighbors,
     int num_threads,
     NeighborSet<Index_, Float_>& output)
 {
     output.resize(num_total);
-    search_for_neighbors_to_mnns(ref_ids, data, ref_mnns_unique, ref_mnn_index, num_neighbors, num_threads, output);
-    search_for_neighbors_to_mnns(target_ids, data, target_mnns, target_mnn_index, num_neighbors, num_threads, output);
+    search_for_neighbors_to_mnns(num_dim, ref_ids, data, ref_mnn_index, num_neighbors, num_threads, output);
+    search_for_neighbors_to_mnns(num_dim, target_ids, data, target_mnn_index, num_neighbors, num_threads, output);
 }
 
 // Here, output contains indices relative to the entire dataset again.  We
@@ -257,7 +259,7 @@ void compute_center_of_mass(
              * Refining the seed based on the inverted neighbors.
              */
             decltype(nn_from.size()) checked = 0, limit = nn_from.size();
-            SortBySecond<Index_, Distance_> cmp;
+            SortBySecond<Index_, Float_> cmp;
             for (auto nn : inverted_neighbors_to[g]) {
                 // Iterating over both to/from sorted lists, to avoid re-adding
                 // observations that were added in the seed.
@@ -265,6 +267,7 @@ void compute_center_of_mass(
                 while (checked < limit) {
                     if (cmp(nn, nn_from[checked])) {
                         break;
+                    }
                     if (nn_from[checked].first == nn.first) {
                         found = true;
                         break;
@@ -274,6 +277,8 @@ void compute_center_of_mass(
                 if (found) {
                     continue;
                 }
+
+                auto target = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
 
                 // Checking if the new observation is beyond the tolerance on any dimension.
                 bool outside_range = false;
@@ -289,7 +294,6 @@ void compute_center_of_mass(
                 }
 
                 // If it's good, we proceed to add it.
-                auto target = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
                 ++counter;
                 for (std::size_t d = 0; d < num_dim; ++d) {
                     auto val = target[d];
@@ -311,14 +315,14 @@ void compute_center_of_mass(
     return;
 }
 
-template<typename Index_, typename Float_>
+template<typename Index_, typename Float_, class Matrix_>
 void correct_target(
     std::size_t num_dim,
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
     const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop,
-    const FindClosestMnnWorkspace<Index_>& mnns,
+    const FindClosestMnnWorkspace<Index_, Float_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     int num_neighbors,
     int num_threads,
@@ -339,12 +343,13 @@ void correct_target(
     });
 
     workspace.mapping.resize(num_total);
-    for (decltype(mnns.ref_mnns_unique.size()) rx = 0, rend = mnns.ref_mnns_unique.size(); r < rend; ++r) {
+    for (decltype(mnns.ref_mnns_unique.size()) rx = 0, rend = mnns.ref_mnns_unique.size(); rx < rend; ++rx) {
         workspace.mapping[mnns.ref_mnns_unique[rx]] = rx;
     }
 
     // Find the closest neighbors of each MNN-involved observation in either metabatch.
     search_for_neighbors_from_mnns(
+        num_dim,
         num_total,
         mnns.ref_mnns_unique,
         mnns.target_mnns,
@@ -358,14 +363,13 @@ void correct_target(
 
     // Find the closest MNN-involved observation(s) of each observation in either metabatch.
     search_for_neighbors_to_mnns(
+        num_dim,
         num_total,
         pop.ref_ids,
         pop.target_ids,
         data,
-        mnns.ref_mnns_unique,
-        ref_mnn_index,
-        mnns.target_mnns,
-        target_mnn_index,
+        *ref_mnn_index,
+        *target_mnn_index,
         num_neighbors,
         num_threads,
         workspace.neighbors_to
@@ -388,12 +392,12 @@ void correct_target(
             auto closest_mnn = workspace.neighbors_to[t][0].first; // this index is already defined with respect to the target_mnns subset.
             auto tcenter = workspace.target_buffer.data() + static_cast<std::size_t>(closest_mnn) * num_dim; // casting again.
 
-            auto ref_partner = mnn.ref_mnns_partner[closest_mnn];
+            auto ref_partner = mnns.ref_mnns_partner[closest_mnn];
             auto ridx = workspace.mapping[ref_partner];
             auto rcenter = workspace.ref_buffer.data() + static_cast<std::size_t>(ridx) * num_dim; // ditto.
 
             for (std::size_t d = 0; d < num_dim; ++d) {
-                tptr[d] += (recenter[d] - tcenter[d]);
+                tptr[d] += (rcenter[d] - tcenter[d]);
             }
 
             workspace.chosen_batch[t] = pop.batch[ref_partner]; // report the full index of the closest MNN-involved cell.

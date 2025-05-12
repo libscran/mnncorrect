@@ -54,12 +54,13 @@ protected:
 
 TEST_P(OverallTest, Basic) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
-    size_t refbatch = ordering.merge_order.front();
+
+    size_t refbatch = 0;
 
     // Heuristic: check that the differences in the mean are much less than the
     // range of simulated values within each batch (-2 to 2) in each dimension.
@@ -97,146 +98,18 @@ TEST_P(OverallTest, Basic) {
 
     // Same results when multiple threads are in use.
     std::vector<double> par_output(nobs * ndim);
-    auto par_ordering = mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
+    mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         opt.num_threads = 3;
         return opt;
     }());
-    EXPECT_EQ(par_ordering.merge_order, ordering.merge_order);
     EXPECT_EQ(par_output, output);
-}
-
-TEST_P(OverallTest, Iterative) {
-    std::vector<double> output(nobs * ndim);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        return opt;
-    }());
-
-    // Now trying to run it iteratively as a reference.
-    size_t previous = ordering.merge_order[0];
-    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
-    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<int> ref_sizes{ sizes[previous], 0 };
-
-    for (size_t i = 1; i < ordering.merge_order.size(); ++i) {
-        if (i != 1) {
-            std::copy(ref.begin(), ref.end(), buffer.begin());
-            ref_ptrs[0] = buffer.data();
-            ref_sizes[0] += sizes[previous];
-        }
-
-        size_t current = ordering.merge_order[i];
-        ref_ptrs[1] = ptrs[current];
-        ref_sizes[1] = sizes[current];
-
-        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options<int, double> opt;
-            opt.num_neighbors = k;
-            opt.automatic_order = false;
-            return opt;
-        }());
-        previous = current;
-    }
-
-    mnncorrect::internal::restore_order(ndim, ordering.merge_order, sizes, ref.data());
-    EXPECT_EQ(output, ref);
-}
-
-TEST_P(OverallTest, Linear) {
-    std::vector<double> output(nobs * ndim);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        opt.automatic_order = false;
-        return opt;
-    }());
-
-    // Checking that the order is as expected.
-    EXPECT_EQ(ordering.merge_order.size(), sizes.size());
-    EXPECT_EQ(ordering.merge_order[0], 0);
-    EXPECT_EQ(ordering.merge_order.back(), sizes.size() - 1);
-
-    // Now trying to run it iteratively.
-    size_t previous = 0;
-    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
-    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<int> ref_sizes{ sizes[previous], 0 };
-
-    for (size_t i = 1; i < sizes.size(); ++i) {
-        if (i != 1) {
-            std::copy(ref.begin(), ref.end(), buffer.begin());
-            ref_ptrs[0] = buffer.data();
-            ref_sizes[0] += sizes[previous];
-        }
-
-        ref_ptrs[1] = ptrs[i];
-        ref_sizes[1] = sizes[i];
-
-        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options<int, double> opt;
-            opt.num_neighbors = k;
-            opt.automatic_order = false;
-            return opt;
-        }());
-        previous = i;
-    }
-
-    EXPECT_EQ(output, ref);
-}
-
-TEST_P(OverallTest, Reverse) {
-    std::vector<double> output(nobs * ndim);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        opt.automatic_order = false;
-        opt.order.resize(sizes.size());
-        std::iota(opt.order.begin(), opt.order.end(), 0);
-        std::reverse(opt.order.begin(), opt.order.end());
-        return opt;
-    }());
-
-    // Checking that the order is as expected.
-    EXPECT_EQ(ordering.merge_order.size(), sizes.size());
-    EXPECT_EQ(ordering.merge_order[0], sizes.size() - 1);
-    EXPECT_EQ(ordering.merge_order.back(), 0);
-
-    // Now trying to run it iteratively.
-    size_t previous = sizes.size() - 1;
-    std::vector<double> ref(nobs * ndim), buffer(nobs * ndim);
-    std::vector<const double*> ref_ptrs { ptrs[previous], NULL };
-    std::vector<int> ref_sizes{ sizes[previous], 0 };
-
-    for (size_t i = 1; i < sizes.size(); ++i) {
-        if (i != 1) {
-            std::copy(ref.begin(), ref.end(), buffer.begin());
-            ref_ptrs[0] = buffer.data();
-            ref_sizes[0] += sizes[previous];
-        }
-
-        size_t next = sizes.size() - i - 1;
-        ref_ptrs[1] = ptrs[next];
-        ref_sizes[1] = sizes[next];
-
-        mnncorrect::compute(ndim, ref_sizes, ref_ptrs, ref.data(), [&]{
-            mnncorrect::Options<int, double> opt;
-            opt.num_neighbors = k;
-            opt.automatic_order = false;
-            return opt;
-        }());
-        previous = next;
-    }
-
-    mnncorrect::internal::restore_order(ndim, ordering.merge_order, sizes, ref.data());
-    EXPECT_EQ(output, ref);
 }
 
 TEST_P(OverallTest, OtherInputs) {
     std::vector<double> output(nobs * ndim);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
@@ -244,13 +117,12 @@ TEST_P(OverallTest, OtherInputs) {
 
     // Just getting some coverage on the other input approach.
     std::vector<double> output2(nobs * ndim);
-    auto ordering2 = mnncorrect::compute(ndim, sizes, data.data(), output2.data(), [&]{
+    mnncorrect::compute(ndim, sizes, data.data(), output2.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
     EXPECT_EQ(output, output2);
-    EXPECT_EQ(ordering.merge_order, ordering2.merge_order);
 
     // Creating a mock batch permutation.
     int nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
@@ -274,13 +146,12 @@ TEST_P(OverallTest, OtherInputs) {
 
     // Actually running the test.
     std::vector<double> output3(nobs * ndim);
-    auto ordering3 = mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), [&]{
+    mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         return opt;
     }());
     EXPECT_EQ(ref, output3);
-    EXPECT_EQ(ordering.merge_order, ordering3.merge_order);
 }
 
 TEST_P(OverallTest, OtherParams) {
@@ -296,19 +167,7 @@ TEST_P(OverallTest, OtherParams) {
         std::vector<double> output2(nobs * ndim);
         mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
             mnncorrect::Options<int, double> opt;
-            opt.num_neighbors = k;
-            opt.mass_cap = 50;
-            return opt;
-        }());
-        EXPECT_NE(output2, output);
-    }
-
-    {
-        std::vector<double> output2(nobs * ndim);
-        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
-            mnncorrect::Options<int, double> opt;
-            opt.num_neighbors = k;
-            opt.robust_trim = 0;
+            opt.tolerance = 1;
             return opt;
         }());
         EXPECT_NE(output2, output);
@@ -357,14 +216,9 @@ TEST(Overall, Sanity) {
     }
 
     std::vector<double> output(ndim * nobs);
-    auto ordering = mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{ 
-        mnncorrect::Options<int, double> opt;
-        opt.automatic_order = false;
-        return opt;
-    }());
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), mnncorrect::Options<int, double>{});
 
-    size_t refbatch = ordering.merge_order.front();
-
+    size_t refbatch = 0;
     sofar = 0;
     for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
         auto len = sizes[b];

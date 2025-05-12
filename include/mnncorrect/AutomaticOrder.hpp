@@ -11,9 +11,10 @@
 #include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "find_mutual_nns.hpp"
-#include "populate_neighbors.hpp"
+#include "find_closest_mnn.hpp"
+#include "populate_cross_neighbors.hpp"
 #include "correct_target.hpp"
+#include "define_merge_order.hpp"
 
 namespace mnncorrect {
 
@@ -31,17 +32,17 @@ public:
         int num_neighbors, 
         double tolerance,
         ReferencePolicy ref_policy, 
-        int nthreads)
+        int num_threads)
     :
         my_num_dim(num_dim), 
         my_builder(builder),
         my_corrected(corrected),
         my_num_neighbors(num_neighbors),
-        my_tolerance(tolerance)
-        my_num_threads(nthreads),
+        my_tolerance(tolerance),
+        my_num_threads(num_threads)
     {
-        BatchIndex nbatches = my_num_obs.size();
-        if (nbatches != my_batches.size()) {
+        BatchIndex nbatches = num_obs.size();
+        if (nbatches != batches.size()) {
             throw std::runtime_error("length of 'num_obs' and 'batches' must be equal");
         }
         if (nbatches == 0) {
@@ -51,31 +52,30 @@ public:
         // Different policies to choose the batch order. 'my_order' is filled
         // in reverse order of batches to merge, with the first batch being unchanged. 
         if (ref_policy == ReferencePolicy::MAX_SIZE) {
-            define_order(my_num_obs, my_order);
+            define_merge_order(num_obs, my_order);
         } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
             bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
-            std::vector<Float_> vars = compute_total_variances(my_num_dim, my_num_obs, my_batches, as_rss, my_num_threads);
-            define_order(vars, my_order);
+            std::vector<Float_> vars = compute_total_variances(my_num_dim, num_obs, batches, as_rss, my_num_threads);
+            define_merge_order(vars, my_order);
         } else { // i.e., ref_policy = INPUT.
             my_order.resize(nbatches);
             std::iota(my_order.begin(), my_order.end(), 0);
         }
 
         my_batches.resize(nbatches);
-        parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
+        parallelize(num_threads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
             for (BatchIndex b = start, end = start + length; b < end; ++b) {
                 auto& curbatch = my_batches[b];
-                curbatch.original_num_obs = num_obs[b];
-                curbatch.original_values = batches[b];
-                curbatch.original_index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, my_num_obs[b], my_batches[b]));
+                curbatch.num_obs = num_obs[b];
+                curbatch.index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_obs[b], batches[b]));
             }
         });
 
         my_num_total = 0;
         for (BatchIndex b = 0; b < nbatches; ++b) {
-            my_batches[b].original_offset = my_num_total;
-            std::copy_n(batches[b], static_cast<std::size_t>(my_num_obs[b]) * num_dim, my_corrected + static_cast<std::size_t>(my_num_total) * num_dim); // cast to size_t to avoid overflow.
-            my_num_total += my_num_obs[b];
+            my_batches[b].offset = my_num_total;
+            std::copy_n(batches[b], static_cast<std::size_t>(num_obs[b]) * num_dim, my_corrected + static_cast<std::size_t>(my_num_total) * num_dim); // cast to size_t to avoid overflow.
+            my_num_total += num_obs[b];
         }
 
         my_target = nbatches - 1;
@@ -92,13 +92,12 @@ protected:
     BatchIndex my_target;
 
     PopulateCrossNeighborsWorkspace<Index_, Float_> my_pop_workspace;
-    FindMnnWorkspace<Index_, Float_> my_mnn_workspace;
+    FindClosestMnnWorkspace<Index_, Float_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
-    std::vector<Float_> 
 
     int my_num_neighbors;
-    int my_num_threads;
     double my_tolerance;
+    int my_num_threads;
 
 public:
     bool next() {
@@ -125,7 +124,7 @@ public:
             my_num_dim,
             my_num_total,
             my_batches,
-            my_target,
+            target_batch,
             my_pop_workspace,
             my_mnn_workspace,
             my_builder,
@@ -139,7 +138,7 @@ public:
         // Reassigning the target batch's observations to the various reference batches.
         BatchIndex num_remaining = my_batches.size();
         std::vector<std::vector<Index_> > reassigned(num_remaining);
-        for (auto t : my_pop_workspace.target_mnns) {
+        for (auto t : my_pop_workspace.target_ids) {
             reassigned[my_correct_workspace.chosen_batch[t]].push_back(t);
         }
 
@@ -158,15 +157,15 @@ public:
                     );
                 }
 
-                my_batches[b].emplace_back(
-                    my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, buffer.data())),
+                my_batches[b].extras.emplace_back(
+                    my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_num_dim, num_reass, buffer.data())),
                     std::move(reass)
                 );
             }
         });
 
-        --my_unmerged;
-        return my_unmerged > 0;
+        --my_target;
+        return my_target > 0;
     }
 
     void merge() {

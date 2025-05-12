@@ -5,7 +5,6 @@
 #include <utility>
 #include <cstddef>
 
-#include "parallelize.hpp"
 #include "fuse_nn_results.hpp"
 #include "utils.hpp"
 
@@ -47,7 +46,7 @@ void populate_batch_neighbors(
         std::vector<Float_> distances;
         auto searcher = batch.index->initialize();
 
-        std::pair<std::pair<Index_, Float_> > fuse_buffer1, fuse_buffer2;
+        std::vector<std::pair<Index_, Float_> > fuse_buffer1, fuse_buffer2;
         auto store_nn = [&](Index_ k) -> void {
             auto& curnn = output[k];
             if (!fuse_neighbors) {
@@ -69,7 +68,7 @@ void populate_batch_neighbors(
             store_nn(k);
         }
 
-        for (auto extra : batch.extras) {
+        for (const auto& extra : batch.extras) {
             auto searcher = extra.index->initialize();
             for (Index_ l = start, end = start + length; l < end; ++l) {
                 auto k = get_data_id(l);
@@ -96,8 +95,9 @@ void populate_cross_neighbors(
     NeighborSet<Index_, Float_>& output)
 {
     populate_batch_neighbors(
+        num_dim,
         ref.num_obs,
-        [&](Index_ l) -> Index_ { return l + ref.obs; },
+        [&](Index_ l) -> Index_ { return l + ref.offset; },
         data,
         target,
         num_neighbors,
@@ -108,6 +108,7 @@ void populate_cross_neighbors(
 
     for (const auto& extra : ref.extras) {
         populate_batch_neighbors(
+            num_dim,
             static_cast<Index_>(extra.ids.size()),
             [&](Index_ l) -> Index_ { return extra.ids[l]; },
             data,
@@ -126,9 +127,10 @@ void populate_cross_neighbors(
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
+    const Float_* data,
     int num_neighbors,
     int num_threads,
-    ConsolidatedNeighborWorkspace<Index_, Float_>& workspace)
+    PopulateCrossNeighborsWorkspace<Index_, Float_>& workspace)
 {
     workspace.batch.resize(num_total);
     workspace.ref_ids.clear();
@@ -136,8 +138,8 @@ void populate_cross_neighbors(
 
     for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
         const auto& curref = references[b];
-        populate_cross_neighbors(curref, corrected, target, num_neighbors, false, num_threads, workspace.neighbors);
-        populate_cross_neighbors(target, corrected, curref, num_neighbors, b > 0, num_threads, workspace.neighbors);
+        populate_cross_neighbors(num_dim, curref, target, data, num_neighbors, false, num_threads, workspace.neighbors);
+        populate_cross_neighbors(num_dim, target, curref, data, num_neighbors, b > 0, num_threads, workspace.neighbors);
 
         // Adding all the details about which observations are in the reference metabatch,
         // and which of the inner batches they belonged to.
@@ -145,12 +147,12 @@ void populate_cross_neighbors(
         for (Index_ i = 0; i < curref.num_obs; ++i) {
             workspace.ref_ids.push_back(i + curref.offset);
         }
-        std::fill(batch.begin() + curref.offset, curref.num_obs, b);
+        std::fill_n(workspace.batch.begin() + curref.offset, curref.num_obs, b);
 
         for (const auto& extra : curref.extras) {
-            ref_ids.insert(ref_ids.end(), extra.ids.begin(), extra.ids.end());
+            workspace.ref_ids.insert(workspace.ref_ids.end(), extra.ids.begin(), extra.ids.end());
             for (auto e : extra.ids) {
-                batch[e] = b;
+                workspace.batch[e] = b;
             }
         }
     }

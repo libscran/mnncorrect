@@ -2,10 +2,11 @@
 #define MNNCORRECT_UTILS_HPP
 
 #include <vector>
-#include <limits>
-#include <type_traits>
 #include <algorithm>
+#include <memory>
 #include <cstddef>
+
+#include "knncolle/knncolle.hpp"
 
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
 #include "subpar/subpar.hpp"

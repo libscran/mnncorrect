@@ -2,62 +2,14 @@
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
-#include "mnncorrect/utils.hpp"
-#include <cmath>
-#include "scran_tests/scran_tests.hpp"
-
-#include "custom_parallel.h" // Must be before any mnncorrect includes.
-
 #include "mnncorrect/fuse_nn_results.hpp"
+
+#include "scran_tests/scran_tests.hpp"
 #include "knncolle/knncolle.hpp"
 
+#include <cmath>
 #include <vector>
 #include <cstddef>
-
-TEST(QuickFindNns, Basic) {
-    std::size_t NR = 10;
-    int NC = 100;
-    auto contents = scran_tests::simulate_vector(NR * NC, []{
-        scran_tests::SimulationParameters sparams;
-        sparams.seed = 999;
-        return sparams;
-    }());
-
-    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-    auto prebuilt = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC, contents.data()));
-
-    int k = 5;
-    auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt, /* k = */ k, /* num_threads = */ 1);
-    ASSERT_EQ(output.size(), NC);
-
-    // Comparing to the reference.
-    auto ref = knncolle::find_nearest_neighbors(*prebuilt, 5);
-    for (int c = 0; c < NC; ++c) {
-        EXPECT_EQ(output[c].size(), k);
-        EXPECT_EQ(output[c][0].first, c); // self, duh...
-        EXPECT_EQ(output[c][0].second, 0);
-
-        for (int i = 0; i < k - 1; ++i) {
-            EXPECT_EQ(ref[c][i], output[c][i + 1]);
-        }
-    }
-
-    // Works with multiple threads.
-    auto poutput = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt, /* k = */ k, /* num_threads = */ 3);
-    ASSERT_EQ(output.size(), poutput.size());
-    for (int c = 0; c < NC; ++c) {
-        EXPECT_EQ(output[c], poutput[c]);
-    }
-
-    // Step by step construction works as expected.
-    mnncorrect::internal::NeighborSet<int, double> stepwise(NC);
-    mnncorrect::internal::quick_find_nns(50, contents.data(), *prebuilt, k, /* num_threads = */ 1, stepwise, 0);
-    mnncorrect::internal::quick_find_nns(NC - 50, contents.data() + 50 * NR, *prebuilt, k, /* num_threads = */ 1, stepwise, 50);
-    ASSERT_EQ(output.size(), stepwise.size());
-    for (int c = 0; c < NC; ++c) {
-        EXPECT_EQ(output[c], stepwise[c]);
-    }
-}
 
 TEST(FuseNnResults, Basic) {
     {
@@ -65,12 +17,8 @@ TEST(FuseNnResults, Basic) {
         std::vector<std::pair<int, double> > alt { { 9, 0.9 }, { 7, 1.7 }, { 5, 2.5 } };
         std::vector<std::pair<int, double> > output;
 
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 0);
+        mnncorrect::internal::fuse_nn_results(base, alt, 4, output);
         std::vector<std::pair<int, double> > expected { { 9, 0.9 }, { 1, 1.1 }, { 7, 1.7 }, { 2, 2.2 } };
-        EXPECT_EQ(output, expected);
-
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 10);
-        expected = std::vector<std::pair<int, double> >{ { 19, 0.9 }, { 1, 1.1 }, { 17, 1.7 }, { 2, 2.2 } };
         EXPECT_EQ(output, expected);
     }
 
@@ -80,12 +28,8 @@ TEST(FuseNnResults, Basic) {
         std::vector<std::pair<int, double> > alt { { 9, 0.9 }, { 7, 1.7 }, { 5, 2.5 } };
         std::vector<std::pair<int, double> > output;
 
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 0);
+        mnncorrect::internal::fuse_nn_results(base, alt, 4, output);
         std::vector<std::pair<int, double> > expected { { 9, 0.9 }, { 1, 1.1 }, { 7, 1.7 }, { 5, 2.5 } };
-        EXPECT_EQ(output, expected);
-
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 10);
-        expected = std::vector<std::pair<int, double> >{ { 19, 0.9 }, { 1, 1.1 }, { 17, 1.7 }, { 15, 2.5 } };
         EXPECT_EQ(output, expected);
     }
 
@@ -95,12 +39,8 @@ TEST(FuseNnResults, Basic) {
         std::vector<std::pair<int, double> > alt { { 9, 0.9 } };
         std::vector<std::pair<int, double> > output;
 
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 0);
+        mnncorrect::internal::fuse_nn_results(base, alt, 4, output);
         std::vector<std::pair<int, double> > expected { { 9, 0.9 }, { 1, 1.1 }, { 2, 2.2 }, { 3, 3.3 } };
-        EXPECT_EQ(output, expected);
-
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 10);
-        expected = std::vector<std::pair<int, double> > { { 19, 0.9 }, { 1, 1.1 }, { 2, 2.2 }, { 3, 3.3 } };
         EXPECT_EQ(output, expected);
     }
 
@@ -110,7 +50,7 @@ TEST(FuseNnResults, Basic) {
         std::vector<std::pair<int, double> > alt { { 2, 1.1 }, { 3, 2.2 }, { 6, 3.3 } };
         std::vector<std::pair<int, double> > output;
 
-        mnncorrect::internal::fuse_nn_results(base, alt, 4, output, 0);
+        mnncorrect::internal::fuse_nn_results(base, alt, 4, output);
         std::vector<std::pair<int, double> > expected { { 1, 1.1 }, { 2, 1.1 }, { 3, 2.2 }, { 4, 2.2 } };
         EXPECT_EQ(output, expected);
     }
@@ -149,7 +89,7 @@ TEST_P(FuseNnResultsTest, Randomized) {
     }
 
     std::vector<std::pair<int, double> > output;
-    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output, /* shift = */ 0);
+    mnncorrect::internal::fuse_nn_results(base, alt, nkeep, output);
     EXPECT_EQ(ref, output);
 }
 
@@ -175,17 +115,18 @@ TEST(FuseNnResults, Recovery) {
 
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
-    int k = 5;
     auto prebuilt_full = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC, contents.data()));
-    auto ref = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_full, /* k = */ k, /* num_threads = */ 1);
-
     auto prebuilt_first = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, 50, contents.data()));
-    auto output = mnncorrect::internal::quick_find_nns(NC, contents.data(), *prebuilt_first, /* k = */ k, /* num_threads = */ 1);
     auto prebuilt_second = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC - 50, contents.data() + 50 * NR));
-    mnncorrect::internal::quick_fuse_nns(output, contents.data(), *prebuilt_second, /* k = */ k, /* num_threads = */ 1, /* offset = */ 50);
 
-    ASSERT_EQ(output.size(), ref.size());
+    int k = 7;
+    auto full_res = knncolle::find_nearest_neighbors(*prebuilt_full, k);
+    auto first_res = knncolle::find_nearest_neighbors(*prebuilt_first, k);
+    auto second_res = knncolle::find_nearest_neighbors(*prebuilt_second, k);
+
+    std::vector<std::pair<int, double> > fused;
     for (int c = 0; c < NC; ++c) {
-        EXPECT_EQ(output[c], ref[c]);
+        mnncorrect::internal::fuse_nn_results(first_res[c], second_res[c], k, fused);
+        EXPECT_EQ(full_res[c], fused);
     }
 }

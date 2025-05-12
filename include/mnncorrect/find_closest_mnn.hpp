@@ -28,7 +28,6 @@ struct FindClosestMnnWorkspace {
 template<typename Index_, typename Float_>
 void find_closest_mnn(const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop, FindClosestMnnWorkspace<Index_, Float_>& workspace) {
     const auto& neighbors = pop.neighbors;
-    const auto& ref_ids = pop.ref_ids;
     const auto& target_ids = pop.target_ids;
 
     auto num_total = neighbors.size();
@@ -58,7 +57,7 @@ void find_closest_mnn(const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop
                 if (!rvals.empty()) {
                     other.reserve(rvals.size());
                     for (const auto& rpair : rvals) {
-                        other.push_back(rpairs.first);
+                        other.push_back(rpair.first);
                     }
                     std::sort(other.begin(), other.end());
                 }
@@ -88,15 +87,15 @@ void find_closest_mnn(const PopulateCrossNeighborsWorkspace<Index_, Float_>& pop
     }
 
     // Uniquifying.
-    std::fill(workspace.ref_mnn_buffer.begin(), workspace.ref_mnn_buffer.end(), false);
+    workspace.ref_mnn_buffer.clear();
     workspace.ref_mnn_buffer.resize(num_total);
-    for (auto r : ref_mnns_partner) {
-        ref_mnn_buffer[r] = true;
+    for (auto r : workspace.ref_mnns_partner) {
+        workspace.ref_mnn_buffer[r] = true;
     }
     workspace.ref_mnns_unique.clear();
-    for (Index_ r = 0, end = ref_mnn_buffer.size(); r < end; ++r) {
-        if (ref_mnn_buffer[r]) {
-            ref_mnns_unique.push_back(r);
+    for (Index_ r = 0, end = workspace.ref_mnn_buffer.size(); r < end; ++r) {
+        if (workspace.ref_mnn_buffer[r]) {
+            workspace.ref_mnns_unique.push_back(r);
         }
     }
 }
