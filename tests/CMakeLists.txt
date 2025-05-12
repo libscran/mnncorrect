@@ -19,7 +19,7 @@ macro(create_test name)
         ${name} 
         src/fuse_nn_results.cpp
         src/find_batch_neighbors.cpp
-#        src/find_mutual_nns.cpp
+        src/find_closest_mnn.cpp
 #        src/correct_target.cpp
 #        src/AutomaticOrder.cpp
         src/restore_order.cpp

@@ -1,6 +1,7 @@
 #include "scran_tests/scran_tests.hpp"
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
+#include "utils.h"
 
 #include "mnncorrect/find_batch_neighbors.hpp"
 
@@ -81,22 +82,9 @@ protected:
             std::copy_n(simulated.begin() + static_cast<std::size_t>(batch.offset) * num_dim, buffer.size(), buffer.begin());
             batch.index = nn_builder->build_unique(knncolle::SimpleMatrix<int, double>(num_dim, batch.num_obs, buffer.data()));
             for (auto& extra : batch.extras) {
-                extra.index = subset_and_index(extra.ids, buffer);
+                extra.index = subset_and_index(num_dim, extra.ids, simulated.data(), *nn_builder, buffer);
             }
         }
-    }
-
-    std::unique_ptr<knncolle::Prebuilt<int, double, double> > subset_and_index(const std::vector<int>& ids, std::vector<double>& buffer) const { 
-        auto num_obs = ids.size();
-        buffer.resize(static_cast<std::size_t>(num_obs) * num_dim);
-        for (decltype(num_obs) e = 0; e < num_obs; ++e) {
-            std::copy_n(
-                simulated.begin() + static_cast<std::size_t>(ids[e]) * num_dim,
-                num_dim,
-                buffer.begin() + static_cast<std::size_t>(e) * num_dim
-            );
-        }
-        return nn_builder->build_unique(knncolle::SimpleMatrix<int, double>(num_dim, num_obs, buffer.data()));
     }
 };
 
@@ -122,30 +110,12 @@ TEST_P(FindBatchNeighborsTest, Basic) {
     std::sort(reference_assignment.begin(), reference_assignment.end());
 
     std::vector<double> buffer;
-    auto target_index = subset_and_index(target_assignment, buffer);
-    auto reference_index = subset_and_index(reference_assignment, buffer);
+    auto target_index = subset_and_index(num_dim, target_assignment, simulated.data(), *nn_builder, buffer);
+    auto reference_index = subset_and_index(num_dim, reference_assignment, simulated.data(), *nn_builder, buffer);
 
     mnncorrect::internal::NeighborSet<int, double> expected(num_total);
-    std::vector<int> indices;
-    std::vector<double> distances;
-
-    auto target_searcher = target_index->initialize();
-    for (auto r : reference_assignment) {
-        target_searcher->search(simulated.data() + static_cast<std::size_t>(r) * num_dim, num_neighbors, &indices, &distances);
-        auto found = indices.size();
-        for (decltype(found) i = 0; i < found; ++i) {
-            expected[r].emplace_back(target_assignment[indices[i]], distances[i]);
-        }
-    }
-
-    auto reference_searcher = reference_index->initialize();
-    for (auto t : target_assignment) {
-        reference_searcher->search(simulated.data() + static_cast<std::size_t>(t) * num_dim, num_neighbors, &indices, &distances);
-        auto found = indices.size();
-        for (decltype(found) i = 0; i < found; ++i) {
-            expected[t].emplace_back(reference_assignment[indices[i]], distances[i]);
-        }
-    }
+    find_neighbors(num_dim, reference_assignment, simulated.data(), *target_index, target_assignment, num_neighbors, expected);
+    find_neighbors(num_dim, target_assignment, simulated.data(), *reference_index, reference_assignment, num_neighbors, expected);
 
     // Now computing our friend.
     mnncorrect::internal::BatchInfo<int, double> target_batch(std::move(all_batches.back()));

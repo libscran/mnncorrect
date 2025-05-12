@@ -92,7 +92,8 @@ protected:
     BatchIndex my_target;
 
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
-    FindClosestMnnWorkspace<Index_, Float_> my_mnn_workspace;
+    FindClosestMnnResults<Index_> my_mnns;
+    FindClosestMnnWorkspace<Index_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
 
     int my_num_neighbors;
@@ -118,7 +119,11 @@ public:
             my_batch_nns
         );
 
-        find_closest_mnn(my_batch_nns, my_mnn_workspace);
+        find_closest_mnn(
+            my_batch_nns,
+            my_mnn_workspace,
+            my_mnns
+        );
 
         correct_target(
             my_num_dim,
@@ -126,7 +131,7 @@ public:
             my_batches,
             target_batch,
             my_batch_nns,
-            my_mnn_workspace,
+            my_mnns,
             my_builder,
             my_num_neighbors,
             my_num_threads,

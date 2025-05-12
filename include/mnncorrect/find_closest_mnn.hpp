@@ -11,22 +11,31 @@ namespace mnncorrect {
 
 namespace internal {
 
-template<typename Index_, typename Float_>
-struct FindClosestMnnWorkspace {
+template<typename Index_>
+struct FindClosestMnnResults {
     std::vector<Index_> target_mnns; // observation of the target metabatch in the MNN pair.
     std::vector<Index_> ref_mnns_partner; // 1:1 with target_mnns, specifying the other observation of the MNN pair.
     std::vector<Index_> ref_mnns_unique; // unique and sorted version of 'ref_mnns_partner'
+};
 
+template<typename Index_>
+struct FindClosestMnnWorkspace {
     std::vector<std::vector<Index_> > reverse_neighbor_buffer;
+
+    // Used to obtain unique values from the ref_mnns_partner withoua  set.
     std::vector<unsigned char> ref_mnn_buffer;
 
     // Length of each vector in 'neighbors' must be less than the number of
-    // points, thus each 'last' position must fit in Index_.
+    // points, thus each 'last' position must fit in an Index_ type.
     std::vector<Index_> last_checked;
 };
 
 template<typename Index_, typename Float_>
-void find_closest_mnn(const FindBatchNeighborsResults<Index_, Float_>& batch_nns, FindClosestMnnWorkspace<Index_, Float_>& workspace) {
+void find_closest_mnn(
+    const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
+    FindClosestMnnWorkspace<Index_>& workspace,
+    FindClosestMnnResults<Index_>& results)
+{
     const auto& neighbors = batch_nns.neighbors;
     const auto& target_ids = batch_nns.target_ids;
 
@@ -35,11 +44,11 @@ void find_closest_mnn(const FindBatchNeighborsResults<Index_, Float_>& batch_nns
         rev.clear();
     }
     workspace.reverse_neighbor_buffer.resize(num_total);
-    std::fill(workspace.last_checked.begin(), workspace.last_checked.end(), 0);
+    workspace.last_checked.clear();
     workspace.last_checked.resize(num_total);
 
-    workspace.ref_mnns_partner.clear();
-    workspace.target_mnns.clear();
+    results.ref_mnns_partner.clear();
+    results.target_mnns.clear();
 
     for (auto t : target_ids) {
         const auto& tvals = neighbors[t];
@@ -73,14 +82,14 @@ void find_closest_mnn(const FindBatchNeighborsResults<Index_, Float_>& batch_nns
                     if (other[position] == t) {
                         best_ref = tpair.first;
                         best_found = true;
-                        break;
                     }
+                    break;
                 }
             }
 
             if (best_found) {
-                workspace.target_mnns.push_back(t);
-                workspace.ref_mnns_partner.push_back(best_ref);
+                results.target_mnns.push_back(t);
+                results.ref_mnns_partner.push_back(best_ref);
                 break;
             }
         }
@@ -89,13 +98,13 @@ void find_closest_mnn(const FindBatchNeighborsResults<Index_, Float_>& batch_nns
     // Uniquifying.
     workspace.ref_mnn_buffer.clear();
     workspace.ref_mnn_buffer.resize(num_total);
-    for (auto r : workspace.ref_mnns_partner) {
+    for (auto r : results.ref_mnns_partner) {
         workspace.ref_mnn_buffer[r] = true;
     }
-    workspace.ref_mnns_unique.clear();
+    results.ref_mnns_unique.clear();
     for (Index_ r = 0, end = workspace.ref_mnn_buffer.size(); r < end; ++r) {
         if (workspace.ref_mnn_buffer[r]) {
-            workspace.ref_mnns_unique.push_back(r);
+            results.ref_mnns_unique.push_back(r);
         }
     }
 }

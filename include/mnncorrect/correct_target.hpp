@@ -70,17 +70,6 @@ void force_self(std::vector<std::pair<Index_, Float_> >& current_neighbors, Inde
 // are tied. So we just make sure that earlier indices are sorted first,
 // which is useful for ensuring that sorted vectors can be compared safely.
 template<typename Index_, typename Float_>
-struct SortBySecond {
-    bool operator()(const std::pair<Index_, Float_>& left, const std::pair<Index_, Float_>& right) const {
-        if (left.second == right.second) {
-            return left.first < right.first;
-        } else {
-            return left.second < right.second;
-        }
-    }
-};
-
-template<typename Index_, typename Float_>
 void ensure_sort(std::vector<std::pair<Index_, Float_> >& current_neighbors) { 
     SortBySecond<Index_, Float_> cmp;
     if (!std::is_sorted(current_neighbors.begin(), current_neighbors.end(), cmp)) {
@@ -323,7 +312,7 @@ void correct_target(
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
     const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
-    const FindClosestMnnWorkspace<Index_, Float_>& mnns,
+    const FindClosestMnnResults<Index_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     int num_neighbors,
     int num_threads,
