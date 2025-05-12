@@ -87,17 +87,6 @@ struct BatchInfo {
     std::vector<Corrected<Index_, Float_> > extras;
 };
 
-template<typename Index_, typename Float_>
-struct SortBySecond {
-    bool operator()(const std::pair<Index_, Float_>& left, const std::pair<Index_, Float_>& right) const {
-        if (left.second == right.second) {
-            return left.first < right.first;
-        } else {
-            return left.second < right.second;
-        }
-    }
-};
-
 }
 /**
  * @endcond

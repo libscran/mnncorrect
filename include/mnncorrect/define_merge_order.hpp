@@ -34,10 +34,10 @@ Float_ compute_total_variance(std::size_t ndim, Index_ nobs, const Float_* value
 }
 
 template<typename Index_, typename Float_>
-std::vector<Float_> compute_total_variances(std::size_t ndim, const std::vector<Index_>& nobs, const std::vector<const Float_*>& batches, bool as_rss, int nthreads) {
-    BatchIndex nbatches = nobs.size();
-    std::vector<Float_> vars(nbatches);
-    parallelize(nthreads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
+std::vector<Float_> compute_total_variances(std::size_t ndim, const std::vector<Index_>& nobs, const std::vector<const Float_*>& batches, bool as_rss, int num_threads) {
+    BatchIndex num_batches = nobs.size();
+    std::vector<Float_> vars(num_batches);
+    parallelize(num_threads, num_batches, [&](int, BatchIndex start, BatchIndex length) -> void {
         std::vector<Float_> mean_buffer(ndim);
         for (BatchIndex b = start, end = start + length; b < end; ++b) {
             vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);

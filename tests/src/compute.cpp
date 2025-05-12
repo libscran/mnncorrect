@@ -135,14 +135,10 @@ TEST_P(OverallTest, OtherInputs) {
     std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * sizes.size())); // just varying the seed a bit.
 
     // Scrambling both the data and the expected results to match the scrambled batches.
-    std::vector<size_t> mock_order(sizes.size());
-    std::iota(mock_order.begin(), mock_order.end(), 0);
-
     auto copy = data;
-    mnncorrect::internal::restore_order(ndim, mock_order, sizes, batch.data(), copy.data());
-
+    mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), copy.data());
     auto ref = output;
-    mnncorrect::internal::restore_order(ndim, mock_order, sizes, batch.data(), ref.data());
+    mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), ref.data());
 
     // Actually running the test.
     std::vector<double> output3(nobs * ndim);

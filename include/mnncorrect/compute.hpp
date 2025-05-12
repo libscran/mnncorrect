@@ -10,7 +10,7 @@
 #include "knncolle/knncolle.hpp"
 
 #include "AutomaticOrder.hpp"
-#include "restore_order.hpp"
+#include "restore_input_order.hpp"
 #include "utils.hpp"
 
 /**
@@ -273,9 +273,7 @@ void compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Bat
     }
 
     internal::compute(num_dim, sizes, ptrs, output, options);
-    std::vector<BatchIndex> mock_order(nbatches); // TODO: get rid of this, we don't need it.
-    std::iota(mock_order.begin(), mock_order.end(), 0);
-    internal::restore_order(num_dim, mock_order, sizes, batch, output);
+    internal::restore_input_order(num_dim, sizes, batch, output);
 }
 
 }
