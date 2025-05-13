@@ -540,6 +540,11 @@ TEST(CorrectTarget, ComputeCenterOfMass) {
             EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0) + shift);
             EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0) + shift);
         }
+
+        // Same result with multiple threads.
+        std::vector<double> pres;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 2, /* tolerance = */ 10, pres);
+        EXPECT_EQ(pres, running_means);
     }
 
     // Checking that new observations are added during the refining stage.
@@ -559,6 +564,11 @@ TEST(CorrectTarget, ComputeCenterOfMass) {
             EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0, 13.0) + shift);
             EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0, 17.0, 16.0) + shift);
         }
+
+        // Same result with multiple threads.
+        std::vector<double> pres;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 2, /* tolerance = */ 10, pres);
+        EXPECT_EQ(pres, running_means);
     }
 
     // Checking that observations are correctly filtered out based on the tolerance.
@@ -593,168 +603,125 @@ TEST(CorrectTarget, ComputeCenterOfMass) {
             EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0, 14.0, 16.0) + shift);
             EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0, 26.0) + shift);
         }
+
+        // Same result with multiple threads.
+        std::vector<double> pres;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 2, /* tolerance = */ 3, pres);
+        EXPECT_EQ(pres, running_means);
     }
 }
 
-//class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
-//protected:
-//    void SetUp() {
-//        auto param = GetParam();
-//        nleft = std::get<0>(param);
-//        nright = std::get<1>(param);
-//        k = std::get<2>(param);
-//
-//        left = scran_tests::simulate_vector(nleft * ndim, [&]{
-//            scran_tests::SimulationParameters sparams;
-//            sparams.lower = -2;
-//            sparams.upper = 2;
-//            sparams.seed = 42 + nleft * 10 + nright + k;
-//            return sparams;
-//        }());
-//
-//        right = scran_tests::simulate_vector(nright * ndim, [&]{
-//            scran_tests::SimulationParameters sparams;
-//            sparams.lower = -2 + 5; // throw in a batch effect.
-//            sparams.upper = 2 + 5;
-//            sparams.seed = 69 + nleft * 10 + nright + k;
-//            return sparams;
-//        }());
-//
-//        knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-//        auto left_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, left.data()));
-//        auto right_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nright, right.data()));
-//
-//        auto neighbors_of_left = mnncorrect::internal::quick_find_nns(nleft, left.data(), *right_index, k, /* nthreads = */ 1);
-//        auto neighbors_of_right = mnncorrect::internal::quick_find_nns(nright, right.data(), *left_index, k, /* nthreads = */ 1);
-//        pairings = mnncorrect::internal::find_mutual_nns(neighbors_of_left, neighbors_of_right);
-//    }
-//
-//    int ndim = 5;
-//    int nleft, nright;
-//    int k;
-//    std::vector<double> left, right;
-//    mnncorrect::internal::MnnPairs<int> pairings;
-//};
-//
-//TEST_P(CorrectTargetTest, Correction) {
-//    double nmads = 3;
-//    int iterations = 2;
-//    double trim = 0.2;
-//    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-//
-//    std::vector<double> buffer(nright * ndim);
-//    mnncorrect::internal::correct_target(
-//        ndim,
-//        nleft,
-//        left.data(),
-//        nright,
-//        right.data(),
-//        pairings,
-//        builder,
-//        k,
-//        nmads,
-//        iterations,
-//        trim,
-//        buffer.data(),
-//        /* mass_cap = */ 0, 
-//        /* nthreads = */ 1
-//    );
-//
-//    // Not entirely sure how to check for correctness here; 
-//    // we'll heuristically check for a delta less than 1 on the mean in each dimension.
-//    {
-//        std::vector<double> left_means(ndim), right_means(ndim);
-//        for (int l = 0; l < nleft; ++l) {
-//            for (int d = 0; d < ndim; ++d) {
-//                left_means[d] += left[l * ndim + d];
-//            }
-//        }
-//        for (int r = 0; r < nright; ++r) {
-//            for (int d = 0; d < ndim; ++d) {
-//                right_means[d] += buffer[r * ndim + d];
-//            }
-//        }
-//        for (int d = 0; d < ndim; ++d) {
-//            left_means[d] /= nleft;
-//            right_means[d] /= nright;
-//            double delta = std::abs(left_means[d] - right_means[d]);
-//            EXPECT_TRUE(delta < 1);
-//        }
-//    }
-//
-//    // Same result with multiple threads.
-//    {
-//        std::vector<double> par_buffer(nright * ndim);
-//        mnncorrect::internal::correct_target(
-//            ndim,
-//            nleft,
-//            left.data(),
-//            nright,
-//            right.data(),
-//            pairings,
-//            builder,
-//            k,
-//            nmads,
-//            iterations,
-//            trim,
-//            par_buffer.data(),
-//            /* mass_cap = */ 0, 
-//            /* nthreads = */ 3 
-//        );
-//        EXPECT_EQ(par_buffer, buffer);
-//    }
-//
-//    // Different results with a cap.
-//    {
-//        std::vector<double> cap_buffer(nright * ndim);
-//        mnncorrect::internal::correct_target(
-//            ndim,
-//            nleft,
-//            left.data(),
-//            nright,
-//            right.data(),
-//            pairings,
-//            builder,
-//            k,
-//            nmads,
-//            iterations,
-//            trim,
-//            cap_buffer.data(),
-//            /* mass_cap = */ 50,
-//            /* nthreads = */ 1 
-//        );
-//        EXPECT_NE(cap_buffer, buffer);
-//    }
-//
-//    // Unless the cap is larger than the number of observations.
-//    {
-//        std::vector<double> cap_buffer(nright * ndim);
-//        mnncorrect::internal::correct_target(
-//            ndim,
-//            nleft,
-//            left.data(),
-//            nright,
-//            right.data(),
-//            pairings,
-//            builder,
-//            k,
-//            nmads,
-//            iterations,
-//            trim,
-//            cap_buffer.data(),
-//            /* mass_cap = */ 5000,
-//            /* nthreads = */ 1 
-//        );
-//        EXPECT_EQ(cap_buffer, buffer);
-//    }
-//}
-//
-//INSTANTIATE_TEST_SUITE_P(
-//    CorrectTarget,
-//    CorrectTargetTest,
-//    ::testing::Combine(
-//        ::testing::Values(100, 1000), // left
-//        ::testing::Values(100, 1000), // right
-//        ::testing::Values(10, 50)  // choice of k
-//    )
-//);
+class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
+
+TEST_P(CorrectTargetTest, Sanity) {
+    std::size_t ndim = 5;
+    auto param = GetParam();
+    int nleft = std::get<0>(param);
+    int nright = std::get<1>(param);
+    int k = std::get<2>(param);
+
+    int ntotal = nleft + nright;
+    auto simulated = scran_tests::simulate_vector(ntotal * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.lower = -2;
+        sparams.upper = 2;
+        sparams.seed = 42 + nleft * 10 + nright + k;
+        return sparams;
+    }());
+
+    for (int r = nleft; r < ntotal; ++r) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            simulated[r * ndim + d] += 10;
+        }
+    }
+
+    // First, building the batch objects.
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    std::vector<mnncorrect::internal::BatchInfo<int, double> > references(1);
+    references[0].num_obs = nleft;
+    references[0].offset = 0;
+    references[0].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, simulated.data()));
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.num_obs = nright;
+    target.offset = nleft;
+    target.index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nright, simulated.data() + nleft * ndim));
+
+    // Finding neighbors and MNNs.
+    mnncorrect::internal::FindBatchNeighborsResults<int, double> batch_nns;
+    mnncorrect::internal::find_batch_neighbors(ndim, ntotal, references, target, simulated.data(), k, /* num_threads = */ 1, batch_nns);
+
+    mnncorrect::internal::FindClosestMnnWorkspace<int> mnn_work;
+    mnncorrect::internal::FindClosestMnnResults<int> mnn_res;
+    mnncorrect::internal::find_closest_mnn(batch_nns, mnn_work, mnn_res);
+
+    // Actually running the correction now.
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
+    auto copy = simulated;
+    mnncorrect::internal::correct_target(
+        ndim,
+        ntotal,
+        references,
+        target,
+        batch_nns,
+        mnn_res,
+        builder,
+        k,
+        /* num_threads = */ 1,
+        /* tolerance = */ 3,
+        copy.data(),
+        correct_work
+    );
+
+    // Not entirely sure how to check for correctness here; 
+    // we'll heuristically check for a delta less than 1 on the mean in each dimension.
+    {
+        std::vector<double> left_means(ndim), right_means(ndim);
+        for (int l = 0; l < nleft; ++l) {
+            for (decltype(ndim) d = 0; d < ndim; ++d) {
+                left_means[d] += copy[l * ndim + d];
+            }
+        }
+        for (int r = nright; r < ntotal; ++r) {
+            for (decltype(ndim) d = 0; d < ndim; ++d) {
+                right_means[d] += copy[r * ndim + d];
+            }
+        }
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            left_means[d] /= nleft;
+            right_means[d] /= nright;
+            double delta = std::abs(left_means[d] - right_means[d]);
+            EXPECT_TRUE(delta < 1);
+        }
+    }
+
+    // Same result with multiple threads.
+    {
+        auto pcopy = simulated;
+        mnncorrect::internal::correct_target(
+            ndim,
+            ntotal,
+            references,
+            target,
+            batch_nns,
+            mnn_res,
+            builder,
+            k,
+            /* num_threads = */ 1,
+            /* tolerance = */ 3,
+            pcopy.data(),
+            correct_work
+        );
+        EXPECT_EQ(copy, pcopy);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CorrectTarget,
+    CorrectTargetTest,
+    ::testing::Combine(
+        ::testing::Values(100, 1000), // left
+        ::testing::Values(100, 1000), // right
+        ::testing::Values(10, 50)  // choice of k
+    )
+);
