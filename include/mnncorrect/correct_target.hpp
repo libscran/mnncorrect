@@ -198,8 +198,7 @@ void search_for_neighbors_to_mnns(
 template<typename Index_, typename Distance_>
 NeighborSet<Index_, Distance_> invert_neighbors(Index_ num_mnns, const std::vector<Index_>& in_batch, const NeighborSet<Index_, Distance_>& neighbors, int num_threads) {
     NeighborSet<Index_, Distance_> output(num_mnns);
-    Index_ num_in_batch = in_batch.size();
-    for (Index_ i = 0; i < num_in_batch; ++i) {
+    for (auto i : in_batch) {
         for (const auto& x : neighbors[i]) {
             output[x.first].emplace_back(i, x.second);
         }

@@ -16,7 +16,6 @@ protected:
     int num_total;
     std::vector<double> simulated;
     std::vector<mnncorrect::internal::BatchInfo<int, double> > all_batches;
-    std::vector<std::vector<int> > assignments;
     std::unique_ptr<knncolle::Builder<int, double, double> > nn_builder;
 
     void assemble(const std::vector<int>& batch_sizes, bool extras) {
@@ -28,63 +27,9 @@ protected:
             return opt;
         }());
 
-        assignments.resize(num_batches);
-        all_batches.resize(num_batches);
-        if (extras) {
-            for (auto& batch : all_batches) {
-                batch.extras.resize(num_batches);
-            }
-        }
-
-        std::mt19937_64 rng(/* seed = */ num_total);
-        int sofar = 0;
-        for (decltype(num_batches) b = 0; b < num_batches; ++b) {
-            auto bsize = batch_sizes[b];
-
-            // Firstly adding the core stretch.
-            int quarter = bsize / 4, half = bsize / 2;
-            int start = rng() % quarter;
-            int number = rng() % half + quarter;
-            all_batches[b].offset = sofar + start;
-            all_batches[b].num_obs = number;
-            for (int i = 0; i < number; ++i) {
-                assignments[b].push_back(i + start + sofar);
-            }
-
-            // Now adding anything before it.
-            if (extras) {
-                for (int i = 0; i < start; ++i) {
-                    auto chosen = rng() % num_batches;
-                    int index = i + sofar;
-                    assignments[chosen].push_back(index);
-                    all_batches[chosen].extras[b].ids.push_back(index);
-                }
-
-                int remaining = bsize - number - start;
-                for (int i = 0; i < remaining; ++i) {
-                    auto chosen = rng() % num_batches;
-                    int index = i + sofar + start + number;
-                    assignments[chosen].push_back(index);
-                    all_batches[chosen].extras[b].ids.push_back(index);
-                }
-            }
-
-            sofar += bsize;
-        }
-
-        // Creating the indices.
-        std::vector<double> buffer;
         nn_builder.reset(new knncolle::VptreeBuilder<int, double, double>(std::make_shared<knncolle::EuclideanDistance<double, double> >()));
-
-        for (decltype(num_batches) b = 0; b < num_batches; ++b) {
-            auto& batch = all_batches[b];
-            buffer.resize(static_cast<std::size_t>(batch.num_obs) * num_dim);
-            std::copy_n(simulated.begin() + static_cast<std::size_t>(batch.offset) * num_dim, buffer.size(), buffer.begin());
-            batch.index = nn_builder->build_unique(knncolle::SimpleMatrix<int, double>(num_dim, batch.num_obs, buffer.data()));
-            for (auto& extra : batch.extras) {
-                extra.index = subset_and_index(num_dim, extra.ids, simulated.data(), *nn_builder, buffer);
-            }
-        }
+        std::mt19937_64 rng(/* seed = */ num_total);
+        all_batches = mock_batches(num_dim, batch_sizes, simulated.data(), extras, rng, *nn_builder);
     }
 };
 
@@ -94,6 +39,8 @@ TEST_P(FindBatchNeighborsTest, Basic) {
     auto num_neighbors = std::get<2>(params);
 
     // Creating the reference results first.
+    std::vector<std::vector<int> > assignments = create_assignments(all_batches);
+
     std::vector<int> target_assignment(std::move(assignments.back())); 
     std::sort(target_assignment.begin(), target_assignment.end());
     assignments.pop_back();
