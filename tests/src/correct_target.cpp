@@ -635,12 +635,16 @@ TEST_P(CorrectTargetTest, Sanity) {
         }
     }
 
-    // First, building the batch objects.
+    // First, building the batch objects. We add an empty reference just so
+    // that we can check that it corrects to the first batch.
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-    std::vector<mnncorrect::internal::BatchInfo<int, double> > references(1);
-    references[0].num_obs = nleft;
+    std::vector<mnncorrect::internal::BatchInfo<int, double> > references(2);
+    references[0].num_obs = 0;
     references[0].offset = 0;
-    references[0].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, simulated.data()));
+    references[0].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, 0, NULL));
+    references[1].num_obs = nleft;
+    references[1].offset = 0;
+    references[1].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, simulated.data()));
 
     mnncorrect::internal::BatchInfo<int, double> target;
     target.num_obs = nright;
@@ -657,6 +661,8 @@ TEST_P(CorrectTargetTest, Sanity) {
 
     // Actually running the correction now.
     mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
+    mnncorrect::internal::CorrectTargetResults<int> correct_res;
+
     auto copy = simulated;
     mnncorrect::internal::correct_target(
         ndim,
@@ -670,8 +676,13 @@ TEST_P(CorrectTargetTest, Sanity) {
         /* num_threads = */ 1,
         /* tolerance = */ 3,
         copy.data(),
-        correct_work
+        correct_work,
+        correct_res
     );
+
+    for (int r = nleft; r < ntotal; ++r) {
+        EXPECT_EQ(correct_res.batch[r], 1);
+    }
 
     // Not entirely sure how to check for correctness here; 
     // we'll heuristically check for a delta less than 1 on the mean in each dimension.
@@ -695,8 +706,15 @@ TEST_P(CorrectTargetTest, Sanity) {
         }
     }
 
-    // Same result with multiple threads.
+    // Same result with multiple threads, and after scrambling some of the inputs.
     {
+        std::reverse(correct_work.ref_buffer.begin(), correct_work.ref_buffer.end());
+        std::reverse(correct_work.target_buffer.begin(), correct_work.target_buffer.end());
+        std::reverse(correct_work.neighbors_to.begin(), correct_work.neighbors_to.end());
+        std::reverse(correct_work.neighbors_from.begin(), correct_work.neighbors_from.end());
+        std::reverse(correct_work.mapping.begin(), correct_work.mapping.end());
+        std::reverse(correct_res.batch.begin(), correct_res.batch.end());
+
         auto pcopy = simulated;
         mnncorrect::internal::correct_target(
             ndim,
@@ -710,9 +728,13 @@ TEST_P(CorrectTargetTest, Sanity) {
             /* num_threads = */ 1,
             /* tolerance = */ 3,
             pcopy.data(),
-            correct_work
+            correct_work,
+            correct_res
         );
         EXPECT_EQ(copy, pcopy);
+        for (int r = nleft; r < ntotal; ++r) {
+            EXPECT_EQ(correct_res.batch[r], 1);
+        }
     }
 }
 

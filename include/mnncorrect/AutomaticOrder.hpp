@@ -94,6 +94,7 @@ protected:
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
+    CorrectTargetResults<Index_> my_correct_results;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
 
     int my_num_neighbors;
@@ -137,14 +138,15 @@ public:
             my_num_threads,
             my_tolerance,
             my_corrected,
-            my_correct_workspace
+            my_correct_workspace,
+            my_correct_results
         );
 
         // Reassigning the target batch's observations to the various reference batches.
         BatchIndex num_remaining = my_batches.size();
         std::vector<std::vector<Index_> > reassigned(num_remaining);
         for (auto t : my_batch_nns.target_ids) {
-            reassigned[my_correct_workspace.chosen_batch[t]].push_back(t);
+            reassigned[my_correct_results.batch[t]].push_back(t);
         }
 
         parallelize(my_num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {

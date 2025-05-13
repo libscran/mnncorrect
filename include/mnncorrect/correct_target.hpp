@@ -19,14 +19,6 @@ namespace mnncorrect {
 
 namespace internal {
 
-template<typename Index_, typename Float_>
-struct CorrectTargetWorkspace {
-    std::vector<Float_> ref_buffer, target_buffer;
-    NeighborSet<Index_, Float_> neighbors_from, neighbors_to;
-    std::vector<Index_> mapping;
-    std::vector<Index_> chosen_batch;
-};
-
 template<typename Index_, typename Float_, class Matrix_> 
 std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_index(
     std::size_t num_dim,
@@ -315,6 +307,18 @@ void compute_center_of_mass(
     return;
 }
 
+template<typename Index_, typename Float_>
+struct CorrectTargetWorkspace {
+    std::vector<Float_> ref_buffer, target_buffer;
+    NeighborSet<Index_, Float_> neighbors_from, neighbors_to;
+    std::vector<Index_> mapping;
+};
+
+template<typename Index_>
+struct CorrectTargetResults {
+    std::vector<Index_> batch;
+};
+
 template<typename Index_, typename Float_, class Matrix_>
 void correct_target(
     std::size_t num_dim,
@@ -328,7 +332,8 @@ void correct_target(
     int num_threads,
     double tolerance,
     Float_* data,
-    CorrectTargetWorkspace<Index_, Float_>& workspace) 
+    CorrectTargetWorkspace<Index_, Float_>& workspace,
+    CorrectTargetResults<Index_>& results) 
 {
     // Build this first so that we can re-use the ref_buffers and target_buffers for the center of mass calculations.
     std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > ref_mnn_index;
@@ -383,7 +388,7 @@ void correct_target(
 
     // Apply the correction in the target based on its closest MNN-involved cell.
     Index_ num_target = batch_nns.target_ids.size();
-    workspace.chosen_batch.resize(num_total);
+    results.batch.resize(num_total);
     parallelize(num_threads, num_target, [&](int, int start, int length) -> void {
         for (Index_ i = start, end = start + length; i < end; ++i) {
             auto t = batch_nns.target_ids[i];
@@ -400,7 +405,7 @@ void correct_target(
                 tptr[d] += (rcenter[d] - tcenter[d]);
             }
 
-            workspace.chosen_batch[t] = batch_nns.batch[ref_partner]; // report the full index of the closest MNN-involved cell.
+            results.batch[t] = batch_nns.batch[ref_partner]; // report the batch of origin of the closest partner of the closest MNN-involved cell.
         }
     });
 
