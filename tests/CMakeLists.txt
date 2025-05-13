@@ -21,7 +21,7 @@ macro(create_test name)
         src/find_batch_neighbors.cpp
         src/find_closest_mnn.cpp
         src/correct_target.cpp
-#        src/AutomaticOrder.cpp
+        src/AutomaticOrder.cpp
         src/define_merge_order.cpp
         src/restore_input_order.cpp
         src/compute.cpp

@@ -20,6 +20,45 @@ namespace mnncorrect {
 
 namespace internal {
 
+template<typename Index_, typename Float_>
+void redistribute_corrected_observations(
+    std::size_t num_dim,
+    const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
+    const CorrectTargetResults& correct_info,
+    const Float_* data,
+    const knncolle::Builder<Index_, Float_, Float_>& builder,
+    int num_threads,
+    std::vector<BatchInfo<Index_, Float_> >& batches)
+{
+    BatchIndex num_remaining = batches.size();
+    std::vector<std::vector<Index_> > reassigned(num_remaining);
+    for (auto t : batch_nns.target_ids) {
+        reassigned[correct_info.batch[t]].push_back(t);
+    }
+
+    parallelize(num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
+        std::vector<Float_> buffer;
+        for (BatchIndex b = start, end = start + length; b < end; ++b) {
+            auto& reass = reassigned[b];
+            buffer.resize(static_cast<std::size_t>(reass.size()) * num_dim); // cast to avoid overflow.
+
+            auto num_reass = reass.size();
+            for (decltype(num_reass) i = 0; i < num_reass; ++i) {
+                std::copy_n(
+                    data + static_cast<std::size_t>(reass[i]) * num_dim, // ditto.
+                    num_dim, 
+                    buffer.begin() + static_cast<std::size_t>(i) * num_dim
+                );
+            }
+
+            batches[b].extras.emplace_back(
+                builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, buffer.data())),
+                std::move(reass)
+            );
+        }
+    });
+}
+
 template<typename Index_, typename Float_, typename Matrix_>
 class AutomaticOrder {
 public:
@@ -94,14 +133,14 @@ protected:
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
-    CorrectTargetResults<Index_> my_correct_results;
+    CorrectTargetResults my_correct_results;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
 
     int my_num_neighbors;
     double my_tolerance;
     int my_num_threads;
 
-public:
+protected:
     bool next() {
         // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
         // because they are agglomerations of the original batches. The idea is
@@ -142,39 +181,21 @@ public:
             my_correct_results
         );
 
-        // Reassigning the target batch's observations to the various reference batches.
-        BatchIndex num_remaining = my_batches.size();
-        std::vector<std::vector<Index_> > reassigned(num_remaining);
-        for (auto t : my_batch_nns.target_ids) {
-            reassigned[my_correct_results.batch[t]].push_back(t);
-        }
-
-        parallelize(my_num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
-            std::vector<Float_> buffer;
-            for (BatchIndex b = start, end = start + length; b < end; ++b) {
-                auto& reass = reassigned[b];
-                buffer.resize(static_cast<std::size_t>(reass.size()) * my_num_dim); // cast to avoid overflow.
-
-                auto num_reass = reass.size();
-                for (decltype(num_reass) i = 0; i < num_reass; ++i) {
-                    std::copy_n(
-                        my_corrected + static_cast<std::size_t>(reass[i]) * my_num_dim, // ditto.
-                        my_num_dim, 
-                        buffer.begin() + static_cast<std::size_t>(i) * my_num_dim
-                    );
-                }
-
-                my_batches[b].extras.emplace_back(
-                    my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(my_num_dim, num_reass, buffer.data())),
-                    std::move(reass)
-                );
-            }
-        });
+        redistribute_corrected_observations(
+            my_num_dim,
+            my_batch_nns,
+            my_correct_results,
+            my_corrected,
+            my_builder,
+            my_num_threads,
+            my_batches
+        );
 
         --my_target;
         return my_target > 0;
     }
 
+public:
     void merge() {
         while (next()) {}
     }

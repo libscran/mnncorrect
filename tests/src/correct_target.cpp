@@ -661,7 +661,7 @@ TEST_P(CorrectTargetTest, Sanity) {
 
     // Actually running the correction now.
     mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
-    mnncorrect::internal::CorrectTargetResults<int> correct_res;
+    mnncorrect::internal::CorrectTargetResults correct_res;
 
     auto copy = simulated;
     mnncorrect::internal::correct_target(
@@ -690,7 +690,9 @@ TEST_P(CorrectTargetTest, Sanity) {
         std::vector<double> left_means(ndim), right_means(ndim);
         for (int l = 0; l < nleft; ++l) {
             for (decltype(ndim) d = 0; d < ndim; ++d) {
-                left_means[d] += copy[l * ndim + d];
+                std::size_t offset = l * ndim + d;
+                left_means[d] += copy[offset];
+                EXPECT_EQ(copy[offset], simulated[offset]); // reference values are unchanged.
             }
         }
         for (int r = nright; r < ntotal; ++r) {

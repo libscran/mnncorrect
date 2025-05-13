@@ -314,9 +314,8 @@ struct CorrectTargetWorkspace {
     std::vector<Index_> mapping;
 };
 
-template<typename Index_>
 struct CorrectTargetResults {
-    std::vector<Index_> batch;
+    std::vector<BatchIndex> batch;
 };
 
 template<typename Index_, typename Float_, class Matrix_>
@@ -333,7 +332,7 @@ void correct_target(
     double tolerance,
     Float_* data,
     CorrectTargetWorkspace<Index_, Float_>& workspace,
-    CorrectTargetResults<Index_>& results) 
+    CorrectTargetResults& results) 
 {
     // Build this first so that we can re-use the ref_buffers and target_buffers for the center of mass calculations.
     std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > ref_mnn_index;
