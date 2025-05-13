@@ -501,6 +501,101 @@ TEST(CorrectTarget, InvertNeighbors) {
     EXPECT_EQ(inv, pinv);
 }
 
+template<typename ... Args_>
+double mean(Args_... args) {
+    std::vector<double> values{ args... };
+    return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+}
+
+TEST(CorrectTarget, ComputeCenterOfMass) {
+    std::size_t ndim = 3;
+    int ntotal = 100;
+    std::vector<double> data(ndim * ntotal);
+    for (int i = 0; i < ntotal; ++i) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            data[d + ndim * i] = i + 0.1 * d; // filling with some simple numbers for easy testing.
+        }
+    }
+
+    std::vector<int> in_mnns{ 5, 10, 20 };
+    mnncorrect::internal::NeighborSet<int, double> neighbors_from(ntotal);
+    neighbors_from[5] = std::vector<std::pair<int, double> >{ { 5, 0 }, { 4, 1 }, { 6, 1 } };
+    neighbors_from[10] = std::vector<std::pair<int, double> >{ { 10, 0 }, { 9, 1 }, { 11, 1 }, { 12, 2 } };
+    neighbors_from[20] = std::vector<std::pair<int, double> >{ { 20, 0 }, { 19, 1 }, { 21, 1 }, { 18, 2 }, { 22, 2 }, { 23, 3 } };
+
+    // Checking that the redundant observations aren't added during the refining stage.
+    {
+        mnncorrect::internal::NeighborSet<int, double> neighbors_to(in_mnns.size());
+        neighbors_to[0] = std::vector<std::pair<int, double> >{ { 5, 0 }, { 4, 1 } };
+        neighbors_to[1] = std::vector<std::pair<int, double> >{ { 9, 1 }, { 12, 2 } };
+        neighbors_to[2] = std::vector<std::pair<int, double> >{ { 20, 0 }, { 18, 2 }, { 22, 2 } };
+
+        std::vector<double> running_means;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 1, /* tolerance = */ 10, running_means);
+
+        ASSERT_EQ(running_means.size(), in_mnns.size() * ndim);
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            auto shift = d * 0.1;
+            EXPECT_FLOAT_EQ(running_means[d], mean(5.0, 4.0, 6.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0) + shift);
+        }
+    }
+
+    // Checking that new observations are added during the refining stage.
+    {
+        mnncorrect::internal::NeighborSet<int, double> neighbors_to(in_mnns.size());
+        neighbors_to[0] = std::vector<std::pair<int, double> >{ { 5, 0 }, { 7, 2 } }; // at the end
+        neighbors_to[1] = std::vector<std::pair<int, double> >{ { 10, 0 }, { 13, 1 }, { 12, 2 } }; // in the middle (distance is wrong but is only used for sorting).
+        neighbors_to[2] = std::vector<std::pair<int, double> >{ { 17, 2 }, { 16, 3 }, { 23, 3 } }; // at the front (distance is wrong but is only used for sorting).
+
+        std::vector<double> running_means;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 1, /* tolerance = */ 10, running_means);
+
+        ASSERT_EQ(running_means.size(), in_mnns.size() * ndim);
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            auto shift = d * 0.1;
+            EXPECT_FLOAT_EQ(running_means[d], mean(5.0, 4.0, 6.0, 7.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0, 13.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0, 17.0, 16.0) + shift);
+        }
+    }
+
+    // Checking that observations are correctly filtered out based on the tolerance.
+    {
+        mnncorrect::internal::NeighborSet<int, double> neighbors_to(in_mnns.size());
+
+        // Distances are all wrong here, but are just used for sorting, so it's fine.
+        neighbors_to[0] = std::vector<std::pair<int, double> >{ 
+            { 9, 2 }, // Seed SD is 1, mean is 5, so adding 9 is ignored.
+            { 7, 2 }, // Adding 7 is fine, bringing the mean to 5.6 and the SD to 1.29.
+            { 1, 3 }, // Adding 1 is just out of range and is ignored.
+            { 2, 3 } // 2 is fine.
+        };
+        neighbors_to[1] = std::vector<std::pair<int, double> >{ 
+            { 14, 2 }, // mean is 10.5, SD is 1.29, so this is fine.
+            { 17, 3 }, // mean is 11.2, SD is 1.92, so this is ignored (just).
+            { 16, 3 }  // 16 is fine. 
+        };
+        neighbors_to[2] = std::vector<std::pair<int, double> >{
+            { 50, 2 }, // mean is 20.5, SD is 1.87, but this would obviously be ignored anyway.
+            { 26, 4 }, // adding 26 is fine (just), bringing the mean to 21.18 and the SD to 2.69.
+            { 30, 5 }  // ignored again.
+        };
+
+        std::vector<double> running_means;
+        mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 1, /* tolerance = */ 3, running_means);
+
+        ASSERT_EQ(running_means.size(), in_mnns.size() * ndim);
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            auto shift = d * 0.1;
+            EXPECT_FLOAT_EQ(running_means[d], mean(5.0, 4.0, 6.0, 7.0, 2.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + ndim], mean(10.0, 9.0, 11.0, 12.0, 14.0, 16.0) + shift);
+            EXPECT_FLOAT_EQ(running_means[d + 2 * ndim], mean(20.0, 19.0, 21.0, 18.0, 22.0, 23.0, 26.0) + shift);
+        }
+    }
+}
+
 //class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
 //protected:
 //    void SetUp() {
@@ -540,93 +635,6 @@ TEST(CorrectTarget, InvertNeighbors) {
 //    std::vector<double> left, right;
 //    mnncorrect::internal::MnnPairs<int> pairings;
 //};
-//
-//TEST_P(CorrectTargetTest, CappedFindNns) {
-//    auto right_mnn = mnncorrect::internal::unique_right(pairings);
-//    std::vector<double> subbuffer(right_mnn.size() * ndim);
-//    mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, subbuffer.data());
-//
-//    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-//    auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), subbuffer.data()));
-//    auto full = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
-//
-//    auto cap_out = mnncorrect::internal::capped_find_nns(nright, right.data(), *index, k, 23, /* nthreads = */ 1);
-//    auto gap = cap_out.first;
-//    const auto& capped = cap_out.second;
-//
-//    EXPECT_EQ(capped.size(), 23);
-//    EXPECT_GT(gap, 1);
-//    for (std::size_t c = 0; c < capped.size(); ++c) {
-//        EXPECT_EQ(full[static_cast<std::size_t>(c * gap)], capped[c]);
-//    }
-//
-//    // Same results in parallel.
-//    auto pcap_out = mnncorrect::internal::capped_find_nns(nright, right.data(), *index, k, 23, /* nthreads = */ 3);
-//    EXPECT_EQ(pcap_out.first, cap_out.first);
-//    EXPECT_EQ(pcap_out.second, cap_out.second);
-//}
-//
-//TEST_P(CorrectTargetTest, CenterOfMass) {
-//    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-//
-//    // Setting up the values for a reasonable comparison.
-//    auto left_mnn = mnncorrect::internal::unique_left(pairings);
-//    std::vector<double> buffer_left(left_mnn.size() * ndim);
-//    {
-//        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, buffer_left.data());
-//        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, left_mnn.size(), buffer_left.data()));
-//        auto closest_mnn = mnncorrect::internal::quick_find_nns(nleft, left.data(), *index, k, /* nthreads = */ 1);
-//        auto inverted = mnncorrect::internal::invert_neighbors(left_mnn.size(), closest_mnn, /* nthreads = */ 1);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), buffer_left.data(), /* minimum_required = */ k, /*  num_mads = */ 3, /* nthreads = */ 1);
-//
-//        // Same results in parallel.
-//        std::vector<double> par_buffer_left(left_mnn.size() * ndim);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), par_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 3);
-//        EXPECT_EQ(par_buffer_left, buffer_left);
-//    }
-//
-//    auto right_mnn = mnncorrect::internal::unique_right(pairings);
-//    std::vector<double> buffer_right(right_mnn.size() * ndim);
-//    {
-//        mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, buffer_right.data());
-//        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), buffer_right.data()));
-//        auto closest_mnn = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
-//        auto inverted = mnncorrect::internal::invert_neighbors(right_mnn.size(), closest_mnn, /* nthreads = */ 1);
-//        mnncorrect::internal::compute_center_of_mass(ndim, right_mnn, inverted, right.data(), buffer_right.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
-//    }
-//
-//    // Checking that the centroids are all close to the expected values.
-//    std::vector<double> left_means(ndim);
-//    for (std::size_t s = 0; s < left_mnn.size(); ++s) {
-//        for (int d = 0; d < ndim; ++d) {
-//            left_means[d] += buffer_left[s * ndim + d];
-//        }
-//    }
-//    for (auto m : left_means) {
-//        EXPECT_LT(std::abs(m / left_mnn.size()), 0.5);
-//    }
-//
-//    std::vector<double> right_means(ndim);
-//    for (std::size_t s = 0; s < right_mnn.size(); ++s) {
-//        for (int d = 0; d < ndim; ++d) {
-//            right_means[d] += buffer_right[s * ndim + d];
-//        }
-//    }
-//    for (auto m : right_means) {
-//        EXPECT_LT(std::abs(m / right_mnn.size() - 5), 0.5);
-//    }
-//
-//    // Center of mass calculations work correctly if it's all empty.
-//    {
-//        mnncorrect::internal::NeighborSet<int, double> empty_inverted(left_mnn.size());
-//        std::vector<double> empty_buffer_left(left_mnn.size() * ndim);
-//        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, empty_inverted, left.data(), empty_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
-//
-//        std::vector<double> expected(left_mnn.size() * ndim);
-//        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, expected.data());
-//        EXPECT_EQ(empty_buffer_left, expected);
-//    }
-//}
 //
 //TEST_P(CorrectTargetTest, Correction) {
 //    double nmads = 3;
