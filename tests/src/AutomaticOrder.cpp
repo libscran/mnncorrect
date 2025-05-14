@@ -73,129 +73,285 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
     }
 }
 
-///****************************************************/
-//
-//struct AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double, knncolle::Matrix<int, double> > {
-//    static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::ReferencePolicy::MAX_SIZE;
-//
-//    template<typename ... Args_>
-//    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, double, knncolle::Matrix<int, double> >(std::forward<Args_>(args)...) {}
-//
-//    const auto& get_neighbors_ref () const { 
-//        return my_neighbors_ref;
-//    }
-//    const auto& get_neighbors_target () const { 
-//        return my_neighbors_target;
-//    }
-//
-//    std::size_t get_ncorrected() const { 
-//        return my_ncorrected;
-//    }
-//
-//    const auto& get_remaining () const { 
-//        return my_remaining; 
-//    }
-//
-//    auto test_choose() {
-//        return choose();
-//    }
-//
-//    void test_update(std::size_t latest) {
-//        update<false>(latest);
-//        return;
-//    }
-//};
-//
-//class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, std::vector<int> > > {
-//public:
-//    AutomaticOrderTest() : builder(std::make_shared<knncolle::EuclideanDistance<double, double> >()) {}
-//
-//protected:
-//    void SetUp() {
-//        auto param = GetParam();
-//        k = std::get<0>(param);
-//        sizes = std::get<1>(param);
-//
-//        data.resize(sizes.size());
-//        ptrs.resize(sizes.size());
-//        for (std::size_t b = 0; b < sizes.size(); ++b) {
-//            data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-//                scran_tests::SimulationParameters sparams;
-//                sparams.lower = -2;
-//                sparams.upper = 2;
-//                sparams.seed = 42 + ndim * 10 + k * 100 + sizes[b];
-//                return sparams;
-//            }());
-//            ptrs[b] = data[b].data();
-//        }
-//
-//        total_size = std::accumulate(sizes.begin(), sizes.end(), 0) * ndim;
-//    }
-//
-//public:
-//    // Constants.
-//    int ndim = 5;
-//    knncolle::VptreeBuilder<int, double, double> builder;
-//
-//    // Parameters.
-//    int k;
-//    std::vector<int> sizes;
-//
-//    // Computed.
-//    std::vector<std::vector<double> > data;
-//    std::vector<const double*> ptrs;
-//    int total_size;
-//
-//public:
-//    static void compare_to_naive(const std::vector<int>& indices, const std::vector<double>& distances, const std::vector<std::pair<int, double> >& updated) {
-//        std::size_t n = indices.size();
-//        ASSERT_EQ(n, updated.size());
-//        for (std::size_t i = 0; i < n; ++i) {
-//            EXPECT_EQ(indices[i], updated[i].first);
-//            EXPECT_EQ(distances[i], updated[i].second);
-//        }
-//    }
-//};
-//
-//TEST_P(AutomaticOrderTest, CheckInitialization) {
-//    std::vector<double> output(total_size);
-//    AutomaticOrder2 coords(
-//        ndim,
-//        sizes,
-//        ptrs,
-//        output.data(),
-//        builder,
-//        /* num_neighbors = */ k,
-//        /* ref_policy = */ AutomaticOrder2::default_policy,
-//        /* nobs_cap = */ -1,
-//        /* nthreads = */ 1
-//    );
-//
-//    std::size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
-//    const auto& ord = coords.get_order();
-//    EXPECT_EQ(ord.size(), 1);
-//    EXPECT_EQ(ord[0], maxed);
-//
-//    std::size_t ncorrected = coords.get_ncorrected();
-//    EXPECT_EQ(ncorrected, sizes[maxed]);
-//    EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[maxed]);
-//    EXPECT_EQ(coords.get_remaining().size(), sizes.size() - 1);
-//
-//    const auto& rneighbors = coords.get_neighbors_ref(); 
-//    const auto& lneighbors = coords.get_neighbors_target();
-//
-//    for (std::size_t b = 0; b < sizes.size(); ++b) {
-//        if (b == maxed) { 
-//            continue; 
-//        }
-//
-//        EXPECT_EQ(rneighbors[b].size(), ncorrected);
-//        EXPECT_EQ(rneighbors[b][0].size(), k);
-//        EXPECT_EQ(lneighbors[b].size(), sizes[b]);
-//        EXPECT_EQ(lneighbors[b][0].size(), k);
-//    }
-//}
-//
+class AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double, knncolle::Matrix<int, double> > {
+public:
+    static constexpr mnncorrect::ReferencePolicy default_policy = mnncorrect::ReferencePolicy::MAX_SIZE;
+
+    template<typename ... Args_>
+    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, double, knncolle::Matrix<int, double> >(std::forward<Args_>(args)...) {}
+
+    const auto& get_batches() const { 
+        return my_batches;
+    }
+
+    auto advance() {
+        return next();
+    }
+};
+
+class AutomaticOrderTest : public ::testing::Test {};
+
+TEST_F(AutomaticOrderTest, Empty) {
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    AutomaticOrder2 overlord(
+        5,
+        std::vector<int>{}, 
+        std::vector<const double*>{},
+        static_cast<double*>(NULL),
+        builder,
+        /* num_neighbors = */ 10,
+        /* tolerance = */ 3,
+        mnncorrect::ReferencePolicy::MAX_RSS,
+        /* num_threads = */ 1
+    );
+    EXPECT_TRUE(overlord.get_batches().empty());
+
+    std::string msg;
+    try {
+        AutomaticOrder2(
+            5,
+            std::vector<int>{ 0 }, 
+            std::vector<const double*>{},
+            static_cast<double*>(NULL),
+            builder,
+            /* num_neighbors = */ 10,
+            /* tolerance = */ 3,
+            mnncorrect::ReferencePolicy::MAX_RSS,
+            /* num_threads = */ 1
+        );
+    } catch (std::exception& e) {
+        msg = e.what();
+    }
+    EXPECT_TRUE(msg.find("length of") != std::string::npos);
+}
+
+template<typename Index_, typename Float_>
+static void check_initialization(
+    std::size_t num_dim,
+    const std::vector<mnncorrect::internal::BatchInfo<Index_, Float_> >& batches,
+    const std::vector<const double*>& sources,
+    const double* corrected)
+{
+    auto nbatches = batches.size();
+
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        const auto& curbatch = batches[b];
+        auto num_obs = curbatch.num_obs;
+        EXPECT_EQ(curbatch.index->num_observations(), num_obs);
+
+        auto searcher = curbatch.index->initialize();
+        std::vector<int> indices;
+        std::vector<double> distances;
+
+        for (int c = 0; c < num_obs; ++c) {
+            auto srcptr = sources[b] + c * num_dim;
+            std::vector<double> srcvec(srcptr, srcptr + num_dim);
+            auto corptr = corrected + (curbatch.offset + c) * num_dim;
+            std::vector<double> corvec(corptr, corptr + num_dim);
+            EXPECT_EQ(corvec, srcvec);
+
+            searcher->search(corptr, 1, &indices, &distances);
+            EXPECT_EQ(indices.size(), 1);
+            EXPECT_EQ(indices[0], c);
+            EXPECT_EQ(distances[0], 0);
+        }
+    }
+}
+
+template<typename Float_>
+static std::vector<const double*> pointerize(const std::vector<std::vector<Float_> >& data) {
+    std::vector<const double*> output;
+    output.reserve(data.size());
+    for (const auto& batch : data) {
+        output.push_back(batch.data());
+    }
+    return output;
+}
+
+TEST_F(AutomaticOrderTest, Input) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 42 + ndim * 10 + sizes[b];
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    // Testing multiple threads to check for correct parallelization of index construction.
+    for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
+        std::vector<double> corrected(ndim * ntotal);
+        AutomaticOrder2 overlord(
+            ndim,
+            sizes,
+            ptrs,
+            corrected.data(),
+            builder,
+            /* num_neighbors = */ 10,
+            /* tolerance = */ 3,
+            mnncorrect::ReferencePolicy::INPUT,
+            num_threads
+        );
+
+        // Batches should be sorted by input order.
+        const auto& batches = overlord.get_batches(); 
+        EXPECT_EQ(batches[0].num_obs, 100);
+        EXPECT_EQ(batches[0].offset, 0);
+        EXPECT_EQ(batches[1].num_obs, 200);
+        EXPECT_EQ(batches[1].offset, 100);
+        EXPECT_EQ(batches[2].num_obs, 150);
+        EXPECT_EQ(batches[2].offset, 300);
+
+        check_initialization(ndim, batches, ptrs, corrected.data());
+    }
+}
+
+TEST_F(AutomaticOrderTest, MaxSize) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 69 + ndim * 10 + sizes[b];
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    std::vector<double> corrected(ndim * ntotal);
+    AutomaticOrder2 overlord(
+        ndim,
+        sizes,
+        ptrs,
+        corrected.data(),
+        builder,
+        /* num_neighbors = */ 10,
+        /* tolerance = */ 3,
+        mnncorrect::ReferencePolicy::MAX_SIZE,
+        /* num_threads = */ 1
+    );
+
+    // Batches should be sorted by size.
+    const auto& batches = overlord.get_batches(); 
+    EXPECT_EQ(batches[0].num_obs, 200);
+    EXPECT_EQ(batches[0].offset, 100);
+    EXPECT_EQ(batches[1].num_obs, 150);
+    EXPECT_EQ(batches[1].offset, 300);
+    EXPECT_EQ(batches[2].num_obs, 100);
+    EXPECT_EQ(batches[2].offset, 0);
+
+    std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[2], ptrs[0] };
+    check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+}
+
+TEST_F(AutomaticOrderTest, MaxVariance) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 4269 + ndim * 10 + sizes[b];
+            sparams.lower = -3.0 * (b + 1); // later batches are more variable.
+            sparams.upper = 3.0 * (b + 1);
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    // Testing multiple threads to check for threading in the variance calculation.
+    for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
+        std::vector<double> corrected(ndim * ntotal);
+        AutomaticOrder2 overlord(
+            ndim,
+            sizes,
+            ptrs,
+            corrected.data(),
+            builder,
+            /* num_neighbors = */ 10,
+            /* tolerance = */ 3,
+            mnncorrect::ReferencePolicy::MAX_VARIANCE,
+            num_threads
+        );
+
+        // Batches should be sorted by variance.
+        const auto& batches = overlord.get_batches(); 
+        EXPECT_EQ(batches[0].num_obs, 150);
+        EXPECT_EQ(batches[0].offset, 300);
+        EXPECT_EQ(batches[1].num_obs, 200);
+        EXPECT_EQ(batches[1].offset, 100);
+        EXPECT_EQ(batches[2].num_obs, 100);
+        EXPECT_EQ(batches[2].offset, 0);
+
+        std::vector<const double*> resorted_ptrs { ptrs[2], ptrs[1], ptrs[0] };
+        check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+    }
+}
+
+TEST_F(AutomaticOrderTest, MaxRss) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 50, 500 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 4269 + ndim * 10 + sizes[b];
+            sparams.lower = -3.0 / (b + 1); // later batches are less variable.
+            sparams.upper = 3.0 / (b + 1);
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    std::vector<double> corrected(ndim * ntotal);
+    AutomaticOrder2 overlord(
+        ndim,
+        sizes,
+        ptrs,
+        corrected.data(),
+        builder,
+        /* num_neighbors = */ 10,
+        /* tolerance = */ 3,
+        mnncorrect::ReferencePolicy::MAX_RSS,
+        /* num_threads = */ 1
+    );
+
+    // Sorting by RSS; so even though the first batch is most variable,
+    // it has fewer observations and so the second batch has a higher RSS.
+    const auto& batches = overlord.get_batches(); 
+    EXPECT_EQ(batches[0].num_obs, 500);
+    EXPECT_EQ(batches[0].offset, 50);
+    EXPECT_EQ(batches[1].num_obs, 50);
+    EXPECT_EQ(batches[1].offset, 0);
+
+    std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[0] };
+    check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+}
+
 //TEST_P(AutomaticOrderTest, CheckUpdate) {
 //    std::vector<AutomaticOrder2> all_coords;
 //    all_coords.reserve(3);

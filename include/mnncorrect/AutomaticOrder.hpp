@@ -88,36 +88,45 @@ public:
             return;
         }
 
-        // Different policies to choose the batch order. 'my_order' is filled
-        // in reverse order of batches to merge, with the first batch being unchanged. 
-        if (ref_policy == ReferencePolicy::MAX_SIZE) {
-            define_merge_order(num_obs, my_order);
-        } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
-            bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
-            std::vector<Float_> vars = compute_total_variances(my_num_dim, num_obs, batches, as_rss, my_num_threads);
-            define_merge_order(vars, my_order);
-        } else { // i.e., ref_policy = INPUT.
-            my_order.resize(nbatches);
-            std::iota(my_order.begin(), my_order.end(), 0);
+        my_num_total = 0;
+        std::vector<BatchInfo<Index_, Float_> > tmp_batches(nbatches);
+        for (BatchIndex b = 0; b < nbatches; ++b) {
+            tmp_batches[b].offset = my_num_total;
+            auto cur_num_obs = num_obs[b];
+            tmp_batches[b].num_obs = cur_num_obs;
+            std::copy_n(
+                batches[b],
+                static_cast<std::size_t>(cur_num_obs) * num_dim, // cast to size_t to avoid overflow.
+                my_corrected + static_cast<std::size_t>(my_num_total) * num_dim // ditto.
+            );
+            my_num_total += cur_num_obs;
         }
 
-        my_batches.resize(nbatches);
         parallelize(num_threads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
             for (BatchIndex b = start, end = start + length; b < end; ++b) {
-                auto& curbatch = my_batches[b];
-                curbatch.num_obs = num_obs[b];
+                auto& curbatch = tmp_batches[b];
                 curbatch.index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_obs[b], batches[b]));
             }
         });
 
-        my_num_total = 0;
-        for (BatchIndex b = 0; b < nbatches; ++b) {
-            my_batches[b].offset = my_num_total;
-            std::copy_n(batches[b], static_cast<std::size_t>(num_obs[b]) * num_dim, my_corrected + static_cast<std::size_t>(my_num_total) * num_dim); // cast to size_t to avoid overflow.
-            my_num_total += num_obs[b];
+        // Different policies to choose the batch order. 'order' is filled
+        // in reverse order of batches to merge, with the first batch being unchanged. 
+        std::vector<BatchIndex> order;
+        if (ref_policy == ReferencePolicy::MAX_SIZE) {
+            define_merge_order(num_obs, order);
+        } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
+            bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
+            std::vector<Float_> vars = compute_total_variances(num_dim, num_obs, batches, as_rss, num_threads);
+            define_merge_order(vars, order);
+        } else { // i.e., ref_policy = INPUT.
+            order.resize(nbatches);
+            std::iota(order.begin(), order.end(), static_cast<BatchIndex>(0));
         }
 
-        my_target = nbatches - 1;
+        my_batches.reserve(nbatches);
+        for (auto o : order) {
+            my_batches.emplace_back(std::move(tmp_batches[o]));
+        }
     }
 
 protected:
@@ -127,8 +136,6 @@ protected:
 
     Float_* my_corrected;
     Index_ my_num_total;
-    std::vector<BatchIndex> my_order;
-    BatchIndex my_target;
 
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnResults<Index_> my_mnns;
@@ -145,7 +152,7 @@ protected:
         // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
         // because they are agglomerations of the original batches. The idea is
         // to always merge two metabatches at each call to 'next()'.
-        BatchInfo<Index_, Float_> target_batch(std::move(my_batches[my_target]));
+        BatchInfo<Index_, Float_> target_batch(std::move(my_batches.back()));
         my_batches.pop_back();
 
         find_batch_neighbors(
@@ -191,8 +198,7 @@ protected:
             my_batches
         );
 
-        --my_target;
-        return my_target > 0;
+        return !my_batches.empty();
     }
 
 public:
