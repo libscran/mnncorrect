@@ -102,6 +102,8 @@ TEST(CorrectTarget, EnsureSort) {
     }
 }
 
+/**********************************************************/
+
 class SearchForNeighborsFromMnnsTest : public ::testing::TestWithParam<std::tuple<std::vector<int>, int, bool> > {
 protected:
     const std::size_t num_dim = 8;
@@ -357,6 +359,8 @@ TEST(CorrectTarget, SearchForNeighborsFromMnnsZeroed) {
     }
 }
 
+/**********************************************************/
+
 class SearchForNeighborsToMnnsTest : public ::testing::TestWithParam<std::tuple<std::vector<int>, int> > {};
 
 TEST_P(SearchForNeighborsToMnnsTest, Basic) {
@@ -501,6 +505,8 @@ TEST(CorrectTarget, InvertNeighbors) {
     EXPECT_EQ(inv, pinv);
 }
 
+/**********************************************************/
+
 template<typename ... Args_>
 double mean(Args_... args) {
     std::vector<double> values{ args... };
@@ -610,6 +616,8 @@ TEST(CorrectTarget, ComputeCenterOfMass) {
         EXPECT_EQ(pres, running_means);
     }
 }
+
+/**********************************************************/
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
 

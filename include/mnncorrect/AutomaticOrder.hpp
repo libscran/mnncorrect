@@ -21,6 +21,12 @@ namespace mnncorrect {
 namespace internal {
 
 template<typename Index_, typename Float_>
+struct RedistributeCorrectedObservationsWorkspace {
+    std::vector<Index_> offsets;
+    std::vector<Float_> buffer;
+};
+
+template<typename Index_, typename Float_>
 void redistribute_corrected_observations(
     std::size_t num_dim,
     const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
@@ -28,6 +34,7 @@ void redistribute_corrected_observations(
     const Float_* data,
     const knncolle::Builder<Index_, Float_, Float_>& builder,
     int num_threads,
+    RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
     std::vector<BatchInfo<Index_, Float_> >& batches)
 {
     BatchIndex num_remaining = batches.size();
@@ -36,23 +43,38 @@ void redistribute_corrected_observations(
         reassigned[correct_info.batch[t]].push_back(t);
     }
 
-    parallelize(num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
-        std::vector<Float_> buffer;
-        for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            auto& reass = reassigned[b];
-            buffer.resize(static_cast<std::size_t>(reass.size()) * num_dim); // cast to avoid overflow.
+    // The idea with the workspace is to do one big allocation and then operate
+    // on contiguous chunks of that allocation within each thread. This allows
+    // us to use the upper bound of required space to create an allocation that
+    // can be reused across all calls to this function.
+    workspace.offsets.clear();
+    workspace.offsets.reserve(num_remaining);
+    Index_ sofar = 0;
+    for (const auto& rem : reassigned) {
+        workspace.offsets.push_back(sofar);
+        sofar += rem.size();
+    }
 
+    // Technically this is not necessary as we do a big allocation in the
+    // AutomaticOrder constructor... but we just resize it here for safety.
+    workspace.buffer.resize(static_cast<std::size_t>(sofar) * num_dim); // cast to avoid overflow.
+
+    parallelize(num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
+        for (BatchIndex b = start, end = start + length; b < end; ++b) {
+            auto storage = workspace.buffer.data() + static_cast<std::size_t>(workspace.offsets[b]) * num_dim; // cast to avoid overflow.
+
+            auto& reass = reassigned[b];
             auto num_reass = reass.size();
             for (decltype(num_reass) i = 0; i < num_reass; ++i) {
                 std::copy_n(
                     data + static_cast<std::size_t>(reass[i]) * num_dim, // ditto.
                     num_dim, 
-                    buffer.begin() + static_cast<std::size_t>(i) * num_dim
+                    storage + static_cast<std::size_t>(i) * num_dim
                 );
             }
 
             batches[b].extras.emplace_back(
-                builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, buffer.data())),
+                builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, storage)),
                 std::move(reass)
             );
         }
@@ -127,6 +149,10 @@ public:
         for (auto o : order) {
             my_batches.emplace_back(std::move(tmp_batches[o]));
         }
+
+        // Allocate one big space for index construction once, so that we don't
+        // have to reallocate within each redistribute_corrected_observations() call.
+        my_build_workspace.buffer.resize(my_num_dim * static_cast<std::size_t>(my_num_total));
     }
 
 protected:
@@ -142,13 +168,14 @@ protected:
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
     CorrectTargetResults my_correct_results;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
+    RedistributeCorrectedObservationsWorkspace<Index_, Float_> my_build_workspace;
 
     int my_num_neighbors;
     double my_tolerance;
     int my_num_threads;
 
 protected:
-    bool next() {
+    bool next(bool test) {
         // Here, we denote 'my_batches' and 'target_batch' as "metabatches",
         // because they are agglomerations of the original batches. The idea is
         // to always merge two metabatches at each call to 'next()'.
@@ -188,22 +215,27 @@ protected:
             my_correct_results
         );
 
-        redistribute_corrected_observations(
-            my_num_dim,
-            my_batch_nns,
-            my_correct_results,
-            my_corrected,
-            my_builder,
-            my_num_threads,
-            my_batches
-        );
+        // We don't need to do this at the last step.
+        bool remaining = my_batches.size() > 1;
+        if (remaining || test) {
+            redistribute_corrected_observations(
+                my_num_dim,
+                my_batch_nns,
+                my_correct_results,
+                my_corrected,
+                my_builder,
+                my_num_threads,
+                my_build_workspace,
+                my_batches
+            );
+        }
 
-        return !my_batches.empty();
+        return remaining;
     }
 
 public:
     void merge() {
-        while (next()) {}
+        while (next(false)) {}
     }
 };
 
