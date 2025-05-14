@@ -11,39 +11,21 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // compute
-Rcpp::List compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double nmads, int iterations, double trim, int mass_cap, Rcpp::Nullable<Rcpp::IntegerVector> order, bool auto_order);
-RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP nmadsSEXP, SEXP iterationsSEXP, SEXP trimSEXP, SEXP mass_capSEXP, SEXP orderSEXP, SEXP auto_orderSEXP) {
+Rcpp::RObject compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double tol);
+RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP tolSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type batch(batchSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    Rcpp::traits::input_parameter< double >::type nmads(nmadsSEXP);
-    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
-    Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
-    Rcpp::traits::input_parameter< int >::type mass_cap(mass_capSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type order(orderSEXP);
-    Rcpp::traits::input_parameter< bool >::type auto_order(auto_orderSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, nmads, iterations, trim, mass_cap, order, auto_order));
-    return rcpp_result_gen;
-END_RCPP
-}
-// robust_average
-Rcpp::NumericVector robust_average(Rcpp::NumericMatrix x, int iterations, double trim);
-RcppExport SEXP _mnncorrect_ref_robust_average(SEXP xSEXP, SEXP iterationsSEXP, SEXP trimSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
-    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
-    Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
-    rcpp_result_gen = Rcpp::wrap(robust_average(x, iterations, trim));
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, tol));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mnncorrect_ref_compute", (DL_FUNC) &_mnncorrect_ref_compute, 9},
-    {"_mnncorrect_ref_robust_average", (DL_FUNC) &_mnncorrect_ref_robust_average, 3},
+    {"_mnncorrect_ref_compute", (DL_FUNC) &_mnncorrect_ref_compute, 4},
     {NULL, NULL, 0}
 };
 

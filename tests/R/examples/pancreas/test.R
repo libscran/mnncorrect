@@ -39,7 +39,7 @@ y.m <- pcs[,f.block == "Muraro"]
 library(mnncorrect.ref)
 #corrected.g <- mnncorrect.ref(y.m, y.g)
 #total <- cbind(corrected.g, y.m)
-total <- mnncorrect.cpp(pcs, f.block)$corrected
+total <- mnncorrect.cpp(pcs, f.block)
 out <- runTsne(total)
 
 before <- runTsne(pcs) # for comparison's sake.

@@ -45,7 +45,7 @@ y4k <- pcs[,f.block == "4k"]
 library(mnncorrect.ref)
 #corrected.3k <- mnncorrect.ref(y4k, y3k, k=15)
 #total <- cbind(corrected.3k, y4k)
-total <- mnncorrect.cpp(pcs, f.block)$corrected
+total <- mnncorrect.cpp(pcs, f.block)
 out <- runTsne(total)
 
 before <- runTsne(pcs) # for comparison's sake.
