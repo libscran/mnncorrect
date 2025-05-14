@@ -2,7 +2,7 @@
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
 
-#include "mnncorrect/compute.hpp"
+#include "mnncorrect/mnncorrect.hpp"
 #include <random>
 #include <algorithm>
 #include <cmath>

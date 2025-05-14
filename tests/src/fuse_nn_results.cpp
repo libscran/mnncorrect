@@ -103,6 +103,15 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+template<typename Index_, typename Float_>
+static void fill_pair_vector(const std::vector<Index_>& indices, const std::vector<Float_>& distances, std::vector<std::pair<Index_, Float_> >& output) {
+    auto found = indices.size();
+    output.clear();
+    for (decltype(found) i = 0; i < found; ++i) {
+        output.emplace_back(indices[i], distances[i]);
+    }
+}
+
 TEST(FuseNnResults, Recovery) {
     // Recover the same NN results as just a direct search.
     std::size_t NR = 10;
@@ -119,14 +128,29 @@ TEST(FuseNnResults, Recovery) {
     auto prebuilt_first = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, 50, contents.data()));
     auto prebuilt_second = builder.build_unique(knncolle::SimpleMatrix<int, double>(NR, NC - 50, contents.data() + 50 * NR));
 
-    int k = 7;
-    auto full_res = knncolle::find_nearest_neighbors(*prebuilt_full, k);
-    auto first_res = knncolle::find_nearest_neighbors(*prebuilt_first, k);
-    auto second_res = knncolle::find_nearest_neighbors(*prebuilt_second, k);
+    auto searcher_full = prebuilt_full->initialize();
+    auto searcher_first = prebuilt_first->initialize();
+    auto searcher_second = prebuilt_second->initialize();
 
-    std::vector<std::pair<int, double> > fused;
+    int k = 7;
+    std::vector<int> indices;
+    std::vector<double> distances;
+    std::vector<std::pair<int, double> > paired_first, paired_second, paired_full, fused;
+
     for (int c = 0; c < NC; ++c) {
-        mnncorrect::internal::fuse_nn_results(first_res[c], second_res[c], k, fused);
-        EXPECT_EQ(full_res[c], fused);
+        auto ptr = contents.data() + c * NR;
+        searcher_first->search(ptr, k, &indices, &distances);
+        fill_pair_vector(indices, distances, paired_first);
+
+        searcher_second->search(ptr, k, &indices, &distances);
+        for (auto& i : indices) {
+            i += 50;
+        }
+        fill_pair_vector(indices, distances, paired_second);
+
+        searcher_full->search(ptr, k, &indices, &distances);
+        fill_pair_vector(indices, distances, paired_full);
+        mnncorrect::internal::fuse_nn_results(paired_first, paired_second, k, fused);
+        EXPECT_EQ(paired_full, fused);
     }
 }
