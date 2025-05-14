@@ -58,9 +58,9 @@ struct Options {
     std::shared_ptr<knncolle::Builder<Index_, Float_, Float_, Matrix_> > builder;
 
     /**
-     * Policy to use to choose the reference batch when `Options::automatic_order = true`.
+     * Policy to use to choose the merge order.
      */
-    ReferencePolicy reference_policy = ReferencePolicy::MAX_RSS;
+    MergePolicy merge_policy = MergePolicy::RSS;
 
     /**
      * Number of threads to use.
@@ -118,7 +118,7 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std:
         *builder,
         options.num_neighbors,
         options.tolerance,
-        options.reference_policy,
+        options.merge_policy,
         options.num_threads
     );
 

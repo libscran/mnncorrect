@@ -106,7 +106,7 @@ TEST_F(AutomaticOrderInitTest, Empty) {
         builder,
         /* num_neighbors = */ 10,
         /* tolerance = */ 3,
-        mnncorrect::ReferencePolicy::MAX_RSS,
+        mnncorrect::MergePolicy::RSS,
         /* num_threads = */ 1
     );
     EXPECT_TRUE(overlord.get_batches().empty());
@@ -121,7 +121,7 @@ TEST_F(AutomaticOrderInitTest, Empty) {
             builder,
             /* num_neighbors = */ 10,
             /* tolerance = */ 3,
-            mnncorrect::ReferencePolicy::MAX_RSS,
+            mnncorrect::MergePolicy::RSS,
             /* num_threads = */ 1
         );
     } catch (std::exception& e) {
@@ -202,7 +202,7 @@ TEST_F(AutomaticOrderInitTest, Input) {
             builder,
             /* num_neighbors = */ 10,
             /* tolerance = */ 3,
-            mnncorrect::ReferencePolicy::INPUT,
+            mnncorrect::MergePolicy::INPUT,
             num_threads
         );
 
@@ -246,7 +246,7 @@ TEST_F(AutomaticOrderInitTest, MaxSize) {
         builder,
         /* num_neighbors = */ 10,
         /* tolerance = */ 3,
-        mnncorrect::ReferencePolicy::MAX_SIZE,
+        mnncorrect::MergePolicy::SIZE,
         /* num_threads = */ 1
     );
 
@@ -294,7 +294,7 @@ TEST_F(AutomaticOrderInitTest, MaxVariance) {
             builder,
             /* num_neighbors = */ 10,
             /* tolerance = */ 3,
-            mnncorrect::ReferencePolicy::MAX_VARIANCE,
+            mnncorrect::MergePolicy::VARIANCE,
             num_threads
         );
 
@@ -341,7 +341,7 @@ TEST_F(AutomaticOrderInitTest, MaxRss) {
         builder,
         /* num_neighbors = */ 10,
         /* tolerance = */ 3,
-        mnncorrect::ReferencePolicy::MAX_RSS,
+        mnncorrect::MergePolicy::RSS,
         /* num_threads = */ 1
     );
 
@@ -390,7 +390,7 @@ TEST_P(AutomaticOrderNextTest, Basic) {
         builder,
         /* num_neighbors = */ k,
         /* tolerance = */ 3,
-        mnncorrect::ReferencePolicy::INPUT,
+        mnncorrect::MergePolicy::INPUT,
         /* num_threads = */ 1
     );
 
@@ -426,7 +426,7 @@ TEST_P(AutomaticOrderNextTest, Basic) {
         builder,
         /* num_neighbors = */ k,
         /* tolerance = */ 3,
-        mnncorrect::ReferencePolicy::INPUT,
+        mnncorrect::MergePolicy::INPUT,
         /* num_threads = */ 3
     );
     poverlord.merge();

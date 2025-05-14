@@ -92,7 +92,7 @@ public:
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors, 
         double tolerance,
-        ReferencePolicy ref_policy, 
+        MergePolicy merge_policy, 
         int num_threads)
     :
         my_num_dim(num_dim), 
@@ -134,13 +134,13 @@ public:
         // Different policies to choose the batch order. 'order' is filled
         // in reverse order of batches to merge, with the first batch being unchanged. 
         std::vector<BatchIndex> order;
-        if (ref_policy == ReferencePolicy::MAX_SIZE) {
+        if (merge_policy == MergePolicy::SIZE) {
             define_merge_order(num_obs, order);
-        } else if (ref_policy == ReferencePolicy::MAX_VARIANCE || ref_policy == ReferencePolicy::MAX_RSS) {
-            bool as_rss = ref_policy == ReferencePolicy::MAX_RSS;
+        } else if (merge_policy == MergePolicy::VARIANCE || merge_policy == MergePolicy::RSS) {
+            bool as_rss = merge_policy == MergePolicy::RSS;
             std::vector<Float_> vars = compute_total_variances(num_dim, num_obs, batches, as_rss, num_threads);
             define_merge_order(vars, order);
-        } else { // i.e., ref_policy = INPUT.
+        } else { // i.e., merge_policy = INPUT.
             order.resize(nbatches);
             std::iota(order.begin(), order.end(), static_cast<BatchIndex>(0));
         }

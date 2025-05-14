@@ -56,6 +56,7 @@ TEST_P(OverallTest, Basic) {
     std::vector<double> output(nobs * ndim);
     mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
         mnncorrect::Options<int, double> opt;
+        opt.merge_policy = mnncorrect::MergePolicy::INPUT;
         opt.num_neighbors = k;
         return opt;
     }());
@@ -102,6 +103,7 @@ TEST_P(OverallTest, Basic) {
         mnncorrect::Options<int, double> opt;
         opt.num_neighbors = k;
         opt.num_threads = 3;
+        opt.merge_policy = mnncorrect::MergePolicy::INPUT;
         return opt;
     }());
     EXPECT_EQ(par_output, output);
@@ -187,7 +189,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(Overall, Sanity) {
     int ndim = 4;
-    std::vector<int> sizes{ 300, 400 }; // , 110 };
+    std::vector<int> sizes{ 300, 400, 110 };
     auto nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     auto data = scran_tests::simulate_vector(nobs * ndim, [&]{
         scran_tests::SimulationParameters sparams;
@@ -214,7 +216,7 @@ TEST(Overall, Sanity) {
     std::vector<double> output(ndim * nobs);
     mnncorrect::compute(ndim, sizes, ptrs, output.data(), mnncorrect::Options<int, double>{});
 
-    size_t refbatch = 0;
+    size_t refbatch = 1; // highest RSS, as it has the most observations.
     sofar = 0;
     for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
         auto len = sizes[b];
