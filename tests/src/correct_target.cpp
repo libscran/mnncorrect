@@ -617,6 +617,34 @@ TEST(CorrectTarget, ComputeCenterOfMass) {
     }
 }
 
+TEST(CorrectTarget, ComputeCenterOfMassSkip) {
+    std::size_t ndim = 3;
+    int ntotal = 20;
+    std::vector<double> data(ndim * ntotal);
+    for (int i = 0; i < ntotal; ++i) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            data[d + ndim * i] = i + 0.1 * d; // filling with some simple numbers for easy testing.
+        }
+    }
+
+    // If there's only one observation in the seed, refinement outlier checks are skipped.
+    std::vector<int> in_mnns{ 10 };
+    mnncorrect::internal::NeighborSet<int, double> neighbors_from(ntotal);
+    neighbors_from[10] = std::vector<std::pair<int, double> >{ { 10, 0 } };
+
+    mnncorrect::internal::NeighborSet<int, double> neighbors_to(in_mnns.size());
+    neighbors_to[0] = std::vector<std::pair<int, double> >{ { 1, 1 }, { 19, 1 } };
+
+    std::vector<double> running_means;
+    mnncorrect::internal::compute_center_of_mass(ndim, in_mnns, neighbors_from, neighbors_to, data.data(), /* num_threads = */ 1, /* tolerance = */ 3, running_means);
+
+    ASSERT_EQ(running_means.size(), in_mnns.size() * ndim);
+    for (decltype(ndim) d = 0; d < ndim; ++d) {
+        auto shift = d * 0.1;
+        EXPECT_FLOAT_EQ(running_means[d], mean(10.0, 1.0, 19.0) + shift);
+    }
+}
+
 /**********************************************************/
 
 class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};

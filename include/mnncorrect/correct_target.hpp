@@ -179,7 +179,17 @@ void search_for_neighbors_to_mnns(
     NeighborSet<Index_, Float_>& output)
 {
     output.resize(num_total);
-    search_for_neighbors_to_mnns(num_dim, ref_ids, data, ref_mnn_index, num_neighbors, num_threads, output);
+
+    // For the reference batch, all MNN-involved observations should lie on the outermost
+    // surface as we only consider the closest one to the target, so we just find the
+    // closest neighbor for speed.
+    search_for_neighbors_to_mnns(num_dim, ref_ids, data, ref_mnn_index, 1, num_threads, output);
+
+    // Here, we continue to use 'num_neighbors' as the "depth" of MNN-involved observations
+    // on the surface of a subpopulation in the target metabatch should be no greater than 
+    // 'num_neighbors'. So by using 'num_neighbors' in this search, we are more likely to 
+    // reach MNN-involved observations that lie on the outermost surface of a subpopulation.
+    // We will filter out any outliers so it's fine to overstate the number of neighbors here.
     search_for_neighbors_to_mnns(num_dim, target_ids, data, target_mnn_index, num_neighbors, num_threads, output);
 }
 
@@ -273,16 +283,20 @@ void compute_center_of_mass(
                 auto target = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
 
                 // Checking if the new observation is beyond the tolerance on any dimension.
-                bool outside_range = false;
-                Float_ multiplier = tolerance / std::sqrt(counter - 1.0);
-                for (std::size_t d = 0; d < num_dim; ++d) {
-                    if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
-                        outside_range = true;
-                        break;
+                // This is somewhat suboptimal as the dimensions may not be aligned to the
+                // major axes of variation for this subset of observations; but, whatever.
+                if (counter > 1) {
+                    bool outside_range = false;
+                    Float_ multiplier = tolerance / std::sqrt(counter - 1.0);
+                    for (std::size_t d = 0; d < num_dim; ++d) {
+                        if (std::abs(target[d] - mean[d]) > multiplier * std::sqrt(sum_squares[d])) {
+                            outside_range = true;
+                            break;
+                        }
                     }
-                }
-                if (outside_range) {
-                    continue;
+                    if (outside_range) {
+                        continue;
+                    }
                 }
 
                 // If it's good, we proceed to add it.
@@ -352,6 +366,9 @@ void correct_target(
     }
 
     // Find the closest neighbors of each MNN-involved observation in either metabatch.
+    // This is used to define the "seed" of the center of mass for each observation.
+    // We use 'num_neighbors' here as we are already assuming that there are at least
+    // 'num_neighbors' observations in each subpopulation.
     search_for_neighbors_from_mnns(
         num_dim,
         num_total,
@@ -366,6 +383,8 @@ void correct_target(
     );
 
     // Find the closest MNN-involved observation(s) of each observation in either metabatch.
+    // This is used to refine the center of mass beyond the immediate neighborhood of each MNN-involved observation. 
+    //
     search_for_neighbors_to_mnns(
         num_dim,
         num_total,
