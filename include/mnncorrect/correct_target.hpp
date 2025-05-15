@@ -179,17 +179,7 @@ void search_for_neighbors_to_mnns(
     NeighborSet<Index_, Float_>& output)
 {
     output.resize(num_total);
-
-    // For the reference batch, all MNN-involved observations should lie on the outermost
-    // surface as we only consider the closest one to the target, so we just find the
-    // closest neighbor for speed.
-    search_for_neighbors_to_mnns(num_dim, ref_ids, data, ref_mnn_index, 1, num_threads, output);
-
-    // Here, we continue to use 'num_neighbors' as the "depth" of MNN-involved observations
-    // on the surface of a subpopulation in the target metabatch should be no greater than 
-    // 'num_neighbors'. So by using 'num_neighbors' in this search, we are more likely to 
-    // reach MNN-involved observations that lie on the outermost surface of a subpopulation.
-    // We will filter out any outliers so it's fine to overstate the number of neighbors here.
+    search_for_neighbors_to_mnns(num_dim, ref_ids, data, ref_mnn_index, num_neighbors, num_threads, output);
     search_for_neighbors_to_mnns(num_dim, target_ids, data, target_mnn_index, num_neighbors, num_threads, output);
 }
 
