@@ -1,71 +1,94 @@
 #' @export
-#' @importFrom BiocNeighbors findMutualNN queryKNN
-mnncorrect.ref <- function(ref, target, k=15, nmads=3, iterations=2, trim=0.25, mass.cap=0) {
-    pairings <- findMutualNN(t(ref), t(target), k1=k)
-    mnn.r <- unique(pairings$first)
-    mnn.t <- unique(pairings$second)
-
-    # Computing centers of mass for each MNN-involved cell.
-    r.out <- center_of_mass(ref, mnn.r, k=k, nmads=nmads, mass.cap=mass.cap)
-    centers.r <- r.out$centers
-
-    t.out <- center_of_mass(target, mnn.t, k=k, nmads=nmads, mass.cap=0)
-    closest.t <- t.out$closest
-    centers.t <- t.out$centers
-
-    # Finishing it off.
-    for (x in seq_len(ncol(target))) {
-        closest <- closest.t$index[x,]
-
-        keep <- pairings$second %in% mnn.t[closest]
-        used.ref <- pairings$first[keep]
-        used.target <- pairings$second[keep]
-
-        candidates <- centers.r[,match(used.ref, mnn.r),drop=FALSE] - centers.t[,match(used.target, mnn.t),drop=FALSE]
-        correction <- robust_centroid(candidates, iterations=iterations, trim=trim) 
-
-        target[,x] <- target[,x] + correction
+#' @importFrom utils head tail
+mnncorrect.ref <- function(x, batch, k=15, tolerance=3) {
+    stopifnot(ncol(x) == length(batch))
+    batches <- split(seq_along(batch), batch)
+    for (i in seq_along(batches)) {
+        chosen <- batches[[i]]
+        batches[[i]] <- list(
+            value=x[,chosen,drop=FALSE],
+            id=chosen
+        )
     }
 
-    target 
+    while (length(batches) > 1L) {
+        target <- tail(batches, 1)[[1]]
+        ref.batches <- head(batches, -1)
+        ref.batch.id <- rep(seq_along(ref.batches), vapply(ref.batches, function(x) ncol(x$value), 0L))
+        ref.combined <- do.call(cbind, lapply(ref.batches, function(x) x$value))
+        corout <- corrector(ref.combined, ref.batch.id, target$value, k=k, tolerance=tolerance)
+
+        reassignments <- split(seq_along(corout$batch), factor(corout$batch, seq_along(ref.batches)))
+        for (r in seq_along(reassignments)) {
+            idx <- reassignments[[r]]
+            ref.batches[[r]]$value <- cbind(ref.batches[[r]]$value, corout$corrected[,idx,drop=FALSE])
+            ref.batches[[r]]$id <- c(ref.batches[[r]]$id, target$id[idx])
+        }
+
+        batches <- ref.batches
+    }
+
+    final <- matrix(0, nrow(x), ncol(x))
+    final[,batches[[1]]$id] <- batches[[1]]$value
+    final
 }
 
-#' @importFrom utils head tail
-#' @importFrom stats median mad
-#' @importFrom BiocNeighbors queryKNN
-center_of_mass <- function(y, mnn, k, nmads, mass.cap) {
-    ty <- t(y)
+#' @importFrom BiocNeighbors findMutualNN queryKNN
+corrector <- function(ref, batch.id, target, k, tolerance) {
+    pairings <- findMutualNN(t(ref), t(target), k1=k)
 
-    if (mass.cap <= 0 || ncol(y) <= mass.cap) {
-        chosen <- seq_len(ncol(y))
-        closest <- queryKNN(query=ty, X=ty[mnn,,drop=FALSE], k=k)
-    } else {
-        chosen <- floor(head(seq(from=1, to=ncol(y)+1, length.out=mass.cap+1), -1))
-        closest <- queryKNN(query=ty[chosen,,drop=FALSE], X=ty[mnn,,drop=FALSE], k=k)
-        closest$index[] <- chosen[closest$index]
+    # Find the closest reference partner for each MNN-involved cell in the target. 
+    by.target <- split(pairings$first, pairings$second)
+    mnn.target <- as.integer(names(by.target))
+    mnn.ref <- integer(length(mnn.target))
+    for (i in seq_along(by.target)) {
+        ref.current <- by.target[[i]]
+        target.current <- mnn.target[i]
+        distances <- colSums((ref[,ref.current,drop=FALSE] - target[,target.current])^2)
+        mnn.ref[i] <- ref.current[which.min(distances)]
     }
 
-    idx <- closest$index
-    neighbors <- split(rep(chosen, k), idx)
-    min.required <- k
+    unique.ref <- unique(mnn.ref)
+    r.out <- center_of_mass(ref, unique.ref, k=k, tolerance=tolerance)
+    centers.r <- r.out$centers
 
-    centers <- y[,mnn,drop=FALSE] # the center of mass for any MNN-involved point without neighbors is just itself.
-    for (i in names(neighbors)) {
-        curneighbors <- neighbors[[i]]
-        candidates <- y[,curneighbors,drop=FALSE]
+    t.out <- center_of_mass(target, mnn.target, k=k, tolerance=tolerance)
+    closest.t <- t.out$closest # already indexes into 'mnn.target'.
+    centers.t <- t.out$centers
 
-        dist2i <- colSums((candidates - centers[,as.integer(i)])^2)
-        o <- order(dist2i)
+    correction <- centers.r[,match(mnn.ref, unique.ref),drop=FALSE] - centers.t
+    corrected <- target + correction[,closest.t,drop=FALSE]
 
-        for_sure <- candidates[,head(o, min.required),drop=FALSE]
+    list(corrected=corrected, batch=batch.id[mnn.ref[closest.t]])
+}
+
+#' @importFrom BiocNeighbors queryKNN
+center_of_mass <- function(y, mnn, k, tolerance) {
+    ty <- t(y)
+    mnn.y <- ty[mnn,,drop=FALSE]
+    neighbors.from.mnn <- queryKNN(query=mnn.y, X=ty, k=k, get.distance=FALSE)
+    neighbors.to.mnn <- queryKNN(query=ty, X=mnn.y, k=k, get.distance=FALSE)
+    inverted.neighbors.to <- split(rep(seq_len(ncol(y)), k), factor(neighbors.to.mnn$index, seq_along(mnn)))
+
+    centers <- matrix(0, nrow(y), length(mnn))
+    for (i in seq_along(mnn)) {
+        # Computing the seed.
+        curneighbors.from <- neighbors.from.mnn$index[i,]
+        for_sure <- y[,curneighbors.from,drop=FALSE]
         curmean <- rowMeans(for_sure)
         curss2 <- rowSums((for_sure - curmean) ^ 2)
 
+        # Iteratively adding more neighbors.
+        curneighbors.to <- inverted.neighbors.to[[i]]
+        curneighbors.to <- setdiff(curneighbors.to, curneighbors.from)
+        candidates <- y[,curneighbors.to,drop=FALSE]
+        dist2i <- colSums((candidates - y[,mnn[i]])^2)
+
         counter <- ncol(for_sure)
-        for (x in tail(o, -min.required)) {
+        for (x in order(dist2i)) {
             curval <- candidates[,x]
             delta <- curval - curmean
-            if (any(abs(delta) > nmads * sqrt(curss2 / (counter - 1))))  {
+            if (any(abs(delta) > tolerance * sqrt(curss2 / (counter - 1))))  {
                 next
             }
             counter <- counter + 1L
@@ -73,23 +96,8 @@ center_of_mass <- function(y, mnn, k, nmads, mass.cap) {
             curss2 <- curss2 + delta * (curval - curmean)
         }
 
-        centers[,as.integer(i)] <- curmean
+        centers[,i] <- curmean
     }
 
-    list(closest=closest, centers=centers)
-}
-
-#' @importFrom stats quantile
-robust_centroid <- function(y, iterations, trim) {
-    center <- rowMeans(y)
-    for (i in seq_len(iterations)) {
-        delta <- sqrt(colSums((y - center)^2))
-
-        # We give it a bit of a bump to avoid problems with numerical precision and ties.
-        keep <- delta <= quantile(delta, 1-trim) * 1.00000001 
-
-        center <- rowMeans(y[,keep,drop=FALSE])
-    }
-
-    center
+    list(closest=neighbors.to.mnn$index[,1], centers=centers)
 }
