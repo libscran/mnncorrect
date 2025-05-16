@@ -44,7 +44,7 @@ yt <- pcs[,f.block == "tasic"]
 library(mnncorrect.ref)
 #corrected.t <- mnncorrect.ref(yz, yt)
 #total <- cbind(yz, corrected.t)
-total <- mnncorrect.cpp(pcs, f.block)$corrected
+total <- mnncorrect.cpp(pcs, f.block)
 out <- runTsne(total)
 
 before <- runTsne(pcs) # for comparison's sake.
