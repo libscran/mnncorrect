@@ -117,8 +117,6 @@ void find_batch_neighbors(
 template<typename Index_, typename Float_>
 struct FindBatchNeighborsResults {
     NeighborSet<Index_, Float_> neighbors;
-    std::vector<Index_> ref_ids, target_ids;
-    std::vector<BatchIndex> batch;
 };
 
 template<typename Index_, typename Float_>
@@ -132,44 +130,12 @@ void find_batch_neighbors(
     int num_threads,
     FindBatchNeighborsResults<Index_, Float_>& output)
 {
-    output.batch.clear();
-    output.batch.resize(num_total, static_cast<Index_>(-1)); // using -1 to indicate that unfilled values are not in use.
-
-    output.ref_ids.clear();
     output.neighbors.resize(num_total);
-
     for (decltype(references.size()) b = 0, end = references.size(); b < end; ++b) {
         const auto& curref = references[b];
         find_batch_neighbors(num_dim, curref, target, data, num_neighbors, false, num_threads, output.neighbors);
         find_batch_neighbors(num_dim, target, curref, data, num_neighbors, b > 0, num_threads, output.neighbors);
-
-        // Adding all the details about which observations are in the reference
-        // metabatch, and which of the inner batches they belonged to.
-        output.ref_ids.reserve(output.ref_ids.size() + curref.num_obs);
-        for (Index_ i = 0; i < curref.num_obs; ++i) {
-            output.ref_ids.push_back(i + curref.offset);
-        }
-        std::fill_n(output.batch.begin() + curref.offset, curref.num_obs, b);
-
-        for (const auto& extra : curref.extras) {
-            output.ref_ids.insert(output.ref_ids.end(), extra.ids.begin(), extra.ids.end());
-            for (auto e : extra.ids) {
-                output.batch[e] = b;
-            }
-        }
     }
-
-    output.target_ids.clear();
-    output.target_ids.reserve(output.ref_ids.size() + target.num_obs);
-    for (Index_ i = 0; i < target.num_obs; ++i) {
-        output.target_ids.push_back(i + target.offset);
-    }
-    for (const auto& extra : target.extras) {
-        output.target_ids.insert(output.target_ids.end(), extra.ids.begin(), extra.ids.end());
-    }
-
-    std::sort(output.ref_ids.begin(), output.ref_ids.end());
-    std::sort(output.target_ids.begin(), output.target_ids.end());
 }
 
 }

@@ -13,17 +13,13 @@ namespace internal {
 
 template<typename Index_>
 struct FindClosestMnnResults {
-    std::vector<Index_> target_mnns; // observation of the target metabatch in the MNN pair.
-    std::vector<Index_> ref_mnns_partner; // 1:1 with target_mnns, specifying the other observation of the MNN pair.
-    std::vector<Index_> ref_mnns_unique; // unique and sorted version of 'ref_mnns_partner'
+    std::vector<Index_> target_mnns; // observation of the target batch in the MNN pair.
+    std::vector<Index_> ref_mnns; // 1:1 with target_mnns, specifying the other observation of the MNN pair in the reference metabatch.
 };
 
 template<typename Index_>
 struct FindClosestMnnWorkspace {
     std::vector<std::vector<Index_> > reverse_neighbor_buffer;
-
-    // Used to obtain unique values from the ref_mnns_partner withoua  set.
-    std::vector<unsigned char> ref_mnn_buffer;
 
     // Length of each vector in 'neighbors' must be less than the number of
     // points, thus each 'last' position must fit in an Index_ type.
@@ -89,22 +85,9 @@ void find_closest_mnn(
 
             if (best_found) {
                 results.target_mnns.push_back(t);
-                results.ref_mnns_partner.push_back(best_ref);
+                results.ref_mnns.push_back(best_ref);
                 break;
             }
-        }
-    }
-
-    // Uniquifying.
-    workspace.ref_mnn_buffer.clear();
-    workspace.ref_mnn_buffer.resize(num_total);
-    for (auto r : results.ref_mnns_partner) {
-        workspace.ref_mnn_buffer[r] = true;
-    }
-    results.ref_mnns_unique.clear();
-    for (Index_ r = 0, end = workspace.ref_mnn_buffer.size(); r < end; ++r) {
-        if (workspace.ref_mnn_buffer[r]) {
-            results.ref_mnns_unique.push_back(r);
         }
     }
 }

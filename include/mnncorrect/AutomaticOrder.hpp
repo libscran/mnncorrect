@@ -29,7 +29,6 @@ struct RedistributeCorrectedObservationsWorkspace {
 template<typename Index_, typename Float_>
 void redistribute_corrected_observations(
     std::size_t num_dim,
-    const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
     const CorrectTargetResults& correct_info,
     const Float_* data,
     const knncolle::Builder<Index_, Float_, Float_>& builder,
@@ -37,16 +36,11 @@ void redistribute_corrected_observations(
     RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
     std::vector<BatchInfo<Index_, Float_> >& batches)
 {
-    BatchIndex num_remaining = batches.size();
-    std::vector<std::vector<Index_> > reassigned(num_remaining);
-    for (auto t : batch_nns.target_ids) {
-        reassigned[correct_info.batch[t]].push_back(t);
-    }
-
     // The idea with the workspace is to do one big allocation and then operate
     // on contiguous chunks of that allocation within each thread. This allows
     // us to use the upper bound of required space to create an allocation that
     // can be reused across all calls to this function.
+    BatchIndex num_remaining = correct_info.reassignments.size();
     workspace.offsets.clear();
     workspace.offsets.reserve(num_remaining);
     Index_ sofar = 0;
@@ -63,7 +57,7 @@ void redistribute_corrected_observations(
         for (BatchIndex b = start, end = start + length; b < end; ++b) {
             auto storage = workspace.buffer.data() + static_cast<std::size_t>(workspace.offsets[b]) * num_dim; // cast to avoid overflow.
 
-            auto& reass = reassigned[b];
+            auto& reass = results.reassigned[b];
             auto num_reass = reass.size();
             for (decltype(num_reass) i = 0; i < num_reass; ++i) {
                 std::copy_n(
@@ -91,7 +85,7 @@ public:
         Float_* corrected,
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
         int num_neighbors, 
-        double tolerance,
+        int num_steps,
         MergePolicy merge_policy, 
         int num_threads)
     :
@@ -99,7 +93,7 @@ public:
         my_builder(builder),
         my_corrected(corrected),
         my_num_neighbors(num_neighbors),
-        my_tolerance(tolerance),
+        my_num_steps(num_steps),
         my_num_threads(num_threads)
     {
         BatchIndex nbatches = num_obs.size();
@@ -120,6 +114,11 @@ public:
                 batches[b],
                 static_cast<std::size_t>(cur_num_obs) * num_dim, // cast to size_t to avoid overflow.
                 my_corrected + static_cast<std::size_t>(my_num_total) * num_dim // ditto.
+            );
+            std::fill_n(
+                my_current_batch.begin() + my_num_total,
+                cur_num_obs,
+                b
             );
             my_num_total += cur_num_obs;
         }
@@ -164,14 +163,16 @@ protected:
     Index_ my_num_total;
 
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
+    std::vector<BatchIndex> my_current_batch;
+
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
-    CorrectTargetResults my_correct_results;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
+    CorrectTargetResults<Index_> my_correct_results;
     RedistributeCorrectedObservationsWorkspace<Index_, Float_> my_build_workspace;
 
     int my_num_neighbors;
-    double my_tolerance;
+    double my_num_steps;
     int my_num_threads;
 
 protected:
@@ -208,8 +209,8 @@ protected:
             my_mnns,
             my_builder,
             my_num_neighbors,
+            my_num_steps,
             my_num_threads,
-            my_tolerance,
             my_corrected,
             my_correct_workspace,
             my_correct_results
