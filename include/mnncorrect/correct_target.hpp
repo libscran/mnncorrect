@@ -4,13 +4,13 @@
 #include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
-#include "find_batch_neighbors.hpp"
 #include "find_closest_mnn.hpp"
 
 #include <algorithm>
 #include <vector>
 #include <memory>
 #include <cstddef>
+#include <numeric>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -47,20 +47,9 @@ struct CorrectTargetWorkspace {
 
     // For the correction itself.
     std::unordered_map<Index_, Index_> ref_remapping;
-    std::vector<Index_> target_ids;
     std::vector<BatchIndex> new_target_batch;
 
 };
-
-template<typename Index_, typename Float_>
-void fill_batch_ids(const BatchInfo<Index_, Float_>& batch, std::vector<Index_>& ids) {
-    ids.resize(batch.num_obs);
-    std::iota(ids.begin(), ids.end(), target.offset);
-    for (const auto& extra : batch.extras) {
-        ids.insert(ids.end(), extra.ids.begin(), extra.ids.end());
-    }
-    std::sort(ids.begin(), output.ids.end());
-}
 
 // Find all neighbors of each MNN-involved observation within its own batch.
 // Here, 'output' will contain neighbor indices relative to the entire dataset.
@@ -79,8 +68,8 @@ void walk_around_neighborhood(
     workspace.neighbors.resize(num_total);
     find_batch_neighbors(
         num_dim,
-        static_cast<Index_>(workspace.ids.size()),
-        [&](Index_ i) -> Index_ { return workspace.ids[i]; },
+        static_cast<Index_>(ids.size()),
+        [&](Index_ i) -> Index_ { return ids[i]; },
         data,
         batch,
         num_neighbors,
@@ -90,16 +79,16 @@ void walk_around_neighborhood(
     );
 
     workspace.visited.clear();
-    workspace.visited.insert(workspace.visited.end(), workspace.ids.begin(), workspace.ids.end());
+    workspace.visited.insert(ids.begin(), ids.end());
 
     for (int s = 0; s < num_steps; ++s) {
         workspace.next_visit.clear();
         for (auto i : workspace.ids) {
             const auto& curneighbors = workspace.neighbors[i];
             for (const auto& pair : curneighbors) {
-                if (visited.find(pair.first) == visited.end()) {
+                if (workspace.visited.find(pair.first) == workspace.visited.end()) {
                     workspace.next_visit.push_back(pair.first);
-                    visited.insert(pair.first);
+                    workspace.visited.insert(pair.first);
                 }
             }
         }
@@ -126,18 +115,18 @@ void walk_around_neighborhood(
 template<typename Index_, typename Float_>
 void compute_center_of_mass(
     std::size_t num_dim,
-    Index_ num_total,
     const std::vector<Index_>& ids,
     const Float_* data,
+    int num_steps,
     int num_threads,
     NeighborSet<Index_, Float_>& neighbors,
     Float_* buffer)
 {
     Index_ num = ids.size();
-    parallelize(num_threads, num, [&](int t, Index_ start, Index_ length) -> void {
+    parallelize(num_threads, num, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Float_> mean(num_dim);
-        std::vector<Index_> visited;
-        std::vector<Index_> last_processed, current_processed;
+        std::unordered_set<Index_> visited;
+        std::vector<Index_> current_processed, next_processed;
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
             std::fill(mean.begin(), mean.end(), 0);
@@ -179,7 +168,7 @@ void compute_center_of_mass(
             std::size_t output_offset = num_dim * static_cast<std::size_t>(g); // cast to avoid overflow.
             double denom = visited.size();
             for (std::size_t d = 0; d < num_dim; ++d) {
-                buffer[output_offset + d] = mean[d] / counter;
+                buffer[output_offset + d] = mean[d] / denom;
             }
         }
     });
@@ -196,6 +185,7 @@ void correct_target(
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
     const BatchInfo<Index_, Float_>& target,
+    const std::vector<Index_>& target_ids,
     const std::vector<BatchIndex>& batch_of_origin,
     const FindClosestMnnResults<Index_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
@@ -204,7 +194,7 @@ void correct_target(
     int num_threads,
     Float_* data,
     CorrectTargetWorkspace<Index_, Float_>& workspace,
-    CorrectTargetResults& results) 
+    CorrectTargetResults<Index_>& results) 
 {
     // Allocate reference MNNs into their batches.
     auto num_refs = references.size();
@@ -220,7 +210,7 @@ void correct_target(
         }
     }
 
-    workspace.ref_buffer.resize(num_dim * static_cast<std::size_t>(workspace.visited.size())); // cast to avoid overflow.
+    workspace.ref_center_buffer.resize(num_dim * static_cast<std::size_t>(workspace.visited.size())); // cast to avoid overflow.
     Index_ counter = 0;
 
     // Find neighbors in each of the reference batches.
@@ -241,12 +231,12 @@ void correct_target(
 
         compute_center_of_mass(
             num_dim,
-            num_total,
             curass,
             data,
+            num_steps,
             num_threads,
             workspace.neighbors,
-            workspace.ref_buffer.data() + static_cast<std::size_t>(counter) * num_dim
+            workspace.ref_center_buffer.data() + static_cast<std::size_t>(counter) * num_dim
         );
 
         for (auto x : curass) {
@@ -270,7 +260,7 @@ void correct_target(
         num_total,
         mnns.target_mnns,
         data,
-        target_batch,
+        target,
         num_neighbors,
         num_steps,
         num_threads,
@@ -280,10 +270,11 @@ void correct_target(
     workspace.correction_buffer.resize(num_dim * static_cast<std::size_t>(mnns.target_mnns.size())); // cast to avoid overflow.
     compute_center_of_mass(
         num_dim,
-        num_total,
         mnns.target_mnns,
         data,
+        num_steps,
         num_threads,
+        workspace.neighbors,
         workspace.correction_buffer.data() // using the correction buffer to hold the center of mass for now.
     );
 
@@ -292,14 +283,13 @@ void correct_target(
         std::size_t target_offset = static_cast<std::size_t>(p) * num_dim;
         std::size_t ref_offset = static_cast<std::size_t>(workspace.ref_remapping.find(mnns.ref_mnns[p])->second) * num_dim;
         for (std::size_t d = 0; d < num_dim; ++d) {
-            auto& correction = correction_buffer[target_offset + d];
+            auto& correction = workspace.correction_buffer[target_offset + d];
             correction = workspace.ref_center_buffer[ref_offset + d] - correction;
         }
     }
 
     // Apply the correction in the target based on its closest MNN-involved cell.
-    fill_batch_ids(target_batch, workspace.target_ids);
-    Index_ num_target = workspace.target_ids.size();
+    Index_ num_target = target_ids.size();
     workspace.new_target_batch.resize(num_target);
 
     parallelize(num_threads, num_target, [&](int, Index_ start, Index_ length) -> void {
@@ -307,11 +297,11 @@ void correct_target(
         std::vector<Index_> indices;
 
         for (Index_ i = start, end = start + length; i < end; ++i) {
-            auto tptr = data + static_cast<std::size_t>(workspace.target_ids[i]) * num_dim; // cast to avoid overflow.
+            auto tptr = data + static_cast<std::size_t>(target_ids[i]) * num_dim; // cast to avoid overflow.
             searcher->search(tptr, 1, &indices, NULL);
 
             auto chosen = indices.front();
-            auto correct_ptr = correction.data() + num_dim * static_cast<std::size_t>(chosen);
+            auto correct_ptr = workspace.correction_buffer.data() + num_dim * static_cast<std::size_t>(chosen);
             for (std::size_t d = 0; d < num_dim; ++d) {
                 tptr[d] += correct_ptr[d];
             }
@@ -324,7 +314,7 @@ void correct_target(
         reass.clear();
     }
     for (decltype(num_target) i = 0; i < num_target; ++i) {
-        results.reassignments[workspace.new_target_batch[i]].push_back(workspace.target_ids[i]);
+        results.reassignments[workspace.new_target_batch[i]].push_back(target_ids[i]);
     }
 }
 

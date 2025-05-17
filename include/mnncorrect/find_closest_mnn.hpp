@@ -28,12 +28,12 @@ struct FindClosestMnnWorkspace {
 
 template<typename Index_, typename Float_>
 void find_closest_mnn(
+    const std::vector<Index_>& target_ids,
     const FindBatchNeighborsResults<Index_, Float_>& batch_nns,
     FindClosestMnnWorkspace<Index_>& workspace,
     FindClosestMnnResults<Index_>& results)
 {
     const auto& neighbors = batch_nns.neighbors;
-    const auto& target_ids = batch_nns.target_ids;
 
     auto num_total = neighbors.size();
     for (auto& rev : workspace.reverse_neighbor_buffer) {
@@ -43,7 +43,7 @@ void find_closest_mnn(
     workspace.last_checked.clear();
     workspace.last_checked.resize(num_total);
 
-    results.ref_mnns_partner.clear();
+    results.ref_mnns.clear();
     results.target_mnns.clear();
 
     for (auto t : target_ids) {

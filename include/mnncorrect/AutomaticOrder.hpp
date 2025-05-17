@@ -2,11 +2,11 @@
 #define MNNCORRECT_AUTOMATIC_ORDER_HPP
 
 #include <algorithm>
-#include <unordered_set>
 #include <stdexcept>
 #include <memory>
 #include <vector>
 #include <cstddef>
+#include <numeric>
 
 #include "knncolle/knncolle.hpp"
 
@@ -21,6 +21,16 @@ namespace mnncorrect {
 namespace internal {
 
 template<typename Index_, typename Float_>
+void fill_batch_ids(const BatchInfo<Index_, Float_>& batch, std::vector<Index_>& ids) {
+    ids.resize(batch.num_obs);
+    std::iota(ids.begin(), ids.end(), batch.offset);
+    for (const auto& extra : batch.extras) {
+        ids.insert(ids.end(), extra.ids.begin(), extra.ids.end());
+    }
+    std::sort(ids.begin(), ids.end());
+}
+
+template<typename Index_, typename Float_>
 struct RedistributeCorrectedObservationsWorkspace {
     std::vector<Index_> offsets;
     std::vector<Float_> buffer;
@@ -29,12 +39,13 @@ struct RedistributeCorrectedObservationsWorkspace {
 template<typename Index_, typename Float_>
 void redistribute_corrected_observations(
     std::size_t num_dim,
-    const CorrectTargetResults& correct_info,
+    const CorrectTargetResults<Index_>& correct_info,
     const Float_* data,
     const knncolle::Builder<Index_, Float_, Float_>& builder,
     int num_threads,
     RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
-    std::vector<BatchInfo<Index_, Float_> >& batches)
+    std::vector<BatchInfo<Index_, Float_> >& batches,
+    std::vector<BatchIndex>& assigned_batch)
 {
     // The idea with the workspace is to do one big allocation and then operate
     // on contiguous chunks of that allocation within each thread. This allows
@@ -44,9 +55,13 @@ void redistribute_corrected_observations(
     workspace.offsets.clear();
     workspace.offsets.reserve(num_remaining);
     Index_ sofar = 0;
-    for (const auto& rem : reassigned) {
+    for (BatchIndex b = 0; b < num_remaining; ++b) {
+        const auto& rem = correct_info.reassignments[b];
         workspace.offsets.push_back(sofar);
         sofar += rem.size();
+        for (auto r : rem) {
+            assigned_batch[r] = b;
+        }
     }
 
     // Technically this is not necessary as we do a big allocation in the
@@ -57,7 +72,7 @@ void redistribute_corrected_observations(
         for (BatchIndex b = start, end = start + length; b < end; ++b) {
             auto storage = workspace.buffer.data() + static_cast<std::size_t>(workspace.offsets[b]) * num_dim; // cast to avoid overflow.
 
-            auto& reass = results.reassigned[b];
+            auto& reass = correct_info.reassignments[b];
             auto num_reass = reass.size();
             for (decltype(num_reass) i = 0; i < num_reass; ++i) {
                 std::copy_n(
@@ -162,9 +177,10 @@ protected:
     Float_* my_corrected;
     Index_ my_num_total;
 
-    FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
+    std::vector<Index_> my_target_ids;
     std::vector<BatchIndex> my_current_batch;
 
+    FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
@@ -183,6 +199,8 @@ protected:
         BatchInfo<Index_, Float_> target_batch(std::move(my_batches.back()));
         my_batches.pop_back();
 
+        fill_batch_ids(target_batch, my_target_ids);
+
         find_batch_neighbors(
             my_num_dim,
             my_num_total,
@@ -195,6 +213,7 @@ protected:
         );
 
         find_closest_mnn(
+            my_target_ids,
             my_batch_nns,
             my_mnn_workspace,
             my_mnns
@@ -205,7 +224,8 @@ protected:
             my_num_total,
             my_batches,
             target_batch,
-            my_batch_nns,
+            my_target_ids,
+            my_current_batch,
             my_mnns,
             my_builder,
             my_num_neighbors,
@@ -221,13 +241,13 @@ protected:
         if (remaining || test) {
             redistribute_corrected_observations(
                 my_num_dim,
-                my_batch_nns,
                 my_correct_results,
                 my_corrected,
                 my_builder,
                 my_num_threads,
                 my_build_workspace,
-                my_batches
+                my_batches,
+                my_current_batch
             );
         }
 
