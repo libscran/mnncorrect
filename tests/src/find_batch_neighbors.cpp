@@ -74,9 +74,6 @@ TEST_P(FindBatchNeighborsTest, Basic) {
     for (int i = 0; i < num_total; ++i) {
         EXPECT_EQ(computed.neighbors[i], expected[i]);
     }
-    EXPECT_EQ(computed.ref_ids, reference_assignment);
-    EXPECT_EQ(computed.target_ids, target_assignment);
-    EXPECT_EQ(computed.batch, batch_of_origin);
 
     // Making sure we get the same results on parallelization.
     mnncorrect::internal::find_batch_neighbors(num_dim, num_total, all_batches, target_batch, simulated.data(), num_neighbors, /* num_threads = */ 3, computed);
@@ -84,25 +81,16 @@ TEST_P(FindBatchNeighborsTest, Basic) {
     for (int i = 0; i < num_total; ++i) {
         EXPECT_EQ(computed.neighbors[i], expected[i]);
     }
-    EXPECT_EQ(computed.ref_ids, reference_assignment);
-    EXPECT_EQ(computed.target_ids, target_assignment);
-    EXPECT_EQ(computed.batch, batch_of_origin);
 
     // Mutating the input object and checking that the shuffled residue is ignored.
     for (auto& compnn : computed.neighbors) {
         std::reverse(compnn.begin(), compnn.end());
     }
-    std::reverse(computed.ref_ids.begin(), computed.ref_ids.end());
-    std::reverse(computed.target_ids.begin(), computed.target_ids.end());
-    std::reverse(computed.batch.begin(), computed.batch.end());
     mnncorrect::internal::find_batch_neighbors(num_dim, num_total, all_batches, target_batch, simulated.data(), num_neighbors, /* num_threads = */ 1, computed);
     ASSERT_EQ(computed.neighbors.size(), num_total);
     for (int i = 0; i < num_total; ++i) {
         EXPECT_EQ(computed.neighbors[i], expected[i]);
     }
-    EXPECT_EQ(computed.ref_ids, reference_assignment);
-    EXPECT_EQ(computed.target_ids, target_assignment);
-    EXPECT_EQ(computed.batch, batch_of_origin);
 }
 
 INSTANTIATE_TEST_SUITE_P(

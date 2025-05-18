@@ -99,38 +99,23 @@ TEST_P(FindClosestMnnTest, Check) {
     auto expected_mnns = compute_reference(all_neighbors, left_ids, right_ids);
 
     // Computing our values.
-    mnncorrect::internal::FindBatchNeighborsResults<int, double> batch_nns;
-    batch_nns.neighbors.swap(all_neighbors);
-    batch_nns.ref_ids.swap(left_ids);
-    batch_nns.target_ids.swap(right_ids);
-    batch_nns.batch.swap(assignments);
-
     mnncorrect::internal::FindClosestMnnWorkspace<int> workspace;
     mnncorrect::internal::FindClosestMnnResults<int> mnns;
-    mnncorrect::internal::find_closest_mnn(batch_nns, workspace, mnns);
+    mnncorrect::internal::find_closest_mnn(left_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
-    EXPECT_EQ(expected_mnns.second, mnns.ref_mnns_partner);
-
-    // Checking the uniques.
-    std::set<int> sorted_set(mnns.ref_mnns_partner.begin(), mnns.ref_mnns_partner.end());
-    std::vector<int> sorted(sorted_set.begin(), sorted_set.end());
-    EXPECT_EQ(sorted, mnns.ref_mnns_unique);
+    EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 
     // Checking that we are unaffected by existing values in the workspace or results.
     std::reverse(mnns.target_mnns.begin(), mnns.target_mnns.end());
-    std::reverse(mnns.ref_mnns_partner.begin(), mnns.ref_mnns_partner.end());
-    std::reverse(mnns.ref_mnns_unique.begin(), mnns.ref_mnns_unique.end());
-
+    std::reverse(mnns.ref_mnns.begin(), mnns.ref_mnns.end());
     for (auto& rb : workspace.reverse_neighbor_buffer) {
         std::reverse(rb.begin(), rb.end());
     }
-    std::reverse(workspace.ref_mnn_buffer.begin(), workspace.ref_mnn_buffer.end());
     std::reverse(workspace.last_checked.begin(), workspace.last_checked.end());
 
-    mnncorrect::internal::find_closest_mnn(batch_nns, workspace, mnns);
+    mnncorrect::internal::find_closest_mnn(left_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
-    EXPECT_EQ(expected_mnns.second, mnns.ref_mnns_partner);
-    EXPECT_EQ(sorted, mnns.ref_mnns_unique);
+    EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 }
 
 INSTANTIATE_TEST_SUITE_P(

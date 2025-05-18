@@ -18,23 +18,6 @@ namespace mnncorrect {
 
 namespace internal {
 
-template<typename Index_, typename Float_, class Matrix_>
-std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_index(
-    std::size_t num_dim,
-    const Float_* data,
-    const std::vector<Index_>& in_mnn,
-    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
-    std::vector<Float_>& buffer)
-{
-    auto num_in_mnn = in_mnn.size();
-    buffer.resize(num_dim * static_cast<std::size_t>(num_in_mnn));
-    for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
-        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * num_dim; // cast to size_t's to avoid overflow.
-        std::copy_n(curdata, num_dim, buffer.begin() + static_cast<std::size_t>(f) * num_dim); // also casting to avoid overflow.
-    }
-    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_in_mnn, buffer.data()));
-}
-
 template<typename Index_, typename Float_>
 struct CorrectTargetWorkspace {
     // Intermediates for stepwise neighbor search.
@@ -83,7 +66,9 @@ void walk_around_neighborhood(
 
     for (int s = 0; s < num_steps; ++s) {
         workspace.next_visit.clear();
-        for (auto i : workspace.ids) {
+        const auto& current_visit = (s == 0 ? ids : workspace.ids);
+
+        for (auto i : current_visit) {
             const auto& curneighbors = workspace.neighbors[i];
             for (const auto& pair : curneighbors) {
                 if (workspace.visited.find(pair.first) == workspace.visited.end()) {
@@ -130,24 +115,23 @@ void compute_center_of_mass(
 
         for (Index_ g = start, end = start + length; g < end; ++g) {
             std::fill(mean.begin(), mean.end(), 0);
+            visited.clear();
+            current_processed.clear();
             auto curmnn = ids[g];
 
-            const auto& nns = neighbors[curmnn];
-            for (const auto& nn : nns) {
+            for (const auto& nn : neighbors[curmnn]) {
                 auto ptr = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
                 for (std::size_t d = 0; d < num_dim; ++d) {
                     mean[d] += ptr[d];
                 }
+                visited.insert(nn.first);
+                current_processed.push_back(nn.first);
             }
-
-            visited.clear();
-            visited.insert(current_processed.begin(), current_processed.end());
 
             for (int s = 0; s < num_steps; ++s) {
                 next_processed.clear();
                 for (auto y : current_processed) {
-                    const auto& ynns = neighbors[y];
-                    for (const auto& nn : ynns) {
+                    for (const auto& nn : neighbors[y]) {
                         if (visited.find(nn.first) == visited.end()) {
                             auto ptr = data + static_cast<std::size_t>(nn.first) * num_dim; // cast to avoid overflow.
                             for (std::size_t d = 0; d < num_dim; ++d) {
@@ -172,6 +156,23 @@ void compute_center_of_mass(
             }
         }
     });
+}
+
+template<typename Index_, typename Float_, class Matrix_>
+std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_index(
+    std::size_t num_dim,
+    const Float_* data,
+    const std::vector<Index_>& in_mnn,
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
+    std::vector<Float_>& buffer)
+{
+    auto num_in_mnn = in_mnn.size();
+    buffer.resize(num_dim * static_cast<std::size_t>(num_in_mnn));
+    for (decltype(num_in_mnn) f = 0; f < num_in_mnn; ++f) {
+        auto curdata = data + static_cast<std::size_t>(in_mnn[f]) * num_dim; // cast to size_t's to avoid overflow.
+        std::copy_n(curdata, num_dim, buffer.begin() + static_cast<std::size_t>(f) * num_dim); // also casting to avoid overflow.
+    }
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_in_mnn, buffer.data()));
 }
 
 template<typename Index_>

@@ -214,7 +214,7 @@ protected:
 
         find_closest_mnn(
             my_target_ids,
-            my_batch_nns,
+            my_batch_nns.neighbors,
             my_mnn_workspace,
             my_mnns
         );
