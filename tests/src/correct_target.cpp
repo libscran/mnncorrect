@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-class WalkAroundNeighborhoodTest : public ::testing::TestWithParam<std::tuple<int, int> > {
+class WalkAroundNeighborhoodTest : public ::testing::TestWithParam<std::tuple<int, int, bool> > {
 protected:
     static void reference(
         std::size_t ndim,
@@ -53,6 +53,7 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     auto params = GetParam();
     auto k = std::get<0>(params);
     auto steps = std::get<1>(params);
+    auto with_extras = std::get<2>(params);
 
     std::size_t ndim = 5;
     int nobs = 100;
@@ -62,11 +63,33 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
         return sparams;
     }());
 
-    mnncorrect::internal::BatchInfo<int, double> target;
-    target.offset = 0;
-    target.num_obs = nobs;
+    mnncorrect::internal::BatchInfo<int, double> batch;
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    if (with_extras) {
+        batch.offset = 20; // [20, 70) is the main batch.
+        batch.num_obs = 50;
+        batch.extras.emplace_back( // [70, 100) is the first extra.
+            builder.build_unique(knncolle::SimpleMatrix(ndim, 30, vec.data() + 70 * ndim)),
+            [&]{
+                std::vector<int> extra(30);
+                std::iota(extra.begin(), extra.end(), 70);
+                return extra;
+            }()
+        );
+        batch.extras.emplace_back( // [0, 20) is the second extra.
+            builder.build_unique(knncolle::SimpleMatrix(ndim, 20, vec.data())), // sprinkle in some extras.
+            [&]{
+                std::vector<int> extra(20);
+                std::iota(extra.begin(), extra.end(), 0);
+                return extra;
+            }()
+        );
+    } else {
+        batch.offset = 0;
+        batch.num_obs = nobs;
+    }
+    batch.index = builder.build_unique(knncolle::SimpleMatrix(ndim, batch.num_obs, vec.data() + static_cast<std::size_t>(batch.offset) * ndim));
 
     std::vector<int> to_check { 1, 5, 17, 31, 53, 97 };
     mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
@@ -75,7 +98,7 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
         nobs, 
         to_check,
         vec.data(),
-        target,
+        batch,
         k,
         steps,
         /* num_threads = */ 1,
@@ -86,7 +109,8 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     std::vector<int> indices;
     std::vector<double> distances;
     mnncorrect::internal::NeighborSet<int, double> copy(nobs);
-    auto searcher = target.index->initialize();
+    auto full_index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+    auto searcher = full_index->initialize();
     for (auto i : to_check) {
         reference(ndim, i, vec.data(), *searcher, k, steps, indices, distances, copy);
     }
@@ -107,7 +131,7 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
         nobs, 
         to_check,
         vec.data(),
-        target,
+        batch,
         k,
         steps,
         /* num_threads = */ 3,
@@ -123,7 +147,8 @@ INSTANTIATE_TEST_SUITE_P(
     WalkAroundNeighborhoodTest,
     ::testing::Combine(
         ::testing::Values(1, 5, 10), // number of neighbors.
-        ::testing::Values(0, 1, 2, 3) // number of steps.
+        ::testing::Values(0, 1, 2, 3), // number of steps.
+        ::testing::Values(false, true) // whether to check extras in the batch.
     )
 );
 
