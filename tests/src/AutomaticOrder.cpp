@@ -13,17 +13,11 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
     constexpr std::size_t num_dim = 5;
     int num_total = 50;
 
-    mnncorrect::internal::FindBatchNeighborsResults<int, double> batch_nns;
-    batch_nns.target_ids = std::vector<int>{ 1, 3, 7, 11, 23, 31 };
-
-    mnncorrect::internal::CorrectTargetResults correct_info;
-    correct_info.batch.resize(num_total, 123456789);
-    correct_info.batch[1] = 2;
-    correct_info.batch[3] = 1;
-    correct_info.batch[7] = 0;
-    correct_info.batch[11] = 1;
-    correct_info.batch[23] = 2;
-    correct_info.batch[31] = 1;
+    mnncorrect::internal::CorrectTargetResults<int> correct_info;
+    correct_info.reassignments.resize(3);
+    correct_info.reassignments[0] = std::vector<int>{ 7 };
+    correct_info.reassignments[1] = std::vector<int>{ 3, 11, 31 };
+    correct_info.reassignments[2] = std::vector<int>{ 1, 23 };
 
     auto data = scran_tests::simulate_vector(num_total * num_dim, [&]{
         scran_tests::SimulationParameters params;
@@ -33,6 +27,7 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
 
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
+    std::vector<mnncorrect::BatchIndex> batch_of_origin(num_total);
     mnncorrect::internal::RedistributeCorrectedObservationsWorkspace<int, double> work;
     work.offsets.resize(10); // filling it with some nonsense to check that the function wipes it.
     work.buffer.resize(1);
@@ -41,35 +36,28 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
         std::vector<mnncorrect::internal::BatchInfo<int, double> > batches(3);
         mnncorrect::internal::redistribute_corrected_observations(
             num_dim,
-            batch_nns,
             correct_info,
             data.data(),
             builder,
             num_threads,
             work,
-            batches
+            batches,
+            batch_of_origin
         );
 
         for (int b = 0; b < 3; ++b) {
-            const auto& curbatch = batches[b];
-            EXPECT_EQ(curbatch.extras.size(), 1);
-
-            std::vector<int> ids;
-            if (b == 0) {
-                ids = std::vector<int>{ 7 };
-            } else if (b == 1) {
-                ids = std::vector<int>{ 3, 11, 31 };
-            } else {
-                ids = std::vector<int>{ 1, 23 };
-            }
-
-            EXPECT_EQ(curbatch.extras[0].ids, ids);
-            auto searcher = curbatch.extras[0].index->initialize();
+            const auto& ids = correct_info.reassignments[b];
+            const auto& host = batches[b];
+            EXPECT_EQ(host.extras.size(), 1);
+            const auto& newbatch = host.extras[0];
+            EXPECT_EQ(newbatch.ids, ids);
+            auto searcher = newbatch.index->initialize();
 
             std::vector<int> idx;
             std::vector<double> dist;
             for (decltype(ids.size()) i = 0, end = ids.size(); i < end; ++i) {
                 auto id = ids[i];
+                EXPECT_EQ(batch_of_origin[id], b);
                 searcher->search(data.data() + id * num_dim, 1, &idx, &dist);
                 EXPECT_EQ(idx[0], i);
                 EXPECT_EQ(dist[0], 0);
@@ -89,12 +77,53 @@ public:
         return my_batches;
     }
 
+    const auto& get_batch_assignment() const { 
+        return my_batch_assignment;
+    }
+
     auto advance() {
         return next(true);
     }
 };
 
-class AutomaticOrderInitTest : public ::testing::Test {};
+class AutomaticOrderInitTest : public ::testing::Test {
+protected:
+    template<typename Index_, typename Float_>
+    static void check_initialization(
+        std::size_t num_dim,
+        const std::vector<mnncorrect::internal::BatchInfo<Index_, Float_> >& batches,
+        const std::vector<mnncorrect::BatchIndex>& batch_assignment,
+        const std::vector<const double*>& sources,
+        const double* corrected)
+    {
+        auto nbatches = batches.size();
+
+        for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+            const auto& curbatch = batches[b];
+            auto num_obs = curbatch.num_obs;
+            EXPECT_EQ(curbatch.index->num_observations(), num_obs);
+
+            auto searcher = curbatch.index->initialize();
+            std::vector<int> indices;
+            std::vector<double> distances;
+
+            for (int c = 0; c < num_obs; ++c) {
+                EXPECT_EQ(batch_assignment[curbatch.offset + c], b);
+
+                auto srcptr = sources[b] + c * num_dim;
+                std::vector<double> srcvec(srcptr, srcptr + num_dim);
+                auto corptr = corrected + (curbatch.offset + c) * num_dim;
+                std::vector<double> corvec(corptr, corptr + num_dim);
+                EXPECT_EQ(corvec, srcvec);
+
+                searcher->search(corptr, 1, &indices, &distances);
+                EXPECT_EQ(indices.size(), 1);
+                EXPECT_EQ(indices[0], c);
+                EXPECT_EQ(distances[0], 0);
+            }
+        }
+    }
+};
 
 TEST_F(AutomaticOrderInitTest, Empty) {
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
@@ -128,39 +157,6 @@ TEST_F(AutomaticOrderInitTest, Empty) {
         msg = e.what();
     }
     EXPECT_TRUE(msg.find("length of") != std::string::npos);
-}
-
-template<typename Index_, typename Float_>
-static void check_initialization(
-    std::size_t num_dim,
-    const std::vector<mnncorrect::internal::BatchInfo<Index_, Float_> >& batches,
-    const std::vector<const double*>& sources,
-    const double* corrected)
-{
-    auto nbatches = batches.size();
-
-    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
-        const auto& curbatch = batches[b];
-        auto num_obs = curbatch.num_obs;
-        EXPECT_EQ(curbatch.index->num_observations(), num_obs);
-
-        auto searcher = curbatch.index->initialize();
-        std::vector<int> indices;
-        std::vector<double> distances;
-
-        for (int c = 0; c < num_obs; ++c) {
-            auto srcptr = sources[b] + c * num_dim;
-            std::vector<double> srcvec(srcptr, srcptr + num_dim);
-            auto corptr = corrected + (curbatch.offset + c) * num_dim;
-            std::vector<double> corvec(corptr, corptr + num_dim);
-            EXPECT_EQ(corvec, srcvec);
-
-            searcher->search(corptr, 1, &indices, &distances);
-            EXPECT_EQ(indices.size(), 1);
-            EXPECT_EQ(indices[0], c);
-            EXPECT_EQ(distances[0], 0);
-        }
-    }
 }
 
 template<typename Float_>
@@ -215,7 +211,7 @@ TEST_F(AutomaticOrderInitTest, Input) {
         EXPECT_EQ(batches[2].num_obs, 150);
         EXPECT_EQ(batches[2].offset, 300);
 
-        check_initialization(ndim, batches, ptrs, corrected.data());
+        check_initialization(ndim, batches, overlord.get_batch_assignment(), ptrs, corrected.data());
     }
 }
 
@@ -260,7 +256,7 @@ TEST_F(AutomaticOrderInitTest, MaxSize) {
     EXPECT_EQ(batches[2].offset, 0);
 
     std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[2], ptrs[0] };
-    check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+    check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
 }
 
 TEST_F(AutomaticOrderInitTest, MaxVariance) {
@@ -308,7 +304,7 @@ TEST_F(AutomaticOrderInitTest, MaxVariance) {
         EXPECT_EQ(batches[2].offset, 0);
 
         std::vector<const double*> resorted_ptrs { ptrs[2], ptrs[1], ptrs[0] };
-        check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+        check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
     }
 }
 
@@ -354,7 +350,7 @@ TEST_F(AutomaticOrderInitTest, MaxRss) {
     EXPECT_EQ(batches[1].offset, 0);
 
     std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[0] };
-    check_initialization(ndim, batches, resorted_ptrs, corrected.data());
+    check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
 }
 
 /**********************************************************/
@@ -410,6 +406,12 @@ TEST_P(AutomaticOrderNextTest, Basic) {
                     present[e] = 1;
                 }
             }
+        }
+
+        // Check that none of the batch assignments contain the just-corrected batch.
+        auto nbatches = overlord.get_batches().size();
+        for (auto x : overlord.get_batch_assignment()) {
+            EXPECT_LT(x, nbatches);
         }
 
         EXPECT_EQ(accumulated, ntotal);

@@ -39,7 +39,7 @@ struct RedistributeCorrectedObservationsWorkspace {
 template<typename Index_, typename Float_>
 void redistribute_corrected_observations(
     std::size_t num_dim,
-    const CorrectTargetResults<Index_>& correct_info,
+    CorrectTargetResults<Index_> correct_info,
     const Float_* data,
     const knncolle::Builder<Index_, Float_, Float_>& builder,
     int num_threads,
@@ -160,9 +160,10 @@ public:
         }
 
         // Do this after re-ordering so that we can index into 'my_batches'.
+        my_batch_assignment.resize(my_num_total);
         for (BatchIndex b = 0; b < nbatches; ++b) {
             const auto& curbatch = my_batches[b];
-            std::fill_n(my_current_batch.begin() + curbatch.offset, curbatch.num_obs, b);
+            std::fill_n(my_batch_assignment.begin() + curbatch.offset, curbatch.num_obs, b);
         }
 
         // Allocate one big space for index construction once, so that we don't
@@ -179,13 +180,12 @@ protected:
     Index_ my_num_total;
 
     std::vector<Index_> my_target_ids;
-    std::vector<BatchIndex> my_current_batch;
+    std::vector<BatchIndex> my_batch_assignment;
 
     FindBatchNeighborsResults<Index_, Float_> my_batch_nns;
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
     CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
-    CorrectTargetResults<Index_> my_correct_results;
     RedistributeCorrectedObservationsWorkspace<Index_, Float_> my_build_workspace;
 
     int my_num_neighbors;
@@ -220,21 +220,20 @@ protected:
             my_mnns
         );
 
-        correct_target(
+        auto correct_info = correct_target(
             my_num_dim,
             my_num_total,
             my_batches,
             target_batch,
             my_target_ids,
-            my_current_batch,
+            my_batch_assignment,
             my_mnns,
             my_builder,
             my_num_neighbors,
             my_num_steps,
             my_num_threads,
             my_corrected,
-            my_correct_workspace,
-            my_correct_results
+            my_correct_workspace
         );
 
         // We don't need to do this at the last step.
@@ -242,13 +241,13 @@ protected:
         if (remaining || test) {
             redistribute_corrected_observations(
                 my_num_dim,
-                my_correct_results,
+                std::move(correct_info),
                 my_corrected,
                 my_builder,
                 my_num_threads,
                 my_build_workspace,
                 my_batches,
-                my_current_batch
+                my_batch_assignment
             );
         }
 

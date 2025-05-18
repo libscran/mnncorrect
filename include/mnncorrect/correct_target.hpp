@@ -180,7 +180,7 @@ struct CorrectTargetResults {
 };
 
 template<typename Index_, typename Float_, class Matrix_>
-void correct_target(
+CorrectTargetResults<Index_> correct_target(
     std::size_t num_dim,
     Index_ num_total,
     const std::vector<BatchInfo<Index_, Float_> >& references,
@@ -193,9 +193,10 @@ void correct_target(
     int num_steps,
     int num_threads,
     Float_* data,
-    CorrectTargetWorkspace<Index_, Float_>& workspace,
-    CorrectTargetResults<Index_>& results) 
+    CorrectTargetWorkspace<Index_, Float_>& workspace)
 {
+    CorrectTargetResults<Index_> results;
+
     // Allocate reference MNNs into their batches. Here we use the
     // 'results.reassignments' as a temporary place to put this information;
     // we will overwrite it before we return from this function.
@@ -319,6 +320,8 @@ void correct_target(
     for (decltype(num_target) i = 0; i < num_target; ++i) {
         results.reassignments[workspace.new_target_batch[i]].push_back(target_ids[i]);
     }
+
+    return results;
 }
 
 }

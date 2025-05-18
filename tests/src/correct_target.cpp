@@ -446,10 +446,9 @@ TEST_P(CorrectTargetTest, Sanity) {
     // to search for the center of mass, to make sure the corrected points
     // are well-mixed enough that the means fall under the tolerance. 
     mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
-    mnncorrect::internal::CorrectTargetResults<int> correct_res;
 
     auto copy = simulated;
-    mnncorrect::internal::correct_target(
+    auto correct_res = mnncorrect::internal::correct_target(
         ndim,
         ntotal,
         references,
@@ -462,8 +461,7 @@ TEST_P(CorrectTargetTest, Sanity) {
         /* num_steps = */ 4,
         /* num_threads = */ 1,
         copy.data(),
-        correct_work,
-        correct_res
+        correct_work
     );
 
     EXPECT_EQ(correct_res.reassignments.size(), 2);
@@ -504,10 +502,9 @@ TEST_P(CorrectTargetTest, Sanity) {
         std::reverse(correct_work.neighbors.begin(), correct_work.neighbors.end());
         std::reverse(correct_work.ids.begin(), correct_work.ids.end());
         std::reverse(correct_work.new_target_batch.begin(), correct_work.new_target_batch.end());
-        std::reverse(correct_res.reassignments.begin(), correct_res.reassignments.end());
 
         auto pcopy = simulated;
-        mnncorrect::internal::correct_target(
+        auto correct_res = mnncorrect::internal::correct_target(
             ndim,
             ntotal,
             references,
@@ -520,8 +517,7 @@ TEST_P(CorrectTargetTest, Sanity) {
             /* num_steps = */ 4,
             /* num_threads = */ 3,
             pcopy.data(),
-            correct_work,
-            correct_res
+            correct_work
         );
         EXPECT_EQ(copy, pcopy);
         EXPECT_EQ(correct_res.reassignments.size(), 2);
