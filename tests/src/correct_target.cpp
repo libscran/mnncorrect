@@ -127,6 +127,39 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+TEST(CorrectTarget, WalkAroundNeighborhoodQuitEarly) {
+    std::size_t ndim = 5;
+    int nobs = 10;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, {});
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.offset = 0;
+    target.num_obs = nobs;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    // Checks the code to quit early if we don't need to use all of the steps,
+    // in this case because we've already covered all the observations in the
+    // dataset after the first step.
+    std::vector<int> to_check{ 5 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        target,
+        /* num_neighbors = */ nobs,
+        /* num_steps = */ 3,
+        /* num_threads = */ 3,
+        workspace
+    );
+
+    for (const auto& found : workspace.neighbors) {
+        EXPECT_EQ(found.size(), nobs);
+    }
+}
+
 /***************************************************/
 
 class ComputeCenterOfMassTest : public ::testing::TestWithParam<std::tuple<int, int> > {
@@ -232,6 +265,57 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(0, 1, 2, 3) // number of steps.
     )
 );
+
+TEST(CorrectTarget, ComputeCenterOfMassTestQuitEarly) {
+    std::size_t ndim = 5;
+    int nobs = 10;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, {});
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.offset = 0;
+    target.num_obs = nobs;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    std::vector<int> to_check{ 5 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        target,
+        /* num_neighbors = */ nobs,
+        /* num_steps = */ 3,
+        /* num_threads = */ 3,
+        workspace
+    );
+
+    // Checks the code to quit early if we don't need to use all of the steps,
+    // in this case because we've already covered all the observations in the
+    // dataset after the first step.
+    std::vector<double> center(ndim);
+    mnncorrect::internal::compute_center_of_mass(
+        ndim,
+        to_check,
+        vec.data(),
+        /* num_steps = */ 3,
+        /* num_threads = */ 1,
+        workspace.neighbors,
+        center.data()
+    );
+
+    // Checking that it is equal to the average of all points.
+    std::vector<double> ref(ndim);
+    for (decltype(nobs) o = 0; o < nobs; ++o) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            ref[d] += vec[o * ndim + d];
+        }
+    }
+    for (decltype(ndim) d = 0; d < ndim; ++d) {
+        EXPECT_FLOAT_EQ(center[d], ref[d] / nobs);
+    }
+}
 
 /***************************************************/
 
