@@ -31,7 +31,6 @@ struct CorrectTargetWorkspace {
     // For the correction itself.
     std::unordered_map<Index_, Index_> ref_remapping;
     std::vector<BatchIndex> new_target_batch;
-
 };
 
 // Find all neighbors of each MNN-involved observation within its own batch.
@@ -197,7 +196,9 @@ void correct_target(
     CorrectTargetWorkspace<Index_, Float_>& workspace,
     CorrectTargetResults<Index_>& results) 
 {
-    // Allocate reference MNNs into their batches.
+    // Allocate reference MNNs into their batches. Here we use the
+    // 'results.reassignments' as a temporary place to put this information;
+    // we will overwrite it before we return from this function.
     auto num_refs = references.size();
     results.reassignments.resize(num_refs);
     for (auto& reass : results.reassignments) {
@@ -212,6 +213,7 @@ void correct_target(
     }
 
     workspace.ref_center_buffer.resize(num_dim * static_cast<std::size_t>(workspace.visited.size())); // cast to avoid overflow.
+    workspace.ref_remapping.clear();
     Index_ counter = 0;
 
     // Find neighbors in each of the reference batches.

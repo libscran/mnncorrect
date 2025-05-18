@@ -48,7 +48,7 @@ struct Options {
      * Number of standard deviations to use to define the distance threshold for the center of mass calculations.
      * Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
      */
-    double tolerance = 3;
+    int num_steps = 4;
 
     /**
      * Algorithm to use for building the nearest-neighbor search indices.
@@ -116,7 +116,7 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std:
         output,
         *builder,
         options.num_neighbors,
-        options.tolerance,
+        options.num_steps,
         options.merge_policy,
         options.num_threads
     );

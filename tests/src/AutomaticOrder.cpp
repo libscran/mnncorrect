@@ -105,7 +105,7 @@ TEST_F(AutomaticOrderInitTest, Empty) {
         static_cast<double*>(NULL),
         builder,
         /* num_neighbors = */ 10,
-        /* tolerance = */ 3,
+        /* num_steps = */ 3,
         mnncorrect::MergePolicy::RSS,
         /* num_threads = */ 1
     );
@@ -120,7 +120,7 @@ TEST_F(AutomaticOrderInitTest, Empty) {
             static_cast<double*>(NULL),
             builder,
             /* num_neighbors = */ 10,
-            /* tolerance = */ 3,
+            /* num_steps = */ 3,
             mnncorrect::MergePolicy::RSS,
             /* num_threads = */ 1
         );
@@ -201,7 +201,7 @@ TEST_F(AutomaticOrderInitTest, Input) {
             corrected.data(),
             builder,
             /* num_neighbors = */ 10,
-            /* tolerance = */ 3,
+            /* num_steps = */ 3,
             mnncorrect::MergePolicy::INPUT,
             num_threads
         );
@@ -245,7 +245,7 @@ TEST_F(AutomaticOrderInitTest, MaxSize) {
         corrected.data(),
         builder,
         /* num_neighbors = */ 10,
-        /* tolerance = */ 3,
+        /* num_steps = */ 3,
         mnncorrect::MergePolicy::SIZE,
         /* num_threads = */ 1
     );
@@ -293,7 +293,7 @@ TEST_F(AutomaticOrderInitTest, MaxVariance) {
             corrected.data(),
             builder,
             /* num_neighbors = */ 10,
-            /* tolerance = */ 3,
+            /* num_steps = */ 3,
             mnncorrect::MergePolicy::VARIANCE,
             num_threads
         );
@@ -340,7 +340,7 @@ TEST_F(AutomaticOrderInitTest, MaxRss) {
         corrected.data(),
         builder,
         /* num_neighbors = */ 10,
-        /* tolerance = */ 3,
+        /* num_steps = */ 3,
         mnncorrect::MergePolicy::RSS,
         /* num_threads = */ 1
     );
@@ -389,7 +389,7 @@ TEST_P(AutomaticOrderNextTest, Basic) {
         corrected.data(),
         builder,
         /* num_neighbors = */ k,
-        /* tolerance = */ 3,
+        /* num_steps = */ 3,
         mnncorrect::MergePolicy::INPUT,
         /* num_threads = */ 1
     );
@@ -425,7 +425,7 @@ TEST_P(AutomaticOrderNextTest, Basic) {
         pcorrected.data(),
         builder,
         /* num_neighbors = */ k,
-        /* tolerance = */ 3,
+        /* num_steps = */ 3,
         mnncorrect::MergePolicy::INPUT,
         /* num_threads = */ 3
     );

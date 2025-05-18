@@ -165,7 +165,7 @@ TEST_P(OverallTest, OtherParams) {
         std::vector<double> output2(nobs * ndim);
         mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
             mnncorrect::Options<int, double> opt;
-            opt.tolerance = 1;
+            opt.num_steps = 1;
             return opt;
         }());
         EXPECT_NE(output2, output);

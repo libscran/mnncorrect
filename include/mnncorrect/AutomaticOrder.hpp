@@ -130,11 +130,6 @@ public:
                 static_cast<std::size_t>(cur_num_obs) * num_dim, // cast to size_t to avoid overflow.
                 my_corrected + static_cast<std::size_t>(my_num_total) * num_dim // ditto.
             );
-            std::fill_n(
-                my_current_batch.begin() + my_num_total,
-                cur_num_obs,
-                b
-            );
             my_num_total += cur_num_obs;
         }
 
@@ -162,6 +157,12 @@ public:
         my_batches.reserve(nbatches);
         for (auto o : order) {
             my_batches.emplace_back(std::move(tmp_batches[o]));
+        }
+
+        // Do this after re-ordering so that we can index into 'my_batches'.
+        for (BatchIndex b = 0; b < nbatches; ++b) {
+            const auto& curbatch = my_batches[b];
+            std::fill_n(my_current_batch.begin() + curbatch.offset, curbatch.num_obs, b);
         }
 
         // Allocate one big space for index construction once, so that we don't
