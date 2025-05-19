@@ -99,17 +99,17 @@ To run these, install the package at `tests/R/package` (this requires the [**scr
 `pbmc`: mergesthe PBMC 3K and 4K datasets from 10X Genomics.
 These are technical replicates (I think) so a complete merge is to be expected.
 
-![pbmc-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output.png)
+![pbmc-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output_simple.png)
 
 `pancreas`: merges the [Grun et al. (2016)](https://dx.doi.org/10.1016%2Fj.stem.2016.05.010) and [Muraro et al. (2016)](https://doi.org/10.1016/j.cels.2016.09.002) datasets.
 I believe this involves data from different patients but using the same-ish technology.
 
-![pancreas-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pancreas/output.png)
+![pancreas-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pancreas/output_simple.png)
 
 `neurons`: merges the [Zeisel et al. (2015)](https://doi.org/10.1126/science.aaa1934) and [Tasic et al. (2016)](https://doi.org/10.1038/nn.4216) datasets.
 This involves different technologies and different cell populations.
 
-![neurons-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/neurons/output.png)
+![neurons-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/neurons/output_simple.png)
 
 ## Building projects
 
