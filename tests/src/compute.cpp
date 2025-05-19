@@ -109,23 +109,20 @@ TEST_P(OverallTest, Basic) {
 }
 
 TEST_P(OverallTest, OtherInputs) {
+    mnncorrect::Options<int, double> opt;
+    opt.num_neighbors = k;
+
     std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        return opt;
-    }());
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
 
-    // Just getting some coverage on the other input approach.
-    std::vector<double> output2(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, data.data(), output2.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        return opt;
-    }());
-    EXPECT_EQ(output, output2);
+    {
+        // Getting some coverage on the other input approach.
+        std::vector<double> output2(nobs * ndim);
+        mnncorrect::compute(ndim, sizes, data.data(), output2.data(), opt);
+        EXPECT_EQ(output, output2);
+    }
 
-    // Creating a mock batch permutation.
+    // Creating a mock batch vector.
     int nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     std::vector<int> batch(nobs);
     auto bIt = batch.begin();
@@ -133,39 +130,53 @@ TEST_P(OverallTest, OtherInputs) {
         std::fill(bIt, bIt + sizes[b], b);
         bIt += sizes[b];
     }
+
+    {
+        // Vanilla checks first, where the batch vector is ordered.
+        std::vector<double> output3(nobs * ndim);
+        mnncorrect::compute(ndim, nobs, data.data(), batch.data(), output3.data(), opt);
+        EXPECT_EQ(output, output3);
+    }
+
+    // Trying again after shuffling the batch vector.
     std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * sizes.size())); // just varying the seed a bit.
+    {
+        // Scrambling both the data and the expected results to match the scrambled batches.
+        auto copy = data;
+        mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), copy.data());
+        auto ref = output;
+        mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), ref.data());
 
-    // Scrambling both the data and the expected results to match the scrambled batches.
-    auto copy = data;
-    mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), copy.data());
-    auto ref = output;
-    mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), ref.data());
-
-    // Actually running the test.
-    std::vector<double> output3(nobs * ndim);
-    mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        return opt;
-    }());
-    EXPECT_EQ(ref, output3);
+        std::vector<double> output3(nobs * ndim);
+        mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), opt);
+        EXPECT_EQ(ref, output3);
+    }
 }
 
 TEST_P(OverallTest, OtherParams) {
+    mnncorrect::Options<int, double> opt;
+    opt.num_neighbors = k;
+
     std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        return opt;
-    }());
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
 
     // Trying different options to check they have some effect.    
     {
         std::vector<double> output2(nobs * ndim);
         mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
-            mnncorrect::Options<int, double> opt;
-            opt.num_steps = 1;
-            return opt;
+            auto opt2 = opt;
+            opt2.num_steps = 2;
+            return opt2;
+        }());
+        EXPECT_NE(output2, output);
+    }
+
+    {
+        std::vector<double> output2(nobs * ndim);
+        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
+            auto opt2 = opt;
+            opt2.builder.reset(new knncolle::VptreeBuilder<int, double, double>(std::make_shared<knncolle::ManhattanDistance<double, double> >()));
+            return opt2;
         }());
         EXPECT_NE(output2, output);
     }

@@ -57,13 +57,11 @@ void find_closest_mnn(
 
             if (other.empty()) { // Only instantiate this when needed.
                 const auto& rvals = neighbors[tneighbor];
-                if (!rvals.empty()) {
-                    other.reserve(rvals.size());
-                    for (const auto& rpair : rvals) {
-                        other.push_back(rpair.first);
-                    }
-                    std::sort(other.begin(), other.end());
+                other.reserve(rvals.size());
+                for (const auto& rpair : rvals) {
+                    other.push_back(rpair.first);
                 }
+                std::sort(other.begin(), other.end());
             }
 
             // Picking up our search from the last checked position; we don't

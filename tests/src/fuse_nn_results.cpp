@@ -54,6 +54,13 @@ TEST(FuseNnResults, Basic) {
         std::vector<std::pair<int, double> > expected { { 1, 1.1 }, { 2, 1.1 }, { 3, 2.2 }, { 4, 2.2 } };
         EXPECT_EQ(output, expected);
     }
+
+    // Empty.
+    {
+        std::vector<std::pair<int, double> > base, alt, output(5);
+        mnncorrect::internal::fuse_nn_results(base, alt, 0, output);
+        EXPECT_TRUE(output.empty());
+    }
 }
 
 class FuseNnResultsTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
