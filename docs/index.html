@@ -145,11 +145,11 @@ $(function(){ initResizable(false); });
 <h1>Examples</h1>
 <p>The <code>tests/R/examples</code> directory contains a few examples using the C++ code on some real datasets (namely, single-cell RNA-seq datasets). To run these, install the package at <code>tests/R/package</code> (this requires the <a href="https://github.com/LTLA/scran.chan"><b>scran.chan</b></a> package, which also wraps this C++ library in a more complete package).</p>
 <p><code>pbmc</code>: mergesthe PBMC 3K and 4K datasets from 10X Genomics. These are technical replicates (I think) so a complete merge is to be expected.</p>
-<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output.png" alt="pbmc-output" class="inline"/></p>
+<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output_simple.png" alt="pbmc-output" class="inline"/></p>
 <p><code>pancreas</code>: merges the <a href="https://dx.doi.org/10.1016%2Fj.stem.2016.05.010">Grun et al. (2016)</a> and <a href="https://doi.org/10.1016/j.cels.2016.09.002">Muraro et al. (2016)</a> datasets. I believe this involves data from different patients but using the same-ish technology.</p>
-<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pancreas/output.png" alt="pancreas-output" class="inline"/></p>
+<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pancreas/output_simple.png" alt="pancreas-output" class="inline"/></p>
 <p><code>neurons</code>: merges the <a href="https://doi.org/10.1126/science.aaa1934">Zeisel et al. (2015)</a> and <a href="https://doi.org/10.1038/nn.4216">Tasic et al. (2016)</a> datasets. This involves different technologies and different cell populations.</p>
-<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/neurons/output.png" alt="neurons-output" class="inline"/></p>
+<p><img src="https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/neurons/output_simple.png" alt="neurons-output" class="inline"/></p>
 <h1>Building projects</h1>
 <h2>CMake with <code>FetchContent</code></h2>
 <p>If you're using CMake, you just need to add something like this to your <code>CMakeLists.txt</code>:</p>
