@@ -3,12 +3,17 @@
 
 library(scRNAseq)
 
-sceG <- GrunPancreasData()
-sceM <- MuraroPancreasData()
+sce.z <- ZeiselBrainData()
+sce.t <- TasicBrainData()
+common <- intersect(rownames(sce.z), rownames(sce.t))
 
-common <- intersect(rownames(sceG), rownames(sceM))
-x <- cbind(assay(sceG)[common,], assay(sceM)[common,])
-block <- rep(c("Grun", "Muraro"), c(ncol(sceG), ncol(sceM)))
+sce.z <- sce.z[common,]
+sce.t <- sce.t[common,]
+x <- cbind(assay(sce.z), assay(sce.t))
+block <- rep(c("zeisel", "tasic"), c(ncol(sce.z), ncol(sce.t)))
+
+# saveRDS(list(x, block), file="whee.rds")
+# reloaded <- readRDS("whee.rds"); x <- reloaded[[1]]; block <- reloaded[[2]]
 
 ########################
 # Preamble of scrapper::analyze()
@@ -33,28 +38,16 @@ pcs <- pca$components
 #######################
 # Merging method starts here.
 
-y.g <- pcs[,f.block == "Grun"]
-y.m <- pcs[,f.block == "Muraro"]
-
 library(mnncorrect.ref)
-#corrected.g <- mnncorrect.ref(y.m, y.g)
-#total <- cbind(corrected.g, y.m)
 total <- mnncorrect.cpp(pcs, f.block)
 out <- runTsne(total)
 
 before <- runTsne(pcs) # for comparison's sake.
 
-png("output.png", res=120, width=10, height=6, units="in")
+png("output_simple.png", res=120, width=10, height=6, units="in")
 par(mfrow=c(1,2))
-plot(before[,1], before[,2], col=factor(f.block), xlab="TSNE1", ylab="TSNE2", main="Before")
-plot(out[,1], out[,2], col=factor(f.block), xlab="TSNE1", ylab="TSNE2", main="After")
-legend("topright", c("Grun", "Muraro"), col=1:2, pch=1)
+f <- factor(f.block)
+plot(before[,1], before[,2], col=f, xlab="TSNE1", ylab="TSNE2", main="Before", pch=16, cex=0.3)
+plot(out[,1], out[,2], col=f, xlab="TSNE1", ylab="TSNE2", main="After", pch=16, cex=0.3)
+legend("topright", levels(f), col=seq_len(nlevels(f)), pch=16, cex=0.8)
 dev.off()
-
-#segments(
-#    out[pairings$first,1], 
-#    out[pairings$first,2],
-#    out[ncol(y.g) + pairings$second,1],
-#    out[ncol(y.g) + pairings$second,2],
-#    col="dodgerblue"
-#)

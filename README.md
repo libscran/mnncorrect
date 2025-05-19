@@ -7,7 +7,7 @@
 
 ## Overview
 
-This library provides functionality for batch correction of arbitrary data via the use of mutual nearest neighbors (MNNs).
+This library performs unsupervised batch correction of high-dimensional data via the use of mutual nearest neighbors (MNNs).
 MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see [Haghverdi et al., 2018](https://doi.org/10.1038/nbt.4091))
 but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches.
 The MNN implementation here is based on the `fastMNN()` function in the [**batchelor** package](https://bioconductor.org/packages/batchelor),
@@ -49,17 +49,17 @@ mnncorrect::compute(ndim, batch_size, batch_ptrs, output.data(), opt);
 Advanced users can also fiddle with the options: 
 
 ```cpp
+// Number of neighbors to use for MNN identification.
 opt.num_neighbors = 10;
+
+// Parallelization of various calculations, e.g., neighbor search.
 opt.num_threads = 3;
 
-// Manually specify your own merge order:
-opt.order = std::vector<std::size_t>{ 3, 1, 0, 2 };
+// Number of recursive steps for calculation of the center of mass.
+opt.num_steps = 2;
 
 // Change the nearest-neighbor search algorithm:
 opt.builder.reset(new knncolle_annoy::AnnoyBuilder<Annoy::Euclidean>);
-
-// Approximate the center-of-mass calculations for greater speed.
-opt.mass_cap = 100000;
 ```
 
 See the [reference documentation](https://libscran.github.io/mnncorrect) for more details.
@@ -75,30 +75,21 @@ as it will not have a corresponding subpopulation in the other batch for which i
 
 To remove batch effects, we consider one batch to be the "reference" and another to be the "target".
 For each MNN pair, we compute a correction vector that moves the target batch towards the reference.
-For each cell in the target batch, we identify the closest $k$ cells in the same batch that are part of a MNN pair (i.e., "MNN-involved cells").
-We then compute a robust average across all of the correction vectors associated with those closest cells.
-This average is used as the correction vector for that cell, allowing the correction to adjust to local variations in the magnitude and direction of the batch effect.
+For each cell $i$ in the target batch, we identify the closest cell in the same batch that is part of a MNN pair (i.e., "MNN-involved cells") and apply the pair's correction vector to $i$'s coordinates.
+The use of the closest MNN-involved cell allows the correction to adjust to local variations in the magnitude and direction of the batch effect.
+If an MNN-involved cell in the target batch is part of multiple MNN pairs, we only use the correction vector of the pair with the shortest distance between its paired cells, for simplicity.
 
 The correction vector for each MNN pair is not directly computed from its two paired cells.
 Rather, for each cell, we compute a "center of mass" using neighboring points from the same batch.
-Specifically:
+Most simply, the center of mass is defined as the mean coordinates of the $k$ nearest neighbors of each MNN-involved cell.
+This can be done recursively with the neighbors of those neighbors, etc., up to a user-specified recursion depth.
+The aim is to eliminate "kissing" effects where the correction only brings the surfaces of the batches into contact.
 
-- Given a cell $v$ that is part of an MNN pair, we find the set $\mathbf{S}$ of cells in the same batch for which $v$ is one of the $k$ closest neighbors.
-  We take the robust average of the coordinates in $\mathbf{S}$, which is defined as the center of mass location for $v$.
-  The correction vector is then computed between the two center of mass locations across batches.
-  This aims to eliminate "kissing" effects where the correction only brings the surfaces of the batches into contact.
-- The center of mass calculation excludes all cells that are more than a threshold distance away from $v$.
-  We compute the distances from each cell in $\mathbf{S}$ to $v$, pool these distances across all $v$ involved in MNN pairs, and define the threshold as "median + $x$ MADS" on the distances.
-  The aim is to ensure that the threshold is large enough to capture cells from the same subpopulation without including cells from distinct subpopulations.
-  Our assumption is that most cells in each batch belong to a shared subpopulation.
-- We can "cap" the size of the reference dataset when computing the center of mass for each reference cell involved in an MNN pair.
-  This is done by only considering every $n$-th cell for inclusion in $\mathbf{S}$ where $n > 1$.
-  The aim is to avoid an increase in the computational cost of each merge step as the reference dataset grows after the second batch (see below).
-
-In the case of >2 batches, we progressively merge the batches to a reference, i.e., after each merge step, the merged dataset is used as the new reference to merge the next batch, and so on.
-By default, we pick the batch with the largest residual sum of squares as the first reference, though this can be changed to, e.g., use the largest or most variable batch.
-At each step, we choose the batch with the most MNN pairs to merge, which ensures that we have a plentiful number of MNNs for a stable correction.
-This strategy allows us to eventually merge batches that share no subpopulations as long as there is an intervening batch that can "plug the gap", so to speak.
+In the case of >2 batches, we define a merge order based on the batch size, variance, residual sum of squares, or the input order.
+For the first batch to be merged, we identify MNN pairs to all other batches at once.
+The subsequent correction effectively distributes the first batch's cells to all other batches.
+This process is repeated for all remaining batches until only one batch remains that contains all cells.
+By using all batches to identify MNN pairs at each step, we improve the chance of correctly matching subpopulations across batches, even if they are missing from certain batches.
 
 ## Examples
 
