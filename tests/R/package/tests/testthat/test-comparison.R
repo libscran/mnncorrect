@@ -1,42 +1,47 @@
 # Tests that mnncorrect.cpp gives the same results as mnncorrect.ref.
 # library(testthat); library(mnncorrect.ref); source("test-comparison.R")
 
-library(mnncorrect.ref)
-
 set.seed(10000)
-x <- matrix(rnorm(10000), nrow=10)
-b <- rep(0:1, c(600, 400))
-trim <- 0.2 # avoid difficult discrepancies due to differences in numerical precision.
-
 test_that("basic comparisons work out", {
-    first <- x[,b==0]
-    second <- x[,b==1]
-    ref <- mnncorrect.ref(first, second, iterations=1, trim=trim)
+    x <- matrix(rnorm(10000), nrow=10)
+    b <- rep(0:1, c(600, 400))
 
-    cpp <- mnncorrect.cpp(x, b, iterations=1, trim=trim)
-    first.cpp <- cpp$corrected[,b==0]
-    second.cpp <- cpp$corrected[,b==1]
+    ref <- mnncorrect.ref(x, b)
+    cpp <- mnncorrect.cpp(x, b, input.order=TRUE)
 
-    expect_identical(first, first.cpp)
-    expect_equal(second.cpp, ref)
+    expect_equal(ref, cpp)
 })
 
 set.seed(100001)
-test_that("iterative comparisons work out", {
-    b <- sample(3, ncol(x), replace=TRUE) - 1L
-    cpp <- mnncorrect.cpp(x, b, iterations=1)
-    order <- cpp$merge.order
+test_that("responds correctly to various options", {
+    x <- matrix(rnorm(10000), nrow=10)
+    b <- rep(0:1, c(200, 800))
+    default <- mnncorrect.ref(x, b)
 
-    first <- x[,b==order[1]]
-    second <- x[,b==order[2]]
-    third <- x[,b==order[3]]
+    {
+        ref <- mnncorrect.ref(x, b, k=5)
+        expect_false(identical(default, ref))
 
-    ref0 <- mnncorrect.ref(first, second, iterations=1)
-    ref <- mnncorrect.ref(cbind(first, ref0), third, iterations=1)
-    final <- matrix(0, nrow(x), ncol(x))
-    final[,b==order[1]] <- first
-    final[,b==order[2]] <- ref0
-    final[,b==order[3]] <- ref
+        cpp <- mnncorrect.cpp(x, b, k=5, input.order=TRUE)
+        expect_equal(ref, cpp)
+    }
 
-    expect_equal(final, cpp$corrected)
+    {
+        ref <- mnncorrect.ref(x, b, steps=3)
+        expect_false(identical(default, ref))
+
+        cpp <- mnncorrect.cpp(x, b, steps=3, input.order=TRUE)
+        expect_equal(ref, cpp)
+    }
+})
+
+set.seed(100003)
+test_that("automatic merge order makes sense", {
+    x <- matrix(rnorm(10000), nrow=10)
+    b <- rep(1:4, 1:4 * 100)
+    x <- t(t(x) + b) # injecting a batch effect to make it interesting.
+
+    cpp <- mnncorrect.cpp(x, b)
+    ref <- mnncorrect.ref(x, 5L - b) # batches are sorted by their batch number, so the biggest batch is now first and so on.
+    expect_equal(ref, cpp)
 })

@@ -1,205 +1,452 @@
 #include <gtest/gtest.h>
+
+#include "custom_parallel.h" // Must be before any mnncorrect includes.
+
+#include "scran_tests/scran_tests.hpp"
+
 #include "mnncorrect/AutomaticOrder.hpp"
 #include <random>
 #include <algorithm>
+#include <cstddef>
 
-struct Builder {
-    std::shared_ptr<knncolle::Base<int, double> > operator()(int ndim, size_t nobs, const double* stuff) const {
-        return std::shared_ptr<knncolle::Base<int, double> >(new knncolle::VpTreeEuclidean<int, double>(ndim, nobs, stuff));
+TEST(AutomaticOrder, RedistributeCorrectedObservations) {
+    constexpr std::size_t num_dim = 5;
+    int num_total = 50;
+
+    mnncorrect::internal::CorrectTargetResults<int> correct_info;
+    correct_info.reassignments.resize(3);
+    correct_info.reassignments[0] = std::vector<int>{ 7 };
+    correct_info.reassignments[1] = std::vector<int>{ 3, 11, 31 };
+    correct_info.reassignments[2] = std::vector<int>{ 1, 23 };
+
+    auto data = scran_tests::simulate_vector(num_total * num_dim, [&]{
+        scran_tests::SimulationParameters params;
+        params.seed = 69;
+        return params;
+    }());
+
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    std::vector<mnncorrect::BatchIndex> batch_of_origin(num_total);
+    mnncorrect::internal::RedistributeCorrectedObservationsWorkspace<int, double> work;
+    work.offsets.resize(10); // filling it with some nonsense to check that the function wipes it.
+    work.buffer.resize(1);
+
+    for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
+        std::vector<mnncorrect::internal::BatchInfo<int, double> > batches(3);
+        mnncorrect::internal::redistribute_corrected_observations(
+            num_dim,
+            correct_info,
+            data.data(),
+            builder,
+            num_threads,
+            work,
+            batches,
+            batch_of_origin
+        );
+
+        for (int b = 0; b < 3; ++b) {
+            const auto& ids = correct_info.reassignments[b];
+            const auto& host = batches[b];
+            EXPECT_EQ(host.extras.size(), 1);
+            const auto& newbatch = host.extras[0];
+            EXPECT_EQ(newbatch.ids, ids);
+            auto searcher = newbatch.index->initialize();
+
+            std::vector<int> idx;
+            std::vector<double> dist;
+            for (decltype(ids.size()) i = 0, end = ids.size(); i < end; ++i) {
+                auto id = ids[i];
+                EXPECT_EQ(batch_of_origin[id], b);
+                searcher->search(data.data() + id * num_dim, 1, &idx, &dist);
+                EXPECT_EQ(idx[0], i);
+                EXPECT_EQ(dist[0], 0);
+            }
+        }
+    }
+}
+
+/**********************************************************/
+
+class AutomaticOrder2 : public mnncorrect::internal::AutomaticOrder<int, double, knncolle::Matrix<int, double> > {
+public:
+    template<typename ... Args_>
+    AutomaticOrder2(Args_&&... args) : AutomaticOrder<int, double, knncolle::Matrix<int, double> >(std::forward<Args_>(args)...) {}
+
+    const auto& get_batches() const { 
+        return my_batches;
+    }
+
+    const auto& get_batch_assignment() const { 
+        return my_batch_assignment;
+    }
+
+    auto advance() {
+        return next(true);
     }
 };
 
-struct AutomaticOrder2 : public mnncorrect::AutomaticOrder<int, double, Builder> {
-    AutomaticOrder2(int nd, std::vector<size_t> no, std::vector<const double*> b, double* c, int k) :
-        AutomaticOrder<int, double, Builder>(nd, std::move(no), std::move(b), c, Builder(), k) {}
-
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_ref () const { 
-        return neighbors_ref;
-    }
-    const std::vector<mnncorrect::NeighborSet<int, double> >& get_neighbors_target () const { 
-        return neighbors_target;
-    }
-
-    size_t get_ncorrected() const { 
-        return ncorrected;
-    }
-
-    const std::set<size_t>& get_remaining () const { 
-        return remaining; 
-    }
-
-    auto test_choose(){
-        return choose();        
-    }
-
-    void test_update(size_t latest) {
-        update(latest, 1000, true);
-        return;
-    }
-};
-
-class AutomaticOrderTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<size_t> > > {
+class AutomaticOrderInitTest : public ::testing::Test {
 protected:
-    template<class Param>
-    void assemble(Param param) {
-        // Simulating values.
-        std::mt19937_64 rng(42);
-        std::normal_distribution<> dist;
+    template<typename Index_, typename Float_>
+    static void check_initialization(
+        std::size_t num_dim,
+        const std::vector<mnncorrect::internal::BatchInfo<Index_, Float_> >& batches,
+        const std::vector<mnncorrect::BatchIndex>& batch_assignment,
+        const std::vector<const double*>& sources,
+        const double* corrected)
+    {
+        auto nbatches = batches.size();
 
-        ndim = std::get<0>(param);
-        k = std::get<1>(param);
-        sizes = std::get<2>(param);
+        for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+            const auto& curbatch = batches[b];
+            auto num_obs = curbatch.num_obs;
+            EXPECT_EQ(curbatch.index->num_observations(), num_obs);
 
-        data.resize(sizes.size());
-        ptrs.resize(sizes.size());
-        for (size_t b = 0; b < sizes.size(); ++b) {
-            for (size_t s = 0; s < sizes[b]; ++s) {
-                for (int d = 0; d < ndim; ++d) {
-                    data[b].push_back(dist(rng));
-                }
+            auto searcher = curbatch.index->initialize();
+            std::vector<int> indices;
+            std::vector<double> distances;
+
+            for (int c = 0; c < num_obs; ++c) {
+                EXPECT_EQ(batch_assignment[curbatch.offset + c], b);
+
+                auto srcptr = sources[b] + c * num_dim;
+                std::vector<double> srcvec(srcptr, srcptr + num_dim);
+                auto corptr = corrected + (curbatch.offset + c) * num_dim;
+                std::vector<double> corvec(corptr, corptr + num_dim);
+                EXPECT_EQ(corvec, srcvec);
+
+                searcher->search(corptr, 1, &indices, &distances);
+                EXPECT_EQ(indices.size(), 1);
+                EXPECT_EQ(indices[0], c);
+                EXPECT_EQ(distances[0], 0);
             }
-            ptrs[b] = data[b].data();
         }
-
-        size_t total_size = std::accumulate(sizes.begin(), sizes.end(), 0);
-        output.resize(total_size * ndim);
-        return;
     }
-
-    int ndim, k;
-    std::vector<size_t> sizes;
-    std::vector<std::vector<double> > data;
-    std::vector<const double*> ptrs;
-    std::vector<double> output;
 };
 
-TEST_P(AutomaticOrderTest, CheckInitialization) {
-    assemble(GetParam());
-    AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
+TEST_F(AutomaticOrderInitTest, Empty) {
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    AutomaticOrder2 overlord(
+        5,
+        std::vector<int>{}, 
+        std::vector<const double*>{},
+        static_cast<double*>(NULL),
+        builder,
+        /* num_neighbors = */ 10,
+        /* num_steps = */ 3,
+        mnncorrect::MergePolicy::RSS,
+        /* num_threads = */ 1
+    );
+    EXPECT_TRUE(overlord.get_batches().empty());
 
-    size_t maxed = std::max_element(sizes.begin(), sizes.end()) - sizes.begin();
-    const auto& ord = coords.get_order();
-    EXPECT_EQ(ord.size(), 1);
-    EXPECT_EQ(ord[0], maxed);
+    std::string msg;
+    try {
+        AutomaticOrder2(
+            5,
+            std::vector<int>{ 0 }, 
+            std::vector<const double*>{},
+            static_cast<double*>(NULL),
+            builder,
+            /* num_neighbors = */ 10,
+            /* num_steps = */ 3,
+            mnncorrect::MergePolicy::RSS,
+            /* num_threads = */ 1
+        );
+    } catch (std::exception& e) {
+        msg = e.what();
+    }
+    EXPECT_TRUE(msg.find("length of") != std::string::npos);
+}
 
-    size_t ncorrected = coords.get_ncorrected();
-    EXPECT_EQ(ncorrected, sizes[maxed]);
-    EXPECT_EQ(std::vector<double>(output.begin(), output.begin() + ncorrected * ndim), data[maxed]);
-    EXPECT_EQ(coords.get_remaining().size(), sizes.size() - 1);
+template<typename Float_>
+static std::vector<const double*> pointerize(const std::vector<std::vector<Float_> >& data) {
+    std::vector<const double*> output;
+    output.reserve(data.size());
+    for (const auto& batch : data) {
+        output.push_back(batch.data());
+    }
+    return output;
+}
 
-    const auto& rneighbors = coords.get_neighbors_ref(); 
-    const auto& lneighbors = coords.get_neighbors_target();
+TEST_F(AutomaticOrderInitTest, Input) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
 
-    for (size_t b = 0; b < sizes.size(); ++b) {
-        if (b == maxed) { 
-            continue; 
-        }
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 42 + ndim * 10 + sizes[b];
+            return sparams;
+        }());
+    }
 
-        EXPECT_EQ(rneighbors[b].size(), ncorrected);
-        EXPECT_EQ(rneighbors[b][0].size(), k);
-        EXPECT_EQ(lneighbors[b].size(), sizes[b]);
-        EXPECT_EQ(lneighbors[b][0].size(), k);
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    // Testing multiple threads to check for correct parallelization of index construction.
+    for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
+        std::vector<double> corrected(ndim * ntotal);
+        AutomaticOrder2 overlord(
+            ndim,
+            sizes,
+            ptrs,
+            corrected.data(),
+            builder,
+            /* num_neighbors = */ 10,
+            /* num_steps = */ 3,
+            mnncorrect::MergePolicy::INPUT,
+            num_threads
+        );
+
+        // Batches should be sorted by input order.
+        const auto& batches = overlord.get_batches(); 
+        EXPECT_EQ(batches[0].num_obs, 100);
+        EXPECT_EQ(batches[0].offset, 0);
+        EXPECT_EQ(batches[1].num_obs, 200);
+        EXPECT_EQ(batches[1].offset, 100);
+        EXPECT_EQ(batches[2].num_obs, 150);
+        EXPECT_EQ(batches[2].offset, 300);
+
+        check_initialization(ndim, batches, overlord.get_batch_assignment(), ptrs, corrected.data());
     }
 }
 
-TEST_P(AutomaticOrderTest, CheckUpdate) {
-    assemble(GetParam());
-    AutomaticOrder2 coords(ndim, sizes, ptrs, output.data(), k);
-    std::vector<char> used(sizes.size());
-    used[coords.get_order()[0]] = true;
+TEST_F(AutomaticOrderInitTest, MaxSize) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
 
-    std::mt19937_64 rng(123456);
-    std::normal_distribution<> dist;
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 69 + ndim * 10 + sizes[b];
+            return sparams;
+        }());
+    }
 
-    for (size_t b = 1; b < sizes.size(); ++b) {
-        auto chosen = coords.test_choose();
-        EXPECT_FALSE(used[chosen.first]);
-        used[chosen.first] = true;
-        size_t sofar = coords.get_ncorrected();
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
-        // Check that the MNN pair indices are correct.
-        const auto& m = chosen.second.matches;
-        EXPECT_TRUE(m.size() > 0);
-        for (const auto& x : m) {
-            EXPECT_TRUE(x.first < sizes[chosen.first]);
-            for (const auto& y : x.second) {
-                EXPECT_TRUE(y < coords.get_ncorrected());
-            }
-        }
+    std::vector<double> corrected(ndim * ntotal);
+    AutomaticOrder2 overlord(
+        ndim,
+        sizes,
+        ptrs,
+        corrected.data(),
+        builder,
+        /* num_neighbors = */ 10,
+        /* num_steps = */ 3,
+        mnncorrect::MergePolicy::SIZE,
+        /* num_threads = */ 1
+    );
 
-        // Applying an update. We mock up some corrected data.
-        double* fixed = output.data() + sofar * ndim;
-        for (size_t s = 0; s < sizes[chosen.first]; ++s) {
-            for (int d = 0; d < ndim; ++d) {
-                fixed[s * ndim + d] = dist(rng);
-            }
-        }
-        coords.test_update(chosen.first);
+    // Batches should be sorted by size.
+    const auto& batches = overlord.get_batches(); 
+    EXPECT_EQ(batches[0].num_obs, 200);
+    EXPECT_EQ(batches[0].offset, 100);
+    EXPECT_EQ(batches[1].num_obs, 150);
+    EXPECT_EQ(batches[1].offset, 300);
+    EXPECT_EQ(batches[2].num_obs, 100);
+    EXPECT_EQ(batches[2].offset, 0);
 
-        // Check that the update works as expected.
-        const auto& remaining = coords.get_remaining();
-        EXPECT_EQ(remaining.size(), sizes.size() - b - 1);
-        EXPECT_EQ(sofar + sizes[chosen.first], coords.get_ncorrected());
+    std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[2], ptrs[0] };
+    check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
+}
 
-        const auto& ord = coords.get_order();
-        EXPECT_EQ(ord.size(), b + 1);
-        EXPECT_EQ(ord.back(), chosen.first);
+TEST_F(AutomaticOrderInitTest, MaxVariance) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 100, 200, 150 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
 
-        const auto& rneighbors = coords.get_neighbors_ref();
-        for (auto r : remaining) {
-            const auto& rcurrent = rneighbors[r];
-            knncolle::VpTreeEuclidean<int, double> target_index(ndim, sizes[r], data[r].data());
-            EXPECT_EQ(rcurrent.size(), coords.get_ncorrected());
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 4269 + ndim * 10 + sizes[b];
+            sparams.lower = -3.0 * (b + 1); // later batches are more variable.
+            sparams.upper = 3.0 * (b + 1);
+            return sparams;
+        }());
+    }
 
-            for (size_t x = 0; x < coords.get_ncorrected(); ++x) {
-                auto naive = target_index.find_nearest_neighbors(output.data() + x * ndim, k);
-                const auto& updated = rcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
+    // Testing multiple threads to check for threading in the variance calculation.
+    for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
+        std::vector<double> corrected(ndim * ntotal);
+        AutomaticOrder2 overlord(
+            ndim,
+            sizes,
+            ptrs,
+            corrected.data(),
+            builder,
+            /* num_neighbors = */ 10,
+            /* num_steps = */ 3,
+            mnncorrect::MergePolicy::VARIANCE,
+            num_threads
+        );
+
+        // Batches should be sorted by variance.
+        const auto& batches = overlord.get_batches(); 
+        EXPECT_EQ(batches[0].num_obs, 150);
+        EXPECT_EQ(batches[0].offset, 300);
+        EXPECT_EQ(batches[1].num_obs, 200);
+        EXPECT_EQ(batches[1].offset, 100);
+        EXPECT_EQ(batches[2].num_obs, 100);
+        EXPECT_EQ(batches[2].offset, 0);
+
+        std::vector<const double*> resorted_ptrs { ptrs[2], ptrs[1], ptrs[0] };
+        check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
+    }
+}
+
+TEST_F(AutomaticOrderInitTest, MaxRss) {
+    constexpr std::size_t ndim = 10;
+    std::vector<int> sizes { 50, 500 };
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 4269 + ndim * 10 + sizes[b];
+            sparams.lower = -3.0 / (b + 1); // later batches are less variable.
+            sparams.upper = 3.0 / (b + 1);
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    std::vector<double> corrected(ndim * ntotal);
+    AutomaticOrder2 overlord(
+        ndim,
+        sizes,
+        ptrs,
+        corrected.data(),
+        builder,
+        /* num_neighbors = */ 10,
+        /* num_steps = */ 3,
+        mnncorrect::MergePolicy::RSS,
+        /* num_threads = */ 1
+    );
+
+    // Sorting by RSS; so even though the first batch is most variable,
+    // it has fewer observations and so the second batch has a higher RSS.
+    const auto& batches = overlord.get_batches(); 
+    EXPECT_EQ(batches[0].num_obs, 500);
+    EXPECT_EQ(batches[0].offset, 50);
+    EXPECT_EQ(batches[1].num_obs, 50);
+    EXPECT_EQ(batches[1].offset, 0);
+
+    std::vector<const double*> resorted_ptrs { ptrs[1], ptrs[0] };
+    check_initialization(ndim, batches, overlord.get_batch_assignment(), resorted_ptrs, corrected.data());
+}
+
+/**********************************************************/
+
+class AutomaticOrderNextTest : public ::testing::TestWithParam<std::tuple<int, std::vector<int> > > {};
+
+TEST_P(AutomaticOrderNextTest, Basic) {
+    auto params = GetParam();
+    auto k = std::get<0>(params);
+    auto sizes = std::get<1>(params);
+    int ntotal = std::accumulate(sizes.begin(), sizes.end(), 0);
+
+    auto nbatches = sizes.size();
+    std::vector<std::vector<double> > data(nbatches);
+    constexpr std::size_t ndim = 7;
+    for (decltype(nbatches) b = 0; b < nbatches; ++b) {
+        data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
+            scran_tests::SimulationParameters sparams;
+            sparams.seed = 4269 + ndim * 10 + sizes[b];
+            return sparams;
+        }());
+    }
+
+    auto ptrs = pointerize(data);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+
+    std::vector<double> corrected(ndim * ntotal);
+    AutomaticOrder2 overlord(
+        ndim,
+        sizes,
+        ptrs,
+        corrected.data(),
+        builder,
+        /* num_neighbors = */ k,
+        /* num_steps = */ 3,
+        mnncorrect::MergePolicy::INPUT,
+        /* num_threads = */ 1
+    );
+
+    bool has_next = true;
+    while (has_next) {
+        has_next = overlord.advance();
+
+        // Check that all observations are represented here.
+        std::vector<unsigned char> present(ntotal);
+        int accumulated = 0; 
+        for (const auto& batch : overlord.get_batches()) {
+            accumulated += batch.num_obs;
+            std::fill_n(present.begin() + batch.offset, batch.num_obs, 1);
+            for (const auto& extra : batch.extras) {
+                accumulated += extra.ids.size();
+                for (auto e : extra.ids) {
+                    present[e] = 1;
                 }
             }
         }
 
-        knncolle::VpTreeEuclidean<> ref_index(ndim, coords.get_ncorrected(), output.data());
-        const auto& tneighbors = coords.get_neighbors_target();
-        for (auto r : remaining) {
-            const auto& current = data[r];
-            const auto& tcurrent = tneighbors[r];
-            EXPECT_EQ(tcurrent.size(), sizes[r]);
-
-            for (size_t x = 0; x < sizes[r]; ++x) {
-                auto naive = ref_index.find_nearest_neighbors(current.data() + x * ndim, k);
-                const auto& updated = tcurrent[x];
-                EXPECT_EQ(naive.size(), updated.size());
-
-                for (size_t i = 0; i < std::min(naive.size(), updated.size()); ++i) {
-                    EXPECT_EQ(naive[i].first, updated[i].first);
-                    EXPECT_EQ(naive[i].second, updated[i].second);
-                }
-            }
+        // Check that none of the batch assignments contain the just-corrected batch.
+        auto nbatches = overlord.get_batches().size();
+        for (auto x : overlord.get_batch_assignment()) {
+            EXPECT_LT(x, nbatches);
         }
+
+        EXPECT_EQ(accumulated, ntotal);
+        EXPECT_EQ(std::accumulate(present.begin(), present.end(), 0), ntotal);
     }
 
-    EXPECT_EQ(sizes.size(), coords.get_num_pairs().size() + 1);
-    for (auto np : coords.get_num_pairs()) {
-        EXPECT_TRUE(np > 0);
-    }
+    // Same results in parallel.
+    std::vector<double> pcorrected(ndim * ntotal);
+    AutomaticOrder2 poverlord(
+        ndim,
+        sizes,
+        ptrs,
+        pcorrected.data(),
+        builder,
+        /* num_neighbors = */ k,
+        /* num_steps = */ 3,
+        mnncorrect::MergePolicy::INPUT,
+        /* num_threads = */ 3
+    );
+    poverlord.merge();
+
+    EXPECT_EQ(corrected, pcorrected);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AutomaticOrder,
-    AutomaticOrderTest,
+    AutomaticOrderNextTest,
     ::testing::Combine(
-        ::testing::Values(5), // Number of dimensions
         ::testing::Values(1, 5, 10), // Number of neighbors
         ::testing::Values(
-            std::vector<size_t>{10, 20},        
-            std::vector<size_t>{10, 20, 30}, 
-            std::vector<size_t>{100, 50, 80}, 
-            std::vector<size_t>{50, 30, 100, 90} 
+            std::vector<int>{10, 20},        
+            std::vector<int>{10, 20, 30}, 
+            std::vector<int>{100, 50, 80}, 
+            std::vector<int>{50, 30, 100, 90},
+            std::vector<int>{50, 40, 30, 20, 10}
         )
     )
 );

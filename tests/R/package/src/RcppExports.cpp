@@ -10,37 +10,23 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// mnn_correct
-Rcpp::List mnn_correct(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double nmads, int iterations, double trim);
-RcppExport SEXP _mnncorrect_ref_mnn_correct(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP nmadsSEXP, SEXP iterationsSEXP, SEXP trimSEXP) {
+// compute
+Rcpp::RObject compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, int steps, bool input_order);
+RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP stepsSEXP, SEXP input_orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type batch(batchSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    Rcpp::traits::input_parameter< double >::type nmads(nmadsSEXP);
-    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
-    Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
-    rcpp_result_gen = Rcpp::wrap(mnn_correct(x, batch, k, nmads, iterations, trim));
-    return rcpp_result_gen;
-END_RCPP
-}
-// robust_average
-Rcpp::NumericVector robust_average(Rcpp::NumericMatrix x, int iterations, double trim);
-RcppExport SEXP _mnncorrect_ref_robust_average(SEXP xSEXP, SEXP iterationsSEXP, SEXP trimSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
-    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
-    Rcpp::traits::input_parameter< double >::type trim(trimSEXP);
-    rcpp_result_gen = Rcpp::wrap(robust_average(x, iterations, trim));
+    Rcpp::traits::input_parameter< int >::type steps(stepsSEXP);
+    Rcpp::traits::input_parameter< bool >::type input_order(input_orderSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, steps, input_order));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mnncorrect_ref_mnn_correct", (DL_FUNC) &_mnncorrect_ref_mnn_correct, 6},
-    {"_mnncorrect_ref_robust_average", (DL_FUNC) &_mnncorrect_ref_robust_average, 3},
+    {"_mnncorrect_ref_compute", (DL_FUNC) &_mnncorrect_ref_compute, 5},
     {NULL, NULL, 0}
 };
 

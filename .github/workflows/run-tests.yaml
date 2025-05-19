@@ -1,4 +1,8 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 name: Run unit tests
 
@@ -11,11 +15,6 @@ jobs:
       matrix:
         config:
         - {
-            name: "Ubuntu Latest GCC", 
-            os: ubuntu-latest,
-            cov: false
-          }
-        - {
             name: "Ubuntu Latest GCC, coverage enabled", 
             os: ubuntu-latest,
             cov: true
@@ -26,17 +25,17 @@ jobs:
           }
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
 
     - name: Get latest CMake
       uses: lukka/get-cmake@latest
 
     - name: Configure the build
-      if: ${{ matrix.config.cov == false }}
+      if: ${{ ! matrix.config.cov }}
       run: cmake -S . -B build
 
     - name: Configure the build with coverage
-      if: ${{ matrix.config.cov == true }}
+      if: ${{ matrix.config.cov }}
       run: cmake -S . -B build -DCODE_COVERAGE=ON
 
     - name: Run the build
@@ -55,6 +54,8 @@ jobs:
 
     - name: Upload to Codecov
       if: ${{ matrix.config.cov == true }}
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v4
       with:
         directory: build/tests/CMakeFiles/libtest.dir/src/
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
