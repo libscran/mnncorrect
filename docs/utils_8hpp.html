@@ -100,7 +100,8 @@ $(function(){ initResizable(false); });
   <div class="summary">
 <a href="#namespaces">Namespaces</a> &#124;
 <a href="#typedef-members">Typedefs</a> &#124;
-<a href="#enum-members">Enumerations</a>  </div>
+<a href="#enum-members">Enumerations</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">utils.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
@@ -108,26 +109,29 @@ $(function(){ initResizable(false); });
 <p>Utilities for MNN correction.  
 <a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;vector&gt;</code><br />
-<code>#include &lt;limits&gt;</code><br />
-<code>#include &lt;type_traits&gt;</code><br />
 <code>#include &lt;algorithm&gt;</code><br />
+<code>#include &lt;memory&gt;</code><br />
 <code>#include &lt;cstddef&gt;</code><br />
+<code>#include &quot;<a class="elRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</code><br />
+<code>#include &quot;subpar/subpar.hpp&quot;</code><br />
 </div><div class="textblock"><div class="dynheader">
 Include dependency graph for utils.hpp:</div>
 <div class="dyncontent">
 <div class="center"><img src="utils_8hpp__incl.png" border="0" usemap="#amnncorrect_2utils_8hpp" alt=""/></div>
 <map name="amnncorrect_2utils_8hpp" id="amnncorrect_2utils_8hpp">
-<area shape="rect" title="Utilities for MNN correction." alt="" coords="134,5,272,31"/>
+<area shape="rect" title="Utilities for MNN correction." alt="" coords="193,5,331,31"/>
 <area shape="rect" title=" " alt="" coords="5,79,63,105"/>
-<area shape="poly" title=" " alt="" coords="176,34,78,75,76,70,174,29"/>
-<area shape="rect" title=" " alt="" coords="86,79,139,105"/>
-<area shape="poly" title=" " alt="" coords="190,34,141,72,138,67,186,29"/>
-<area shape="rect" title=" " alt="" coords="163,79,244,105"/>
-<area shape="poly" title=" " alt="" coords="206,31,206,63,201,63,201,31"/>
-<area shape="rect" title=" " alt="" coords="268,79,342,105"/>
-<area shape="poly" title=" " alt="" coords="222,29,276,67,273,72,219,34"/>
-<area shape="rect" title=" " alt="" coords="366,79,430,105"/>
-<area shape="poly" title=" " alt="" coords="237,29,352,71,350,76,235,34"/>
+<area shape="poly" title=" " alt="" coords="224,34,78,79,77,74,223,29"/>
+<area shape="rect" title=" " alt="" coords="86,79,160,105"/>
+<area shape="poly" title=" " alt="" coords="240,34,162,74,159,69,237,29"/>
+<area shape="rect" title=" " alt="" coords="184,79,252,105"/>
+<area shape="poly" title=" " alt="" coords="257,33,236,67,231,64,252,30"/>
+<area shape="rect" title=" " alt="" coords="275,79,340,105"/>
+<area shape="poly" title=" " alt="" coords="272,30,294,64,289,67,267,33"/>
+<area shape="rect" target="_parent" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html" title=" " alt="" coords="364,79,509,105"/>
+<area shape="poly" title=" " alt="" coords="293,29,394,70,392,75,291,34"/>
+<area shape="rect" title=" " alt="" coords="533,79,660,105"/>
+<area shape="poly" title=" " alt="" coords="320,29,526,73,525,78,319,34"/>
 </map>
 </div>
 </div><div class="textblock"><div class="dynheader">
@@ -135,16 +139,9 @@ This graph shows which files directly or indirectly include this file:</div>
 <div class="dyncontent">
 <div class="center"><img src="utils_8hpp__dep__incl.png" border="0" usemap="#amnncorrect_2utils_8hppdep" alt=""/></div>
 <map name="amnncorrect_2utils_8hppdep" id="amnncorrect_2utils_8hppdep">
-<area shape="rect" title="Utilities for MNN correction." alt="" coords="104,5,242,31"/>
-<area shape="rect" href="Options_8hpp.html" title="Options for MNN correction." alt="" coords="93,79,252,105"/>
-<area shape="poly" title=" " alt="" coords="176,46,176,79,170,79,170,46"/>
-<area shape="rect" href="compute_8hpp.html" title="Compute the MNN correction." alt="" coords="5,153,170,178"/>
-<area shape="poly" title=" " alt="" coords="127,40,102,57,83,80,78,98,77,118,85,152,80,153,72,118,72,97,78,78,99,53,124,36"/>
-<area shape="rect" href="mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="118,226,297,252"/>
-<area shape="poly" title=" " alt="" coords="222,36,247,53,267,78,274,98,275,120,263,162,242,200,221,227,216,224,237,197,259,160,270,120,269,99,263,80,243,57,219,40"/>
-<area shape="poly" title=" " alt="" coords="149,117,103,154,100,150,145,113"/>
-<area shape="poly" title=" " alt="" coords="182,119,207,225,202,226,177,120"/>
-<area shape="poly" title=" " alt="" coords="122,184,188,223,186,228,119,189"/>
+<area shape="rect" title="Utilities for MNN correction." alt="" coords="26,5,164,31"/>
+<area shape="rect" href="mnncorrect_8hpp.html" title="Batch correction with mutual nearest neighbors." alt="" coords="5,79,185,105"/>
+<area shape="poly" title=" " alt="" coords="98,46,98,79,92,79,92,46"/>
 </map>
 </div>
 </div>
@@ -163,12 +160,18 @@ Typedefs</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:a628f306b43e4b2a96382aa7025940694" id="r_a628f306b43e4b2a96382aa7025940694"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">mnncorrect::ReferencePolicy</a> : char { <b>INPUT</b>
-, <b>MAX_SIZE</b>
-, <b>MAX_VARIANCE</b>
-, <b>MAX_RSS</b>
+<tr class="memitem:a5a9c9f9569fcad76a5e735cd8fae0197" id="r_a5a9c9f9569fcad76a5e735cd8fae0197"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a> : char { <b>INPUT</b>
+, <b>SIZE</b>
+, <b>VARIANCE</b>
+, <b>RSS</b>
  }</td></tr>
-<tr class="separator:a628f306b43e4b2a96382aa7025940694"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="separator:a5a9c9f9569fcad76a5e735cd8fae0197"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:a1b556e96c8995a0dba23e412b75c838a" id="r_a1b556e96c8995a0dba23e412b75c838a"><td class="memTemplParams" colspan="2">template&lt;typename Task_ , class Run_ &gt; </td></tr>
+<tr class="memitem:a1b556e96c8995a0dba23e412b75c838a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">mnncorrect::parallelize</a> (int num_workers, Task_ num_tasks, Run_ run_task_range)</td></tr>
+<tr class="separator:a1b556e96c8995a0dba23e412b75c838a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Utilities for MNN correction. </p>

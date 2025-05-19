@@ -1,35 +1,11 @@
 <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <tagfile doxygen_version="1.12.0">
   <compound kind="file">
-    <name>compute.hpp</name>
-    <path>mnncorrect/</path>
-    <filename>compute_8hpp.html</filename>
-    <includes id="Options_8hpp" name="Options.hpp" local="yes" import="no" module="no" objc="no">Options.hpp</includes>
-    <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
-    <class kind="struct">mnncorrect::Details</class>
-    <namespace>mnncorrect</namespace>
-  </compound>
-  <compound kind="file">
     <name>mnncorrect.hpp</name>
     <path>mnncorrect/</path>
     <filename>mnncorrect_8hpp.html</filename>
-    <includes id="Options_8hpp" name="Options.hpp" local="yes" import="no" module="no" objc="no">Options.hpp</includes>
-    <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
-    <includes id="compute_8hpp" name="compute.hpp" local="yes" import="no" module="no" objc="no">compute.hpp</includes>
-    <namespace>mnncorrect</namespace>
-  </compound>
-  <compound kind="file">
-    <name>Options.hpp</name>
-    <path>mnncorrect/</path>
-    <filename>Options_8hpp.html</filename>
     <includes id="utils_8hpp" name="utils.hpp" local="yes" import="no" module="no" objc="no">utils.hpp</includes>
     <class kind="struct">mnncorrect::Options</class>
-    <namespace>mnncorrect</namespace>
-  </compound>
-  <compound kind="file">
-    <name>parallelize.hpp</name>
-    <path>mnncorrect/</path>
-    <filename>parallelize_8hpp.html</filename>
     <namespace>mnncorrect</namespace>
   </compound>
   <compound kind="file">
@@ -37,24 +13,6 @@
     <path>mnncorrect/</path>
     <filename>utils_8hpp.html</filename>
     <namespace>mnncorrect</namespace>
-  </compound>
-  <compound kind="struct">
-    <name>mnncorrect::Details</name>
-    <filename>structmnncorrect_1_1Details.html</filename>
-    <member kind="variable">
-      <type>std::vector&lt; BatchIndex &gt;</type>
-      <name>merge_order</name>
-      <anchorfile>structmnncorrect_1_1Details.html</anchorfile>
-      <anchor>ae0fc3574cf34e251916cf6eadb56e62b</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>std::vector&lt; unsigned long long &gt;</type>
-      <name>num_pairs</name>
-      <anchorfile>structmnncorrect_1_1Details.html</anchorfile>
-      <anchor>ab0489fb429ee3efe9dedf421b3e8ae46</anchor>
-      <arglist></arglist>
-    </member>
   </compound>
   <compound kind="struct">
     <name>mnncorrect::Options</name>
@@ -70,10 +28,10 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>double</type>
-      <name>num_mads</name>
+      <type>int</type>
+      <name>num_steps</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>aa1257dbad59eb1fe7f3f74743b8a2aa7</anchor>
+      <anchor>a2ec5fc17723c0c92611c942a77b1f83f</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -84,45 +42,10 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>std::vector&lt; BatchIndex &gt;</type>
-      <name>order</name>
+      <type>MergePolicy</type>
+      <name>merge_policy</name>
       <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>af7fb23a91bf44aae00581e8d832c4351</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>bool</type>
-      <name>automatic_order</name>
-      <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>afb71da89c11ab9a91b2542460fe0b652</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>int</type>
-      <name>robust_iterations</name>
-      <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a4a52b39e6d30a5f97358b0a5478c765d</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>double</type>
-      <name>robust_trim</name>
-      <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a5383753859038cf0a1e7bc8f7b5ae025</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>ReferencePolicy</type>
-      <name>reference_policy</name>
-      <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>aacb2b4821b13989b2c904cacceab009b</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>Index_</type>
-      <name>mass_cap</name>
-      <anchorfile>structmnncorrect_1_1Options.html</anchorfile>
-      <anchor>a24eeb8491341845c33b8fdf59bc081f5</anchor>
+      <anchor>af9da9756546454fdd88a9ab7afc7a34e</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -136,7 +59,6 @@
   <compound kind="namespace">
     <name>mnncorrect</name>
     <filename>namespacemnncorrect.html</filename>
-    <class kind="struct">mnncorrect::Details</class>
     <class kind="struct">mnncorrect::Options</class>
     <member kind="typedef">
       <type>std::size_t</type>
@@ -147,35 +69,14 @@
     </member>
     <member kind="enumeration">
       <type></type>
-      <name>ReferencePolicy</name>
+      <name>MergePolicy</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a628f306b43e4b2a96382aa7025940694</anchor>
+      <anchor>a5a9c9f9569fcad76a5e735cd8fae0197</anchor>
       <arglist></arglist>
-      <enumvalue file="namespacemnncorrect.html" anchor="a628f306b43e4b2a96382aa7025940694aa84cc046d48610b05c21fd3670d0c829">INPUT</enumvalue>
-      <enumvalue file="namespacemnncorrect.html" anchor="a628f306b43e4b2a96382aa7025940694aa4932cf9fffdd4b9b00f4d289ba7f205">MAX_SIZE</enumvalue>
-      <enumvalue file="namespacemnncorrect.html" anchor="a628f306b43e4b2a96382aa7025940694a7a297b1e360b1ac7fcd220b55691b3a0">MAX_VARIANCE</enumvalue>
-      <enumvalue file="namespacemnncorrect.html" anchor="a628f306b43e4b2a96382aa7025940694a2206c5fadc2d0a3af1186b871642cfdf">MAX_RSS</enumvalue>
-    </member>
-    <member kind="function">
-      <type>Details</type>
-      <name>compute</name>
-      <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>adb405eb08977f1680f1a717db3afd4a8</anchor>
-      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
-    </member>
-    <member kind="function">
-      <type>Details</type>
-      <name>compute</name>
-      <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>ad03058d929f26376d9a06ccd8317c382</anchor>
-      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *input, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
-    </member>
-    <member kind="function">
-      <type>Details</type>
-      <name>compute</name>
-      <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a3d0ccdc1c91779a0aecac6ad73fe15ab</anchor>
-      <arglist>(std::size_t num_dim, Index_ num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <enumvalue file="namespacemnncorrect.html" anchor="a5a9c9f9569fcad76a5e735cd8fae0197aa84cc046d48610b05c21fd3670d0c829">INPUT</enumvalue>
+      <enumvalue file="namespacemnncorrect.html" anchor="a5a9c9f9569fcad76a5e735cd8fae0197a62e5cef85d46f1a5a2144d9fd463b79e">SIZE</enumvalue>
+      <enumvalue file="namespacemnncorrect.html" anchor="a5a9c9f9569fcad76a5e735cd8fae0197ace18bb9a2b22515d0cd36bca6b998bde">VARIANCE</enumvalue>
+      <enumvalue file="namespacemnncorrect.html" anchor="a5a9c9f9569fcad76a5e735cd8fae0197abf1981220040a8ac147698c85d55334f">RSS</enumvalue>
     </member>
     <member kind="function">
       <type>void</type>
@@ -183,6 +84,27 @@
       <anchorfile>namespacemnncorrect.html</anchorfile>
       <anchor>a1b556e96c8995a0dba23e412b75c838a</anchor>
       <arglist>(int num_workers, Task_ num_tasks, Run_ run_task_range)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>compute</name>
+      <anchorfile>namespacemnncorrect.html</anchorfile>
+      <anchor>a0ce88c6787f0f2ec73101fc234589ee6</anchor>
+      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>compute</name>
+      <anchorfile>namespacemnncorrect.html</anchorfile>
+      <anchor>aaa1ac3e8b237d6402465f21cb5b62f20</anchor>
+      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *input, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>compute</name>
+      <anchorfile>namespacemnncorrect.html</anchorfile>
+      <anchor>aee9c4838402953d68aec1596983d01ee</anchor>
+      <arglist>(std::size_t num_dim, Index_ num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
   </compound>
   <compound kind="page">

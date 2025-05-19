@@ -104,29 +104,66 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#define MNNCORRECT_UTILS_HPP</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span> </div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;vector&gt;</span></div>
-<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;limits&gt;</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;type_traits&gt;</span></div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &lt;algorithm&gt;</span></div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &lt;cstddef&gt;</span></div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span> </div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">   20</a></span><span class="keyword">typedef</span> std::size_t <a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a>;</div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;algorithm&gt;</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;memory&gt;</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &lt;cstddef&gt;</span></div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span> </div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="preprocessor">#include &quot;<a class="codeRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</span></div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span> </div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="preprocessor">#ifndef MNNCORRECT_CUSTOM_PARALLEL</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="preprocessor">#include &quot;subpar/subpar.hpp&quot;</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span> </div>
+<div class="foldopen" id="foldopen00020" data-start="{" data-end="}">
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html">   20</a></span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {</div>
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">   38</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">ReferencePolicy</a> : <span class="keywordtype">char</span> { INPUT, MAX_SIZE, MAX_VARIANCE, MAX_RSS };</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span> </div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="keyword">namespace </span>internal {</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Distance_&gt;</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="keyword">using </span>NeighborSet = std::vector&lt;std::vector&lt;std::pair&lt;Index_, Distance_&gt; &gt; &gt;;</div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>}</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>}</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="preprocessor">#endif</span></div>
-<div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> compute.hpp:24</div></div>
-<div class="ttc" id="anamespacemnncorrect_html_a628f306b43e4b2a96382aa7025940694"><div class="ttname"><a href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">mnncorrect::ReferencePolicy</a></div><div class="ttdeci">ReferencePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:38</div></div>
-<div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:20</div></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">   25</a></span><span class="keyword">typedef</span> std::size_t <a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a>;</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">   42</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">MergePolicy</a> : <span class="keywordtype">char</span> { INPUT, SIZE, VARIANCE, RSS };</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Task_, <span class="keyword">class</span> Run_&gt;</div>
+<div class="foldopen" id="foldopen00057" data-start="{" data-end="}">
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">   57</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">parallelize</a>(<span class="keywordtype">int</span> num_workers, Task_ num_tasks, Run_ run_task_range) {</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span><span class="preprocessor">#ifndef MNNCORRECT_CUSTOM_PARALLEL</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="comment">// Methods could allocate or throw, so nothrow_ = false is safest.</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    subpar::parallelize_range&lt;false&gt;(num_workers, num_tasks, std::move(run_task_range));</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    MNNCORRECT_CUSTOM_PARALLEL(num_workers, num_tasks, run_task_range);</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>}</div>
+</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span> </div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="keyword">namespace </span>internal {</div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span> </div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Distance_&gt;</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="keyword">using </span>NeighborSet = std::vector&lt;std::vector&lt;std::pair&lt;Index_, Distance_&gt; &gt; &gt;;</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_&gt;</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="keyword">struct </span>Corrected {</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    Corrected() = <span class="keywordflow">default</span>;</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    Corrected(std::unique_ptr&lt;<a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html">knncolle::Prebuilt&lt;Index_, Float_, Float_&gt;</a> &gt; index, std::vector&lt;Index_&gt; ids) : index(std::move(index)), ids(std::move(ids)) {}</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>    std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; index;</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    std::vector&lt;Index_&gt; ids;</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>};</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_&gt;</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="keyword">struct </span>BatchInfo {</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    Index_ offset, num_obs;</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; index;</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>    std::vector&lt;Corrected&lt;Index_, Float_&gt; &gt; extras;</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>};</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span> </div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>}</div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>}</div>
+</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span> </div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span><span class="preprocessor">#endif</span></div>
+<div class="ttc" id="aclassknncolle_1_1Prebuilt_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html">knncolle::Prebuilt</a></div></div>
+<div class="ttc" id="aknncolle_8hpp_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle.hpp</a></div></div>
+<div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> utils.hpp:20</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a1b556e96c8995a0dba23e412b75c838a"><div class="ttname"><a href="namespacemnncorrect.html#a1b556e96c8995a0dba23e412b75c838a">mnncorrect::parallelize</a></div><div class="ttdeci">void parallelize(int num_workers, Task_ num_tasks, Run_ run_task_range)</div><div class="ttdef"><b>Definition</b> utils.hpp:57</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a5a9c9f9569fcad76a5e735cd8fae0197"><div class="ttname"><a href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a></div><div class="ttdeci">MergePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:42</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:25</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

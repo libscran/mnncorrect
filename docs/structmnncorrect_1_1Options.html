@@ -104,37 +104,27 @@ $(function(){ initResizable(false); });
 </div><!--header-->
 <div class="contents">
 
-<p><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">compute()</a></code>.  
+<p><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute()</a></code>.  
  <a href="#details">More...</a></p>
 
-<p><code>#include &lt;<a class="el" href="Options_8hpp_source.html">Options.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="mnncorrect_8hpp_source.html">mnncorrect.hpp</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:ab5023728bd400bacaa74812cb8a56b5d" id="r_ab5023728bd400bacaa74812cb8a56b5d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab5023728bd400bacaa74812cb8a56b5d">num_neighbors</a> = 15</td></tr>
 <tr class="separator:ab5023728bd400bacaa74812cb8a56b5d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa1257dbad59eb1fe7f3f74743b8a2aa7" id="r_aa1257dbad59eb1fe7f3f74743b8a2aa7"><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa1257dbad59eb1fe7f3f74743b8a2aa7">num_mads</a> = 3</td></tr>
-<tr class="separator:aa1257dbad59eb1fe7f3f74743b8a2aa7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2ec5fc17723c0c92611c942a77b1f83f" id="r_a2ec5fc17723c0c92611c942a77b1f83f"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a2ec5fc17723c0c92611c942a77b1f83f">num_steps</a> = 1</td></tr>
+<tr class="separator:a2ec5fc17723c0c92611c942a77b1f83f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7143d3f30635f258730d15fc2eff8e40" id="r_a7143d3f30635f258730d15fc2eff8e40"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html">knncolle::Builder</a>&lt; Index_, Float_, Float_, Matrix_ &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7143d3f30635f258730d15fc2eff8e40">builder</a></td></tr>
 <tr class="separator:a7143d3f30635f258730d15fc2eff8e40"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af7fb23a91bf44aae00581e8d832c4351" id="r_af7fb23a91bf44aae00581e8d832c4351"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">order</a></td></tr>
-<tr class="separator:af7fb23a91bf44aae00581e8d832c4351"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afb71da89c11ab9a91b2542460fe0b652" id="r_afb71da89c11ab9a91b2542460fe0b652"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">automatic_order</a> = true</td></tr>
-<tr class="separator:afb71da89c11ab9a91b2542460fe0b652"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4a52b39e6d30a5f97358b0a5478c765d" id="r_a4a52b39e6d30a5f97358b0a5478c765d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4a52b39e6d30a5f97358b0a5478c765d">robust_iterations</a> = 2</td></tr>
-<tr class="separator:a4a52b39e6d30a5f97358b0a5478c765d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5383753859038cf0a1e7bc8f7b5ae025" id="r_a5383753859038cf0a1e7bc8f7b5ae025"><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a5383753859038cf0a1e7bc8f7b5ae025">robust_trim</a> = 0.25</td></tr>
-<tr class="separator:a5383753859038cf0a1e7bc8f7b5ae025"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aacb2b4821b13989b2c904cacceab009b" id="r_aacb2b4821b13989b2c904cacceab009b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">ReferencePolicy</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aacb2b4821b13989b2c904cacceab009b">reference_policy</a> = ReferencePolicy::MAX_RSS</td></tr>
-<tr class="separator:aacb2b4821b13989b2c904cacceab009b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a24eeb8491341845c33b8fdf59bc081f5" id="r_a24eeb8491341845c33b8fdf59bc081f5"><td class="memItemLeft" align="right" valign="top">Index_&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a24eeb8491341845c33b8fdf59bc081f5">mass_cap</a> = 0</td></tr>
-<tr class="separator:a24eeb8491341845c33b8fdf59bc081f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af9da9756546454fdd88a9ab7afc7a34e" id="r_af9da9756546454fdd88a9ab7afc7a34e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">MergePolicy</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af9da9756546454fdd88a9ab7afc7a34e">merge_policy</a> = MergePolicy::RSS</td></tr>
+<tr class="separator:af9da9756546454fdd88a9ab7afc7a34e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1e850cce8e765cf5e7b03ea3d240ce2" id="r_aa1e850cce8e765cf5e7b03ea3d240ce2"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa1e850cce8e765cf5e7b03ea3d240ce2">num_threads</a> = 1</td></tr>
 <tr class="separator:aa1e850cce8e765cf5e7b03ea3d240ce2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename Index_, typename Float_, class Matrix_ = knncolle::Matrix&lt;Index_, Float_&gt;&gt;<br />
-struct mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</div><p><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">compute()</a></code>. </p>
+struct mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</div><p><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute()</a></code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Index_</td><td>Integer type for the observation indices. </td></tr>
@@ -144,26 +134,6 @@ struct mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</div><p><a class="el
   </dd>
 </dl>
 </div><h2 class="groupheader">Member Data Documentation</h2>
-<a id="afb71da89c11ab9a91b2542460fe0b652" name="afb71da89c11ab9a91b2542460fe0b652"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#afb71da89c11ab9a91b2542460fe0b652">&#9670;&#160;</a></span>automatic_order</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">bool <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::automatic_order = true</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Should batches be merged in an automatically-determined order?</p>
-<p>If <code>true</code> and <code><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">Options::order</a></code> is empty, the largest batch is used as the reference and other batches are successively merged onto it. At each merge step, we choose the batch that forms the largest number of MNNs with the current reference, and the merged dataset is defined as the new reference.</p>
-<p>If this is empty and <code><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">Options::automatic_order</a> = false</code>, batches are merged in the order that they were supplied in <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">compute()</a></code>. If a <code>batch</code> array was supplied, the batches are merged in order of their identifiers, i.e., batch 0 is the reference.</p>
-<p>If <code><a class="el" href="#af7fb23a91bf44aae00581e8d832c4351">Options::order</a></code> is non-empty, this setting is ignored and the manually specified order is always used. </p>
-
-</div>
-</div>
 <a id="a7143d3f30635f258730d15fc2eff8e40" name="a7143d3f30635f258730d15fc2eff8e40"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7143d3f30635f258730d15fc2eff8e40">&#9670;&#160;</a></span>builder</h2>
 
@@ -181,8 +151,8 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
 
 </div>
 </div>
-<a id="a24eeb8491341845c33b8fdf59bc081f5" name="a24eeb8491341845c33b8fdf59bc081f5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a24eeb8491341845c33b8fdf59bc081f5">&#9670;&#160;</a></span>mass_cap</h2>
+<a id="af9da9756546454fdd88a9ab7afc7a34e" name="af9da9756546454fdd88a9ab7afc7a34e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af9da9756546454fdd88a9ab7afc7a34e">&#9670;&#160;</a></span>merge_policy</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -190,28 +160,11 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
 template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">Index_ <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::mass_cap = 0</td>
+          <td class="memname"><a class="el" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">MergePolicy</a> <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::merge_policy = MergePolicy::RSS</td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Cap on the number of observations used to compute the center of mass for each MNN-involved observation in the reference dataset. The reference dataset is effectively downsampled to <code>mass_cap</code> observations for this specific calculation, which speeds up multiple correction iterations at the cost of some precision. If zero, no cap is used. </p>
-
-</div>
-</div>
-<a id="aa1257dbad59eb1fe7f3f74743b8a2aa7" name="aa1257dbad59eb1fe7f3f74743b8a2aa7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa1257dbad59eb1fe7f3f74743b8a2aa7">&#9670;&#160;</a></span>num_mads</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">double <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::num_mads = 3</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Number of median absolute deviations to use to define the distance threshold for the center of mass calculations. Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass. </p>
+<p>Policy to use to choose the merge order. </p>
 
 </div>
 </div>
@@ -228,8 +181,24 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Number of neighbors used in various search steps, primarily to identify MNN pairs. Larger values increase the number of MNN pairs and improve the stability of the correction, at the cost of reduced resolution of matching subpopulations across batches.</p>
-<p>The number of neighbors is also used to identify the closest MNN pairs when computing the average correction vector for each target observation. Again, this improves stability at the cost of resolution for local variations in the correction vectors. </p>
+<p>Number of neighbors for the various search steps, primarily to identify MNN pairs. This can also be interpreted as the lower bound on the number of observations in each "subpopulation". Larger values increase improve the stability of the correction, at the cost of reduced resolution when matching subpopulations across batches. </p>
+
+</div>
+</div>
+<a id="a2ec5fc17723c0c92611c942a77b1f83f" name="a2ec5fc17723c0c92611c942a77b1f83f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2ec5fc17723c0c92611c942a77b1f83f">&#9670;&#160;</a></span>num_steps</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">int <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::num_steps = 1</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Number of steps for the recursive neighbor search to compute the center of mass. Larger values mitigate the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass. </p>
 
 </div>
 </div>
@@ -250,78 +219,8 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
 
 </div>
 </div>
-<a id="af7fb23a91bf44aae00581e8d832c4351" name="af7fb23a91bf44aae00581e8d832c4351"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af7fb23a91bf44aae00581e8d832c4351">&#9670;&#160;</a></span>order</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">std::vector&lt;<a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a>&gt; <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::order</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Manually specified merge order for the batches. This should contain a permutation of all integers in \({0, 1, 2, ..., N-1}\) where \(N\) is the number of batches. Each entry of this vector corresponds to a batch.</p>
-<p>At the first merge step, the <code>order[0]</code> batch is considered to be the reference. <code>order[1]</code> is corrected against the reference and merged to form a new reference. This is repeated for each remaining batch in the order specified by <code>order</code>.</p>
-<p>If this is empty and <code><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">Options::automatic_order</a> = false</code>, batches are merged in the order that they were supplied in <code><a class="el" href="namespacemnncorrect.html#adb405eb08977f1680f1a717db3afd4a8">compute()</a></code>. If a <code>batch</code> array was supplied, the batches are merged in order of their identifiers, i.e., batch 0 is the reference. </p>
-
-</div>
-</div>
-<a id="aacb2b4821b13989b2c904cacceab009b" name="aacb2b4821b13989b2c904cacceab009b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aacb2b4821b13989b2c904cacceab009b">&#9670;&#160;</a></span>reference_policy</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="namespacemnncorrect.html#a628f306b43e4b2a96382aa7025940694">ReferencePolicy</a> <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::reference_policy = ReferencePolicy::MAX_RSS</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Policy to use to choose the reference batch when <code><a class="el" href="#afb71da89c11ab9a91b2542460fe0b652">Options::automatic_order</a> = true</code>. </p>
-
-</div>
-</div>
-<a id="a4a52b39e6d30a5f97358b0a5478c765d" name="a4a52b39e6d30a5f97358b0a5478c765d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4a52b39e6d30a5f97358b0a5478c765d">&#9670;&#160;</a></span>robust_iterations</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">int <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::robust_iterations = 2</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Number of iterations to use for robustification when computing the center of mass for each MNN-involved cell. At each iteration, the observations furthest from the center are removed, and the center is recomputed with the remaining observations. </p>
-
-</div>
-</div>
-<a id="a5383753859038cf0a1e7bc8f7b5ae025" name="a5383753859038cf0a1e7bc8f7b5ae025"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5383753859038cf0a1e7bc8f7b5ae025">&#9670;&#160;</a></span>robust_trim</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matrix&lt;Index_, Float_&gt;&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">double <a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options</a>&lt; Index_, Float_, Matrix_ &gt;::robust_trim = 0.25</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Trimming proportion to use for robustification when computing the center of mass. The proportion of observations with the largest distances from the center are removed for the next iteration of the center calculation. </p>
-
-</div>
-</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li>mnncorrect/<a class="el" href="Options_8hpp_source.html">Options.hpp</a></li>
+<li>mnncorrect/<a class="el" href="mnncorrect_8hpp_source.html">mnncorrect.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

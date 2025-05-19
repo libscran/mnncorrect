@@ -98,67 +98,84 @@ $(function(){ initResizable(false); });
 <div id="doc-content">
 <div class="header">
   <div class="summary">
-<a href="#namespaces">Namespaces</a>  </div>
+<a href="#nested-classes">Classes</a> &#124;
+<a href="#namespaces">Namespaces</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">mnncorrect.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
 <p>Batch correction with mutual nearest neighbors.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &quot;<a class="el" href="Options_8hpp_source.html">Options.hpp</a>&quot;</code><br />
+<div class="textblock"><code>#include &lt;algorithm&gt;</code><br />
+<code>#include &lt;vector&gt;</code><br />
+<code>#include &lt;numeric&gt;</code><br />
+<code>#include &lt;stdexcept&gt;</code><br />
+<code>#include &lt;cstddef&gt;</code><br />
+<code>#include &quot;<a class="elRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</code><br />
+<code>#include &quot;AutomaticOrder.hpp&quot;</code><br />
+<code>#include &quot;restore_input_order.hpp&quot;</code><br />
 <code>#include &quot;<a class="el" href="utils_8hpp_source.html">utils.hpp</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="compute_8hpp_source.html">compute.hpp</a>&quot;</code><br />
 </div><div class="textblock"><div class="dynheader">
 Include dependency graph for mnncorrect.hpp:</div>
 <div class="dyncontent">
 <div class="center"><img src="mnncorrect_8hpp__incl.png" border="0" usemap="#amnncorrect_2mnncorrect_8hpp" alt=""/></div>
 <map name="amnncorrect_2mnncorrect_8hpp" id="amnncorrect_2mnncorrect_8hpp">
-<area shape="rect" title="Batch correction with mutual nearest neighbors." alt="" coords="837,5,1016,31"/>
-<area shape="rect" href="Options_8hpp.html" title="Options for MNN correction." alt="" coords="881,153,972,178"/>
-<area shape="poly" title=" " alt="" coords="929,31,929,137,924,137,924,31"/>
-<area shape="rect" href="utils_8hpp.html" title="Utilities for MNN correction." alt="" coords="951,226,1020,252"/>
-<area shape="poly" title=" " alt="" coords="936,30,962,82,976,116,987,152,990,183,990,211,985,211,985,183,981,153,971,118,957,84,931,33"/>
-<area shape="rect" href="compute_8hpp.html" title="Compute the MNN correction." alt="" coords="595,79,690,105"/>
-<area shape="poly" title=" " alt="" coords="879,34,706,77,705,72,878,29"/>
-<area shape="rect" target="_parent" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html" title=" " alt="" coords="781,226,926,252"/>
-<area shape="poly" title=" " alt="" coords="916,180,878,217,874,214,913,177"/>
-<area shape="poly" title=" " alt="" coords="938,177,968,213,964,216,934,180"/>
-<area shape="rect" title=" " alt="" coords="825,300,882,326"/>
-<area shape="poly" title=" " alt="" coords="964,255,890,295,887,290,962,250"/>
-<area shape="rect" title=" " alt="" coords="914,300,966,326"/>
-<area shape="poly" title=" " alt="" coords="980,254,958,288,953,285,976,251"/>
-<area shape="rect" title=" " alt="" coords="990,300,1071,326"/>
-<area shape="poly" title=" " alt="" coords="995,251,1017,285,1013,288,990,254"/>
-<area shape="rect" title=" " alt="" coords="709,300,784,326"/>
-<area shape="poly" title=" " alt="" coords="951,254,799,299,798,294,949,248"/>
-<area shape="rect" title=" " alt="" coords="304,300,368,326"/>
-<area shape="poly" title=" " alt="" coords="951,252,939,255,780,278,623,294,383,312,383,306,622,289,779,272,938,249,950,247"/>
-<area shape="poly" title=" " alt="" coords="691,103,867,146,866,152,690,108"/>
-<area shape="poly" title=" " alt="" coords="673,103,717,123,763,150,802,182,834,213,830,217,798,186,760,155,714,128,671,108"/>
-<area shape="poly" title=" " alt="" coords="676,103,797,150,947,217,945,222,795,155,674,108"/>
-<area shape="poly" title=" " alt="" coords="656,103,698,151,732,202,747,225,770,250,821,289,818,294,766,254,743,228,728,205,694,154,652,107"/>
-<area shape="poly" title=" " alt="" coords="651,104,737,285,732,288,646,106"/>
-<area shape="poly" title=" " alt="" coords="594,97,452,101,271,112,109,129,53,141,24,155,13,170,9,185,10,199,16,211,44,235,86,255,137,272,191,285,289,303,288,308,190,290,135,277,84,260,41,239,12,214,5,200,3,184,8,168,21,151,52,136,108,124,270,106,452,96,594,91"/>
-<area shape="rect" title=" " alt="" coords="34,153,102,178"/>
-<area shape="poly" title=" " alt="" coords="595,99,391,117,256,133,117,155,116,150,256,128,390,112,594,94"/>
-<area shape="rect" title=" " alt="" coords="125,153,203,178"/>
-<area shape="poly" title=" " alt="" coords="595,101,432,122,218,155,218,150,432,116,595,96"/>
-<area shape="rect" title=" " alt="" coords="226,153,363,178"/>
-<area shape="poly" title=" " alt="" coords="595,106,369,152,368,146,594,100"/>
-<area shape="rect" title=" " alt="" coords="387,153,509,178"/>
-<area shape="poly" title=" " alt="" coords="610,108,496,149,495,144,609,103"/>
-<area shape="rect" title=" " alt="" coords="533,153,654,178"/>
-<area shape="poly" title=" " alt="" coords="637,106,612,141,608,138,632,103"/>
+<area shape="rect" title="Batch correction with mutual nearest neighbors." alt="" coords="262,5,442,31"/>
+<area shape="rect" title=" " alt="" coords="5,153,80,178"/>
+<area shape="poly" title=" " alt="" coords="309,34,248,54,181,81,122,114,73,146,70,141,120,109,179,77,246,49,308,29"/>
+<area shape="rect" title=" " alt="" coords="103,153,160,178"/>
+<area shape="poly" title=" " alt="" coords="315,34,267,54,217,81,182,111,153,143,149,139,178,107,214,77,265,49,313,29"/>
+<area shape="rect" title=" " alt="" coords="389,79,456,105"/>
+<area shape="poly" title=" " alt="" coords="365,29,402,66,398,70,362,33"/>
+<area shape="rect" title=" " alt="" coords="480,79,557,105"/>
+<area shape="poly" title=" " alt="" coords="381,29,477,70,475,75,379,34"/>
+<area shape="rect" title=" " alt="" coords="185,153,249,178"/>
+<area shape="poly" title=" " alt="" coords="307,34,268,52,250,65,235,80,223,108,219,137,214,137,218,107,231,78,247,61,265,48,305,29"/>
+<area shape="rect" target="_parent" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html" title=" " alt="" coords="515,153,660,178"/>
+<area shape="poly" title=" " alt="" coords="355,31,360,67,367,86,379,103,399,115,429,127,505,146,503,152,428,132,396,120,375,107,362,89,355,68,349,32"/>
+<area shape="rect" title=" " alt="" coords="581,79,717,105"/>
+<area shape="poly" title=" " alt="" coords="403,29,584,72,583,77,402,34"/>
+<area shape="rect" title=" " alt="" coords="742,79,898,105"/>
+<area shape="poly" title=" " alt="" coords="432,29,726,74,726,79,431,34"/>
+<area shape="rect" href="utils_8hpp.html" title="Utilities for MNN correction." alt="" coords="245,79,314,105"/>
+<area shape="poly" title=" " alt="" coords="342,33,305,70,301,66,338,29"/>
+<area shape="poly" title=" " alt="" coords="246,106,95,151,94,146,244,101"/>
+<area shape="poly" title=" " alt="" coords="256,108,172,148,170,143,254,103"/>
+<area shape="poly" title=" " alt="" coords="271,107,240,142,236,139,267,103"/>
+<area shape="poly" title=" " alt="" coords="316,99,521,146,520,151,315,104"/>
+<area shape="rect" title=" " alt="" coords="273,153,340,178"/>
+<area shape="poly" title=" " alt="" coords="287,104,299,137,294,139,282,106"/>
+<area shape="rect" title=" " alt="" coords="364,153,492,178"/>
+<area shape="poly" title=" " alt="" coords="306,103,390,143,388,148,304,108"/>
 </map>
 </div>
 </div>
 <p><a href="mnncorrect_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute()</a></code>.  <a href="structmnncorrect_1_1Options.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html">mnncorrect</a></td></tr>
 <tr class="memdesc:namespacemnncorrect"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction with mutual nearest neighbors. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:a0ce88c6787f0f2ec73101fc234589ee6" id="r_a0ce88c6787f0f2ec73101fc234589ee6"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:a0ce88c6787f0f2ec73101fc234589ee6"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute</a> (std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:a0ce88c6787f0f2ec73101fc234589ee6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa1ac3e8b237d6402465f21cb5b62f20" id="r_aaa1ac3e8b237d6402465f21cb5b62f20"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:aaa1ac3e8b237d6402465f21cb5b62f20"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#aaa1ac3e8b237d6402465f21cb5b62f20">mnncorrect::compute</a> (std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *input, Float_ *output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:aaa1ac3e8b237d6402465f21cb5b62f20"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee9c4838402953d68aec1596983d01ee" id="r_aee9c4838402953d68aec1596983d01ee"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:aee9c4838402953d68aec1596983d01ee"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#aee9c4838402953d68aec1596983d01ee">mnncorrect::compute</a> (std::size_t num_dim, Index_ num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:aee9c4838402953d68aec1596983d01ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Batch correction with mutual nearest neighbors. </p>

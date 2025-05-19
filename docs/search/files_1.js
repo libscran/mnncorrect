@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['compute_2ehpp_0',['compute.hpp',['../compute_8hpp.html',1,'']]]
+  ['distances_2ehpp_0',['distances.hpp',['https://knncolle.github.io/knncolle/distances_8hpp.html',1,'']]]
 ];

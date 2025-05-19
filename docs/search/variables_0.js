@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['automatic_5forder_0',['automatic_order',['../structmnncorrect_1_1Options.html#afb71da89c11ab9a91b2542460fe0b652',1,'mnncorrect::Options']]]
+  ['builder_0',['builder',['../structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40',1,'mnncorrect::Options']]]
 ];

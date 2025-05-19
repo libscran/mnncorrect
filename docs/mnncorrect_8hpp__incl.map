@@ -1,38 +1,29 @@
 <map id="mnncorrect/mnncorrect.hpp" name="mnncorrect/mnncorrect.hpp">
-<area shape="rect" id="Node000001" title="Batch correction with mutual nearest neighbors." alt="" coords="837,5,1016,31"/>
-<area shape="rect" id="Node000002" href="$Options_8hpp.html" title="Options for MNN correction." alt="" coords="881,153,972,178"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="929,31,929,137,924,137,924,31"/>
-<area shape="rect" id="Node000004" href="$utils_8hpp.html" title="Utilities for MNN correction." alt="" coords="951,226,1020,252"/>
-<area shape="poly" id="edge9_Node000001_Node000004" title=" " alt="" coords="936,30,962,82,976,116,987,152,990,183,990,211,985,211,985,183,981,153,971,118,957,84,931,33"/>
-<area shape="rect" id="Node000010" href="$compute_8hpp.html" title="Compute the MNN correction." alt="" coords="595,79,690,105"/>
-<area shape="poly" id="edge10_Node000001_Node000010" title=" " alt="" coords="879,34,706,77,705,72,878,29"/>
-<area shape="rect" id="Node000003" href="/github/workspace/docs/knncolle.tag$knncolle_8hpp.html" title=" " alt="" coords="781,226,926,252"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="916,180,878,217,874,214,913,177"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="938,177,968,213,964,216,934,180"/>
-<area shape="rect" id="Node000005" title=" " alt="" coords="825,300,882,326"/>
-<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="964,255,890,295,887,290,962,250"/>
-<area shape="rect" id="Node000006" title=" " alt="" coords="914,300,966,326"/>
-<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="980,254,958,288,953,285,976,251"/>
-<area shape="rect" id="Node000007" title=" " alt="" coords="990,300,1071,326"/>
-<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="995,251,1017,285,1013,288,990,254"/>
-<area shape="rect" id="Node000008" title=" " alt="" coords="709,300,784,326"/>
-<area shape="poly" id="edge7_Node000004_Node000008" title=" " alt="" coords="951,254,799,299,798,294,949,248"/>
-<area shape="rect" id="Node000009" title=" " alt="" coords="304,300,368,326"/>
-<area shape="poly" id="edge8_Node000004_Node000009" title=" " alt="" coords="951,252,939,255,780,278,623,294,383,312,383,306,622,289,779,272,938,249,950,247"/>
-<area shape="poly" id="edge19_Node000010_Node000002" title=" " alt="" coords="691,103,867,146,866,152,690,108"/>
-<area shape="poly" id="edge16_Node000010_Node000003" title=" " alt="" coords="673,103,717,123,763,150,802,182,834,213,830,217,798,186,760,155,714,128,671,108"/>
-<area shape="poly" id="edge21_Node000010_Node000004" title=" " alt="" coords="676,103,797,150,947,217,945,222,795,155,674,108"/>
-<area shape="poly" id="edge12_Node000010_Node000005" title=" " alt="" coords="656,103,698,151,732,202,747,225,770,250,821,289,818,294,766,254,743,228,728,205,694,154,652,107"/>
-<area shape="poly" id="edge11_Node000010_Node000008" title=" " alt="" coords="651,104,737,285,732,288,646,106"/>
-<area shape="poly" id="edge15_Node000010_Node000009" title=" " alt="" coords="594,97,452,101,271,112,109,129,53,141,24,155,13,170,9,185,10,199,16,211,44,235,86,255,137,272,191,285,289,303,288,308,190,290,135,277,84,260,41,239,12,214,5,200,3,184,8,168,21,151,52,136,108,124,270,106,452,96,594,91"/>
-<area shape="rect" id="Node000011" title=" " alt="" coords="34,153,102,178"/>
-<area shape="poly" id="edge13_Node000010_Node000011" title=" " alt="" coords="595,99,391,117,256,133,117,155,116,150,256,128,390,112,594,94"/>
-<area shape="rect" id="Node000012" title=" " alt="" coords="125,153,203,178"/>
-<area shape="poly" id="edge14_Node000010_Node000012" title=" " alt="" coords="595,101,432,122,218,155,218,150,432,116,595,96"/>
-<area shape="rect" id="Node000013" title=" " alt="" coords="226,153,363,178"/>
-<area shape="poly" id="edge17_Node000010_Node000013" title=" " alt="" coords="595,106,369,152,368,146,594,100"/>
-<area shape="rect" id="Node000014" title=" " alt="" coords="387,153,509,178"/>
-<area shape="poly" id="edge18_Node000010_Node000014" title=" " alt="" coords="610,108,496,149,495,144,609,103"/>
-<area shape="rect" id="Node000015" title=" " alt="" coords="533,153,654,178"/>
-<area shape="poly" id="edge20_Node000010_Node000015" title=" " alt="" coords="637,106,612,141,608,138,632,103"/>
+<area shape="rect" id="Node000001" title="Batch correction with mutual nearest neighbors." alt="" coords="262,5,442,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,153,80,178"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="309,34,248,54,181,81,122,114,73,146,70,141,120,109,179,77,246,49,308,29"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="103,153,160,178"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="315,34,267,54,217,81,182,111,153,143,149,139,178,107,214,77,265,49,313,29"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="389,79,456,105"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="365,29,402,66,398,70,362,33"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="480,79,557,105"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="381,29,477,70,475,75,379,34"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="185,153,249,178"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="307,34,268,52,250,65,235,80,223,108,219,137,214,137,218,107,231,78,247,61,265,48,305,29"/>
+<area shape="rect" id="Node000007" href="/github/workspace/docs/knncolle.tag$knncolle_8hpp.html" title=" " alt="" coords="515,153,660,178"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="355,31,360,67,367,86,379,103,399,115,429,127,505,146,503,152,428,132,396,120,375,107,362,89,355,68,349,32"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="581,79,717,105"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="403,29,584,72,583,77,402,34"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="742,79,898,105"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="432,29,726,74,726,79,431,34"/>
+<area shape="rect" id="Node000010" href="$utils_8hpp.html" title="Utilities for MNN correction." alt="" coords="245,79,314,105"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="342,33,305,70,301,66,338,29"/>
+<area shape="poly" id="edge11_Node000010_Node000002" title=" " alt="" coords="246,106,95,151,94,146,244,101"/>
+<area shape="poly" id="edge10_Node000010_Node000003" title=" " alt="" coords="256,108,172,148,170,143,254,103"/>
+<area shape="poly" id="edge13_Node000010_Node000006" title=" " alt="" coords="271,107,240,142,236,139,267,103"/>
+<area shape="poly" id="edge14_Node000010_Node000007" title=" " alt="" coords="316,99,521,146,520,151,315,104"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="273,153,340,178"/>
+<area shape="poly" id="edge12_Node000010_Node000011" title=" " alt="" coords="287,104,299,137,294,139,282,106"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="364,153,492,178"/>
+<area shape="poly" id="edge15_Node000010_Node000012" title=" " alt="" coords="306,103,390,143,388,148,304,108"/>
 </map>
