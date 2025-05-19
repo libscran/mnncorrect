@@ -1,6 +1,7 @@
 #include "scran_tests/scran_tests.hpp"
 
 #include "custom_parallel.h" // Must be before any mnncorrect includes.
+#include "utils.h"
 
 #include "mnncorrect/correct_target.hpp"
 #include "mnncorrect/fuse_nn_results.hpp"
@@ -10,292 +11,520 @@
 #include <utility>
 #include <vector>
 
-TEST(CorrectTarget, InvertNeighbors) {
-    mnncorrect::internal::NeighborSet<int, double> nns(4);
-    nns[0].emplace_back(4, 0.12); // distances are more-or-less random. 
-    nns[0].emplace_back(1, 0.32);
-    nns[0].emplace_back(2, 1);
-
-    nns[1].emplace_back(2, 0.3);
-    nns[1].emplace_back(3, 0.5);
-    nns[1].emplace_back(4, 1);
-
-    nns[2].emplace_back(0, 0.1);
-    nns[3].emplace_back(4, 0.01);
-
-    auto inv = mnncorrect::internal::invert_neighbors(5, nns, /* num_threads = */ 1);
-    EXPECT_EQ(inv.size(), 5);
-    {
-        std::vector<std::pair<int, double> > exp0 { { 2, 0.1 } };
-        EXPECT_EQ(inv[0], exp0);
-        std::vector<std::pair<int, double> > exp1 { { 0, 0.32 } };
-        EXPECT_EQ(inv[1], exp1);
-        std::vector<std::pair<int, double> > exp2 { { 1, 0.3 }, { 0, 1 } };
-        EXPECT_EQ(inv[2], exp2);
-        std::vector<std::pair<int, double> > exp3 { { 1, 0.5 } };
-        EXPECT_EQ(inv[3], exp3);
-        std::vector<std::pair<int, double> > exp4 { { 3, 0.01 }, { 0, 0.12 }, { 1, 1 } };
-        EXPECT_EQ(inv[4], exp4);
-    }
-
-    auto pinv = mnncorrect::internal::invert_neighbors(5, nns, /* num_threads = */ 3);
-    EXPECT_EQ(inv, pinv);
-}
-
-TEST(CorrectTarget, InvertIndices) {
-    {
-        std::vector<int> u { 0, 2, 3, 4};
-        auto inv = mnncorrect::internal::invert_indices(5, u);
-        std::vector<int> expected{ 0, -1, 1, 2, 3 };
-        EXPECT_EQ(inv, expected);
-    }
-
-    // Works out of order.
-    {
-        std::vector<int> u { 5, 2, 8 };
-        auto inv = mnncorrect::internal::invert_indices(10, u);
-        std::vector<int> expected{ -1, -1, 1, -1, -1, 0, -1, -1, 2, -1 };
-        EXPECT_EQ(inv, expected);
-    }
-}
-
-class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
+class WalkAroundNeighborhoodTest : public ::testing::TestWithParam<std::tuple<int, int, bool> > {
 protected:
-    void SetUp() {
-        auto param = GetParam();
-        nleft = std::get<0>(param);
-        nright = std::get<1>(param);
-        k = std::get<2>(param);
-
-        left = scran_tests::simulate_vector(nleft * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
-            sparams.lower = -2;
-            sparams.upper = 2;
-            sparams.seed = 42 + nleft * 10 + nright + k;
-            return sparams;
-        }());
-
-        right = scran_tests::simulate_vector(nright * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
-            sparams.lower = -2 + 5; // throw in a batch effect.
-            sparams.upper = 2 + 5;
-            sparams.seed = 69 + nleft * 10 + nright + k;
-            return sparams;
-        }());
-
-        knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-        auto left_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, left.data()));
-        auto right_index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nright, right.data()));
-
-        auto neighbors_of_left = mnncorrect::internal::quick_find_nns(nleft, left.data(), *right_index, k, /* nthreads = */ 1);
-        auto neighbors_of_right = mnncorrect::internal::quick_find_nns(nright, right.data(), *left_index, k, /* nthreads = */ 1);
-        pairings = mnncorrect::internal::find_mutual_nns(neighbors_of_left, neighbors_of_right);
+    static void reference(
+        std::size_t ndim,
+        int position,
+        const double* data,
+        knncolle::Searcher<int, double, double>& searcher,
+        int num_neighbors,
+        int remaining_steps,
+        std::vector<int>& indices,
+        std::vector<double>& distances,
+        mnncorrect::internal::NeighborSet<int, double>& neighbors)
+    {
+        if (neighbors[position].empty()) {
+            searcher.search(data + position * ndim, num_neighbors, &indices, &distances);
+            for (decltype(indices.size()) i = 0, end = indices.size(); i < end; ++i) {
+                neighbors[position].emplace_back(indices[i], distances[i]);
+            }
+        }
+        if (!remaining_steps) {
+            return;
+        }
+        for (const auto& pair : neighbors[position]) {
+            reference(
+                ndim,
+                pair.first,
+                data,
+                searcher,
+                num_neighbors,
+                remaining_steps - 1, 
+                indices,
+                distances,
+                neighbors
+            );
+        }
     }
-
-    int ndim = 5;
-    int nleft, nright;
-    int k;
-    std::vector<double> left, right;
-    mnncorrect::internal::MnnPairs<int> pairings;
 };
 
-TEST_P(CorrectTargetTest, CappedFindNns) {
-    auto right_mnn = mnncorrect::internal::unique_right(pairings);
-    std::vector<double> subbuffer(right_mnn.size() * ndim);
-    mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, subbuffer.data());
+TEST_P(WalkAroundNeighborhoodTest, Basic) {
+    auto params = GetParam();
+    auto k = std::get<0>(params);
+    auto steps = std::get<1>(params);
+    auto with_extras = std::get<2>(params);
 
-    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-    auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), subbuffer.data()));
-    auto full = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
+    std::size_t ndim = 5;
+    int nobs = 100;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.seed = k * 10 + steps;
+        return sparams;
+    }());
 
-    auto cap_out = mnncorrect::internal::capped_find_nns(nright, right.data(), *index, k, 23, /* nthreads = */ 1);
-    auto gap = cap_out.first;
-    const auto& capped = cap_out.second;
-
-    EXPECT_EQ(capped.size(), 23);
-    EXPECT_GT(gap, 1);
-    for (std::size_t c = 0; c < capped.size(); ++c) {
-        EXPECT_EQ(full[static_cast<std::size_t>(c * gap)], capped[c]);
-    }
-
-    // Same results in parallel.
-    auto pcap_out = mnncorrect::internal::capped_find_nns(nright, right.data(), *index, k, 23, /* nthreads = */ 3);
-    EXPECT_EQ(pcap_out.first, cap_out.first);
-    EXPECT_EQ(pcap_out.second, cap_out.second);
-}
-
-TEST_P(CorrectTargetTest, CenterOfMass) {
+    mnncorrect::internal::BatchInfo<int, double> batch;
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
-    // Setting up the values for a reasonable comparison.
-    auto left_mnn = mnncorrect::internal::unique_left(pairings);
-    std::vector<double> buffer_left(left_mnn.size() * ndim);
-    {
-        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, buffer_left.data());
-        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, left_mnn.size(), buffer_left.data()));
-        auto closest_mnn = mnncorrect::internal::quick_find_nns(nleft, left.data(), *index, k, /* nthreads = */ 1);
-        auto inverted = mnncorrect::internal::invert_neighbors(left_mnn.size(), closest_mnn, /* nthreads = */ 1);
-        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), buffer_left.data(), /* minimum_required = */ k, /*  num_mads = */ 3, /* nthreads = */ 1);
-
-        // Same results in parallel.
-        std::vector<double> par_buffer_left(left_mnn.size() * ndim);
-        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, inverted, left.data(), par_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 3);
-        EXPECT_EQ(par_buffer_left, buffer_left);
+    if (with_extras) {
+        batch.offset = 20; // [20, 70) is the main batch.
+        batch.num_obs = 50;
+        batch.extras.emplace_back( // [70, 100) is the first extra.
+            builder.build_unique(knncolle::SimpleMatrix(ndim, 30, vec.data() + 70 * ndim)),
+            [&]{
+                std::vector<int> extra(30);
+                std::iota(extra.begin(), extra.end(), 70);
+                return extra;
+            }()
+        );
+        batch.extras.emplace_back( // [0, 20) is the second extra.
+            builder.build_unique(knncolle::SimpleMatrix(ndim, 20, vec.data())), // sprinkle in some extras.
+            [&]{
+                std::vector<int> extra(20);
+                std::iota(extra.begin(), extra.end(), 0);
+                return extra;
+            }()
+        );
+    } else {
+        batch.offset = 0;
+        batch.num_obs = nobs;
     }
+    batch.index = builder.build_unique(knncolle::SimpleMatrix(ndim, batch.num_obs, vec.data() + static_cast<std::size_t>(batch.offset) * ndim));
 
-    auto right_mnn = mnncorrect::internal::unique_right(pairings);
-    std::vector<double> buffer_right(right_mnn.size() * ndim);
-    {
-        mnncorrect::internal::subset_to_mnns(ndim, right.data(), right_mnn, buffer_right.data());
-        auto index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, right_mnn.size(), buffer_right.data()));
-        auto closest_mnn = mnncorrect::internal::quick_find_nns(nright, right.data(), *index, k, /* nthreads = */ 1);
-        auto inverted = mnncorrect::internal::invert_neighbors(right_mnn.size(), closest_mnn, /* nthreads = */ 1);
-        mnncorrect::internal::compute_center_of_mass(ndim, right_mnn, inverted, right.data(), buffer_right.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
-    }
-
-    // Checking that the centroids are all close to the expected values.
-    std::vector<double> left_means(ndim);
-    for (std::size_t s = 0; s < left_mnn.size(); ++s) {
-        for (int d = 0; d < ndim; ++d) {
-            left_means[d] += buffer_left[s * ndim + d];
-        }
-    }
-    for (auto m : left_means) {
-        EXPECT_LT(std::abs(m / left_mnn.size()), 0.5);
-    }
-
-    std::vector<double> right_means(ndim);
-    for (std::size_t s = 0; s < right_mnn.size(); ++s) {
-        for (int d = 0; d < ndim; ++d) {
-            right_means[d] += buffer_right[s * ndim + d];
-        }
-    }
-    for (auto m : right_means) {
-        EXPECT_LT(std::abs(m / right_mnn.size() - 5), 0.5);
-    }
-
-    // Center of mass calculations work correctly if it's all empty.
-    {
-        mnncorrect::internal::NeighborSet<int, double> empty_inverted(left_mnn.size());
-        std::vector<double> empty_buffer_left(left_mnn.size() * ndim);
-        mnncorrect::internal::compute_center_of_mass(ndim, left_mnn, empty_inverted, left.data(), empty_buffer_left.data(), /* minimum_required = */ k, /* num_mads = */ 3, /* nthreads = */ 1);
-
-        std::vector<double> expected(left_mnn.size() * ndim);
-        mnncorrect::internal::subset_to_mnns(ndim, left.data(), left_mnn, expected.data());
-        EXPECT_EQ(empty_buffer_left, expected);
-    }
-}
-
-TEST_P(CorrectTargetTest, Correction) {
-    double nmads = 3;
-    int iterations = 2;
-    double trim = 0.2;
-    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
-
-    std::vector<double> buffer(nright * ndim);
-    mnncorrect::internal::correct_target(
+    std::vector<int> to_check { 1, 5, 17, 31, 53, 97 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nleft,
-        left.data(),
-        nright,
-        right.data(),
-        pairings,
+        nobs, 
+        to_check,
+        vec.data(),
+        batch,
+        k,
+        steps,
+        /* num_threads = */ 1,
+        workspace
+    );
+
+    // Checking against a reference.
+    std::vector<int> indices;
+    std::vector<double> distances;
+    mnncorrect::internal::NeighborSet<int, double> copy(nobs);
+    auto full_index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+    auto searcher = full_index->initialize();
+    for (auto i : to_check) {
+        reference(ndim, i, vec.data(), *searcher, k, steps, indices, distances, copy);
+    }
+    for (int o = 0; o < nobs; ++o) {
+        EXPECT_EQ(workspace.neighbors[o], copy[o]);
+    }
+
+    // Check that it gives the same results for multiple threads. Also giving it some
+    // dirty output containers to check that it sanitizes them. 
+    auto pcopy = workspace.neighbors;
+    workspace.ids.resize(1000, -1); 
+    workspace.next_visit.resize(1000, -1); 
+    for (auto& nn : workspace.neighbors) {
+        std::reverse(nn.begin(), nn.end());
+    }
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        batch,
+        k,
+        steps,
+        /* num_threads = */ 3,
+        workspace
+    );
+    for (int o = 0; o < nobs; ++o) {
+        EXPECT_EQ(workspace.neighbors[o], copy[o]);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CorrectTarget,
+    WalkAroundNeighborhoodTest,
+    ::testing::Combine(
+        ::testing::Values(1, 5, 10), // number of neighbors.
+        ::testing::Values(0, 1, 2, 3), // number of steps.
+        ::testing::Values(false, true) // whether to check extras in the batch.
+    )
+);
+
+TEST(CorrectTarget, WalkAroundNeighborhoodQuitEarly) {
+    std::size_t ndim = 5;
+    int nobs = 10;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, {});
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.offset = 0;
+    target.num_obs = nobs;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    // Get some coverage on our loop break if we don't need to use all of the
+    // steps, in this case because we've already covered all the observations
+    // in the dataset after the first step.
+    std::vector<int> to_check{ 5 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        target,
+        /* num_neighbors = */ nobs,
+        /* num_steps = */ 3,
+        /* num_threads = */ 3,
+        workspace
+    );
+
+    for (const auto& found : workspace.neighbors) {
+        EXPECT_EQ(found.size(), nobs);
+    }
+}
+
+/***************************************************/
+
+class ComputeCenterOfMassTest : public ::testing::TestWithParam<std::tuple<int, int> > {
+protected:
+    static void reference(
+        std::size_t ndim,
+        int position,
+        const mnncorrect::internal::NeighborSet<int, double>& neighbors,
+        const double* data,
+        int remaining,
+        double* output,
+        std::unordered_set<int>& used) 
+    {
+        const auto& curneighbors = neighbors[position];
+        for (auto pp : curneighbors) {
+            if (used.find(pp.first) == used.end()) {
+                auto ptr = data + ndim * pp.first;
+                for (decltype(ndim) d = 0; d < ndim; ++d) {
+                    output[d] += ptr[d];
+                }
+                used.insert(pp.first);
+            }
+            if (remaining > 0) {
+                reference(ndim, pp.first, neighbors, data, remaining - 1, output, used);
+            }
+        }
+    }
+};
+
+TEST_P(ComputeCenterOfMassTest, Basic) {
+    auto params = GetParam();
+    auto k = std::get<0>(params);
+    auto steps = std::get<1>(params);
+
+    std::size_t ndim = 5;
+    int nobs = 100;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.seed = k * 10 + steps;
+        return sparams;
+    }());
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.offset = 0;
+    target.num_obs = nobs;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    // Finding neighbors.
+    std::vector<int> to_check { 1, 5, 17, 31, 53, 97 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        target,
+        k,
+        steps,
+        /* num_threads = */ 1,
+        workspace
+    );
+
+    // Now computing a center of mass.
+    std::size_t full_size = ndim * to_check.size(); 
+    workspace.ref_center_buffer.resize(full_size);
+    mnncorrect::internal::compute_center_of_mass(
+        ndim,
+        to_check,
+        vec.data(),
+        steps,
+        /* num_threads = */ 1,
+        workspace.neighbors,
+        workspace.ref_center_buffer.data()
+    );
+
+    // Computing the reference.
+    std::vector<double> ref(ndim);
+    std::unordered_set<int> used;
+    for (std::size_t i = 0, end = to_check.size(); i < end; ++i) {
+        std::fill(ref.begin(), ref.end(), 0);
+        used.clear();
+        reference(
+            ndim,
+            to_check[i],
+            workspace.neighbors,
+            vec.data(),
+            steps,
+            ref.data(),
+            used
+        );
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            EXPECT_FLOAT_EQ(ref[d] / used.size(), workspace.ref_center_buffer[d + i * ndim]);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CorrectTarget,
+    ComputeCenterOfMassTest,
+    ::testing::Combine(
+        ::testing::Values(1, 5, 10), // number of neighbors.
+        ::testing::Values(0, 1, 2, 3) // number of steps.
+    )
+);
+
+TEST(CorrectTarget, ComputeCenterOfMassTestQuitEarly) {
+    std::size_t ndim = 5;
+    int nobs = 10;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, {});
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.offset = 0;
+    target.num_obs = nobs;
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
+
+    std::vector<int> to_check{ 5 };
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::walk_around_neighborhood(
+        ndim,
+        nobs, 
+        to_check,
+        vec.data(),
+        target,
+        /* num_neighbors = */ nobs,
+        /* num_steps = */ 3,
+        /* num_threads = */ 3,
+        workspace
+    );
+
+    // Gets some coverage on our loop break if we don't need to use all of the
+    // steps, in this case because we've already covered all the observations
+    // in the dataset after the first step.
+    std::vector<double> center(ndim);
+    mnncorrect::internal::compute_center_of_mass(
+        ndim,
+        to_check,
+        vec.data(),
+        /* num_steps = */ 3,
+        /* num_threads = */ 1,
+        workspace.neighbors,
+        center.data()
+    );
+
+    // Checking that it is equal to the average of all points.
+    std::vector<double> ref(ndim);
+    for (decltype(nobs) o = 0; o < nobs; ++o) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            ref[d] += vec[o * ndim + d];
+        }
+    }
+    for (decltype(ndim) d = 0; d < ndim; ++d) {
+        EXPECT_FLOAT_EQ(center[d], ref[d] / nobs);
+    }
+}
+
+/***************************************************/
+
+TEST(CorrectTarget, BuildMnnOnlyIndex) {
+    std::size_t ndim = 5;
+    int nobs = 100;
+    auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.seed = 999;
+        return sparams;
+    }());
+
+    std::vector<int> mnns; 
+    for (int o = 1; o < nobs; o += 7) {
+        mnns.push_back(o);
+    }
+
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    std::vector<double> buffer;
+    std::vector<int> indices;
+    std::vector<double> distances;
+
+    {
+        auto mnn_index = mnncorrect::internal::build_mnn_only_index(ndim, vec.data(), mnns, builder, buffer);
+        auto mnn_searcher = mnn_index->initialize();
+        for (decltype(mnns.size()) i = 0, end = mnns.size(); i < end; ++i) {
+            mnn_searcher->search(vec.data() + static_cast<std::size_t>(mnns[i]) * ndim, 1, &indices, &distances);
+            EXPECT_EQ(indices[0], i);
+            EXPECT_EQ(distances[0], 0);
+        }
+    }
+
+    // Ignores gunk in the buffer.
+    {
+        std::fill(buffer.begin(), buffer.end(), -1);
+        auto mnn_index = mnncorrect::internal::build_mnn_only_index(ndim, vec.data(), mnns, builder, buffer);
+        auto mnn_searcher = mnn_index->initialize();
+        for (decltype(mnns.size()) i = 0, end = mnns.size(); i < end; ++i) {
+            mnn_searcher->search(vec.data() + static_cast<std::size_t>(mnns[i]) * ndim, 1, &indices, &distances);
+            EXPECT_EQ(indices[0], i);
+            EXPECT_EQ(distances[0], 0);
+        }
+    }
+}
+
+/**********************************************************/
+
+class CorrectTargetTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {};
+
+TEST_P(CorrectTargetTest, Sanity) {
+    std::size_t ndim = 5;
+    auto param = GetParam();
+    int nleft = std::get<0>(param);
+    int nright = std::get<1>(param);
+    int k = std::get<2>(param);
+
+    int ntotal = nleft + nright;
+    auto simulated = scran_tests::simulate_vector(ntotal * ndim, [&]{
+        scran_tests::SimulationParameters sparams;
+        sparams.lower = -2;
+        sparams.upper = 2;
+        sparams.seed = 42 + nleft * 10 + nright + k;
+        return sparams;
+    }());
+
+    for (int r = nleft; r < ntotal; ++r) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
+            simulated[r * ndim + d] += 10;
+        }
+    }
+
+    // First, building the batch objects. We add an empty reference just so
+    // that we can check that it corrects to the first batch.
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    std::vector<mnncorrect::internal::BatchInfo<int, double> > references(2);
+    references[0].num_obs = 0;
+    references[0].offset = 0;
+    references[0].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, 0, NULL));
+    references[1].num_obs = nleft;
+    references[1].offset = 0;
+    references[1].index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nleft, simulated.data()));
+
+    mnncorrect::internal::BatchInfo<int, double> target;
+    target.num_obs = nright;
+    target.offset = nleft;
+    target.index = builder.build_unique(knncolle::SimpleMatrix<int, double>(ndim, nright, simulated.data() + nleft * ndim));
+
+    std::vector<int> target_ids(nright);
+    std::iota(target_ids.begin(), target_ids.end(), nleft);
+    std::vector<mnncorrect::BatchIndex> batch_of_origin(ntotal);
+    std::fill_n(batch_of_origin.begin(), nleft, 1);
+    std::fill_n(batch_of_origin.begin() + nleft, nright, 2);
+
+    // Finding neighbors and MNNs.
+    mnncorrect::internal::FindBatchNeighborsResults<int, double> batch_nns;
+    mnncorrect::internal::find_batch_neighbors(ndim, ntotal, references, target, simulated.data(), k, /* num_threads = */ 1, batch_nns);
+
+    mnncorrect::internal::FindClosestMnnWorkspace<int> mnn_work;
+    mnncorrect::internal::FindClosestMnnResults<int> mnn_res;
+    mnncorrect::internal::find_closest_mnn(target_ids, batch_nns.neighbors, mnn_work, mnn_res);
+
+    // Actually running the correction now. Note that this needs more steps
+    // to search for the center of mass, to make sure the corrected points
+    // are well-mixed enough that the means fall under the tolerance. 
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
+
+    auto copy = simulated;
+    auto correct_res = mnncorrect::internal::correct_target(
+        ndim,
+        ntotal,
+        references,
+        target,
+        target_ids,
+        batch_of_origin,
+        mnn_res,
         builder,
         k,
-        nmads,
-        iterations,
-        trim,
-        buffer.data(),
-        /* mass_cap = */ 0, 
-        /* nthreads = */ 1
+        /* num_steps = */ 4,
+        /* num_threads = */ 1,
+        copy.data(),
+        correct_work
     );
+
+    EXPECT_EQ(correct_res.reassignments.size(), 2);
+    EXPECT_TRUE(correct_res.reassignments[0].empty());
+    EXPECT_EQ(correct_res.reassignments[1].size(), nright);
+    EXPECT_EQ(correct_res.reassignments[1].front(), nleft);
+    EXPECT_EQ(correct_res.reassignments[1].back(), ntotal - 1);
 
     // Not entirely sure how to check for correctness here; 
     // we'll heuristically check for a delta less than 1 on the mean in each dimension.
     {
         std::vector<double> left_means(ndim), right_means(ndim);
         for (int l = 0; l < nleft; ++l) {
-            for (int d = 0; d < ndim; ++d) {
-                left_means[d] += left[l * ndim + d];
+            for (decltype(ndim) d = 0; d < ndim; ++d) {
+                std::size_t offset = l * ndim + d;
+                left_means[d] += copy[offset];
+                EXPECT_EQ(copy[offset], simulated[offset]); // reference values are unchanged.
             }
         }
-        for (int r = 0; r < nright; ++r) {
-            for (int d = 0; d < ndim; ++d) {
-                right_means[d] += buffer[r * ndim + d];
+        for (int r = nright; r < ntotal; ++r) {
+            for (decltype(ndim) d = 0; d < ndim; ++d) {
+                right_means[d] += copy[r * ndim + d];
             }
         }
-        for (int d = 0; d < ndim; ++d) {
+        for (decltype(ndim) d = 0; d < ndim; ++d) {
             left_means[d] /= nleft;
             right_means[d] /= nright;
             double delta = std::abs(left_means[d] - right_means[d]);
-            EXPECT_TRUE(delta < 1);
+            EXPECT_LT(delta, 1);
         }
     }
 
-    // Same result with multiple threads.
+    // Same result with multiple threads, and after scrambling some of the
+    // inputs to check that dirty containers are cleared before use.
     {
-        std::vector<double> par_buffer(nright * ndim);
-        mnncorrect::internal::correct_target(
-            ndim,
-            nleft,
-            left.data(),
-            nright,
-            right.data(),
-            pairings,
-            builder,
-            k,
-            nmads,
-            iterations,
-            trim,
-            par_buffer.data(),
-            /* mass_cap = */ 0, 
-            /* nthreads = */ 3 
-        );
-        EXPECT_EQ(par_buffer, buffer);
-    }
+        std::reverse(correct_work.ref_center_buffer.begin(), correct_work.ref_center_buffer.end());
+        std::reverse(correct_work.correction_buffer.begin(), correct_work.correction_buffer.end());
+        std::reverse(correct_work.neighbors.begin(), correct_work.neighbors.end());
+        std::reverse(correct_work.ids.begin(), correct_work.ids.end());
+        std::reverse(correct_work.new_target_batch.begin(), correct_work.new_target_batch.end());
 
-    // Different results with a cap.
-    {
-        std::vector<double> cap_buffer(nright * ndim);
-        mnncorrect::internal::correct_target(
+        auto pcopy = simulated;
+        auto correct_res = mnncorrect::internal::correct_target(
             ndim,
-            nleft,
-            left.data(),
-            nright,
-            right.data(),
-            pairings,
+            ntotal,
+            references,
+            target,
+            target_ids,
+            batch_of_origin,
+            mnn_res,
             builder,
             k,
-            nmads,
-            iterations,
-            trim,
-            cap_buffer.data(),
-            /* mass_cap = */ 50,
-            /* nthreads = */ 1 
+            /* num_steps = */ 4,
+            /* num_threads = */ 3,
+            pcopy.data(),
+            correct_work
         );
-        EXPECT_NE(cap_buffer, buffer);
-    }
-
-    // Unless the cap is larger than the number of observations.
-    {
-        std::vector<double> cap_buffer(nright * ndim);
-        mnncorrect::internal::correct_target(
-            ndim,
-            nleft,
-            left.data(),
-            nright,
-            right.data(),
-            pairings,
-            builder,
-            k,
-            nmads,
-            iterations,
-            trim,
-            cap_buffer.data(),
-            /* mass_cap = */ 5000,
-            /* nthreads = */ 1 
-        );
-        EXPECT_EQ(cap_buffer, buffer);
+        EXPECT_EQ(copy, pcopy);
+        EXPECT_EQ(correct_res.reassignments.size(), 2);
+        EXPECT_TRUE(correct_res.reassignments[0].empty());
+        EXPECT_EQ(correct_res.reassignments[1].size(), nright);
+        EXPECT_EQ(correct_res.reassignments[1].front(), nleft);
+        EXPECT_EQ(correct_res.reassignments[1].back(), ntotal - 1);
     }
 }
 
