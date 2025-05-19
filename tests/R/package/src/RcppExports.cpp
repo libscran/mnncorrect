@@ -11,16 +11,16 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // compute
-Rcpp::RObject compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, double tol, bool input_order);
-RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP tolSEXP, SEXP input_orderSEXP) {
+Rcpp::RObject compute(Rcpp::NumericMatrix x, Rcpp::IntegerVector batch, int k, int steps, bool input_order);
+RcppExport SEXP _mnncorrect_ref_compute(SEXP xSEXP, SEXP batchSEXP, SEXP kSEXP, SEXP stepsSEXP, SEXP input_orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type batch(batchSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type steps(stepsSEXP);
     Rcpp::traits::input_parameter< bool >::type input_order(input_orderSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, tol, input_order));
+    rcpp_result_gen = Rcpp::wrap(compute(x, batch, k, steps, input_order));
     return rcpp_result_gen;
 END_RCPP
 }

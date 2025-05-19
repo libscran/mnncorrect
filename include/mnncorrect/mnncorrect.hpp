@@ -35,20 +35,17 @@ namespace mnncorrect {
 template<typename Index_, typename Float_, class Matrix_ = knncolle::Matrix<Index_, Float_> >
 struct Options {
     /**
-     * Number of neighbors used in various search steps, primarily to identify MNN pairs.
-     * Larger values increase the number of MNN pairs and improve the stability of the correction, 
-     * at the cost of reduced resolution of matching subpopulations across batches.
-     *
-     * The number of neighbors is also used to identify the closest MNN pairs when computing the average correction vector for each target observation.
-     * Again, this improves stability at the cost of resolution for local variations in the correction vectors.
+     * Number of neighbors for the various search steps, primarily to identify MNN pairs.
+     * This can also be interpreted as the lower bound on the number of observations in each "subpopulation". 
+     * Larger values increase improve the stability of the correction, at the cost of reduced resolution when matching subpopulations across batches.
      */
     int num_neighbors = 15;
 
     /**
-     * Number of standard deviations to use to define the distance threshold for the center of mass calculations.
-     * Larger values reduce biases from the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
+     * Number of steps for the recursive neighbor search to compute the center of mass.
+     * Larger values mitigate the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
      */
-    int num_steps = 4;
+    int num_steps = 1;
 
     /**
      * Algorithm to use for building the nearest-neighbor search indices.
@@ -66,34 +63,6 @@ struct Options {
      * The parallelization scheme is defined by `parallelize()`.
      */
     int num_threads = 1;
-};
-
-/**
- * @brief Correction details from `compute()`.
- */
-struct Details {
-    /**
-     * @cond
-     */
-    Details() = default;
-
-    Details(std::vector<BatchIndex> merge_order, std::vector<unsigned long long> num_pairs) : merge_order(std::move(merge_order)), num_pairs(std::move(num_pairs)) {}
-    /**
-     * @endcond
-     */
-
-    /**
-     * Order in which batches are merged.
-     * The first entry is the index/ID of the batch used as the reference,
-     * and the remaining entries are merged to the reference in the listed order.
-     */
-    std::vector<BatchIndex> merge_order;
-
-    /**
-     * Number of MNN pairs identified at each merge step.
-     * This is of length one less than `merge_order`.
-     */
-    std::vector<unsigned long long> num_pairs;
 };
 
 /**
@@ -130,22 +99,22 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std:
  */
 
 /**
- * Batch correction using mutual nearest neighbors.
- *
- * This function implements a variant of the MNN correction method described by Haghverdi _et al._ (2018).
+ * This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi _et al._, 2018).
  * Two cells from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
  * The MNN pairs are assumed to represent cells from corresponding subpopulations across the two batches.
- * Any differences in location between the paired cells can be interpreted as the batch effect and targeted for removal.
+ * Any differences in location between the paired cells represents an estimate of the batch effect in that part of the high-dimensional space.
  *
  * We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the (unchanged) former. 
+ * For each 
+ * Each MNN pair is used to define a correction vector 
  * For each observation in the target batch, we find the closest MNN pairs (based on the locations of the paired observation in the same batch)
  * and we compute a robust average of the correction vectors involving those pairs.
  * This average is used to obtain a single correction vector that is applied to the target observation to obtain corrected values.
  *
  * Each MNN pair's correction vector is computed between the "center of mass" locations for the paired observations.
- * The center of mass for each observation is defined as a robust average of a subset of neighboring observations from the same batch.
- * Robustification is performed by iterations of trimming of observations that are furthest from the mean.
- * In addition, we explicitly remove observations that are more than a certain distance from the observation in the MNN pair.
+ * The center of mass for each observation is defined by recursively searching the neighbors of each MNN-involved observation
+ * (and then the neighbors of those neighbors, up to a recursion depth of `Options::num_steps`) and computing the mean of their coordinates.
+ * This improves the correction by mitigating the "kissing effect", i.e., where the correction vectors only form between the surfaces of the mass of points in each batch.
  *
  * @see
  * Haghverdi L et al. (2018).

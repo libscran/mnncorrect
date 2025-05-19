@@ -8,15 +8,15 @@
 #include <cmath>
 #include <cstddef>
 
-class OverallTest : public ::testing::TestWithParam<std::tuple<int, int, std::vector<int> > > {
+class OverallTest : public ::testing::TestWithParam<std::tuple<int, std::vector<int> > > {
 protected:
     constexpr static double multiplier = 10;
+    constexpr static std::size_t ndim = 5;
 
     void SetUp() {
         auto param = GetParam();
-        ndim = std::get<0>(param);
-        k = std::get<1>(param);
-        sizes = std::get<2>(param);
+        k = std::get<0>(param);
+        sizes = std::get<1>(param);
 
         nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
         data = scran_tests::simulate_vector(nobs * ndim, [&]{
@@ -44,7 +44,7 @@ protected:
 
 protected:
     // Parameters.
-    int ndim, nobs, k;
+    int nobs, k;
     std::vector<int> sizes;
 
     // Simulated.
@@ -53,14 +53,15 @@ protected:
 };
 
 TEST_P(OverallTest, Basic) {
-    std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.merge_policy = mnncorrect::MergePolicy::INPUT;
-        opt.num_neighbors = k;
-        return opt;
-    }());
+    mnncorrect::Options<int, double> opt;
+    opt.merge_policy = mnncorrect::MergePolicy::INPUT;
+    opt.num_neighbors = k;
+    opt.num_steps = 4; // bumping it up to guarantee a good merge.
 
+    std::vector<double> output(nobs * ndim);
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
+
+    // Reference batch is the first, as we set an INPUT policy.
     size_t refbatch = 0;
 
     // Heuristic: check that the differences in the mean are much less than the
@@ -72,7 +73,7 @@ TEST_P(OverallTest, Basic) {
 
         auto num = sizes[b];
         for (int s = 0; s < num; ++s) {
-            for (int d = 0; d < ndim; ++d) {
+            for (std::size_t d = 0; d < ndim; ++d) {
                 ref[d] += ptr[d];                
             }
             ptr += ndim;
@@ -100,11 +101,9 @@ TEST_P(OverallTest, Basic) {
     // Same results when multiple threads are in use.
     std::vector<double> par_output(nobs * ndim);
     mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
-        mnncorrect::Options<int, double> opt;
-        opt.num_neighbors = k;
-        opt.num_threads = 3;
-        opt.merge_policy = mnncorrect::MergePolicy::INPUT;
-        return opt;
+        mnncorrect::Options<int, double> opt2 = opt;
+        opt2.num_threads = 3;
+        return opt2;
     }());
     EXPECT_EQ(par_output, output);
 }
@@ -176,7 +175,6 @@ INSTANTIATE_TEST_SUITE_P(
     Overall,
     OverallTest,
     ::testing::Combine(
-        ::testing::Values(5), // Number of dimensions
         ::testing::Values(10, 50), // Number of neighbors
         ::testing::Values( // Batch sizes
             std::vector<int>{100, 200},        
@@ -188,7 +186,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST(Overall, Sanity) {
-    int ndim = 4;
+    const std::size_t ndim = 4;
     std::vector<int> sizes{ 300, 400, 110 };
     auto nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     auto data = scran_tests::simulate_vector(nobs * ndim, [&]{
@@ -214,7 +212,11 @@ TEST(Overall, Sanity) {
     }
 
     std::vector<double> output(ndim * nobs);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), mnncorrect::Options<int, double>{});
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+        mnncorrect::Options<int, double> opt;
+        opt.num_steps = 4; // bumping it up to guarantee a good merge.
+        return opt;
+    }());
 
     size_t refbatch = 1; // highest RSS, as it has the most observations.
     sofar = 0;
@@ -228,13 +230,13 @@ TEST(Overall, Sanity) {
         // range of simulated values within each batch (-2 to 2) in each dimension.
         for (int s = 0; s < len; ++s) {
             auto cptr = (s % 2 == 0 ? common.data() : unique.data());
-            for (int d = 0; d < ndim; ++d) {
+            for (std::size_t d = 0; d < ndim; ++d) {
                 cptr[d] += ptr[d];                
             }
             ptr += ndim;
         }
 
-        for (int d = 0; d < ndim; ++d) {
+        for (std::size_t d = 0; d < ndim; ++d) {
             double expected = 0;
             if (d == 0) {
                 expected = refbatch * batch_multiplier;
@@ -244,7 +246,7 @@ TEST(Overall, Sanity) {
             EXPECT_LT(err, 1); // The upper bound on this threshold is 4 (-2 to 2) but we are more stringent here.
         }
 
-        for (int d = 0; d < ndim; ++d) {
+        for (std::size_t d = 0; d < ndim; ++d) {
             double expected = 0;
             if (d == 0) {
                 expected = refbatch * batch_multiplier;

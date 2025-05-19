@@ -20,25 +20,25 @@ class FindClosestMnnTest : public ::testing::TestWithParam<std::tuple<int, int, 
 protected:
     static std::pair<std::vector<int>, std::vector<int> > compute_reference(
         const mnncorrect::internal::NeighborSet<int, double>& all_neighbors, 
-        const std::vector<int>& left_ids,
-        const std::vector<int>& right_ids) 
+        const std::vector<int>& ref_ids,
+        const std::vector<int>& target_ids) 
     {
         std::map<std::pair<int, int>, double> found;
-        for (auto l : left_ids) {
-            const auto& current = all_neighbors[l];
+        for (auto r : ref_ids) {
+            const auto& current = all_neighbors[r];
             for (const auto& x : current) {
-                found[std::pair<int, int>(l, x.first)] = x.second;
+                found[std::pair<int, int>(r, x.first)] = x.second;
             }
         }
 
         std::pair<std::vector<int>, std::vector<int> > output;
-        for (auto r : right_ids) {
-            const auto& current = all_neighbors[r];
+        for (auto t : target_ids) {
+            const auto& current = all_neighbors[t];
 
             int best_ref = -1;
             double best_dist = std::numeric_limits<double>::max();
             for (const auto& x : current) {
-                auto it = found.find(std::pair<std::size_t, std::size_t>(x.first, r));
+                auto it = found.find(std::pair<std::size_t, std::size_t>(x.first, t));
                 if (it != found.end()) {
                     if (x.second <= best_dist) {
                         best_ref = x.first;
@@ -48,7 +48,7 @@ protected:
             }
 
             if (best_ref >= 0) {
-                output.first.push_back(r);
+                output.first.push_back(t);
                 output.second.push_back(best_ref);
             }
         }
@@ -59,29 +59,29 @@ protected:
 
 TEST_P(FindClosestMnnTest, Check) {
     auto param = GetParam();
-    int nleft = std::get<0>(param);
-    int nright = std::get<1>(param);
+    int nref = std::get<0>(param);
+    int ntarget = std::get<1>(param);
     int k = std::get<2>(param);
 
     int ndim = 7;
-    int ntotal = nleft + nright;
+    int ntotal = nref + ntarget;
     auto simulated = scran_tests::simulate_vector(ntotal * ndim, [&]{
         scran_tests::SimulationParameters sparams;
-        sparams.seed = 42 + nleft + nright * 10 + k;
+        sparams.seed = 42 + nref + ntarget * 10 + k;
         return sparams;
     }());
 
     std::vector<mnncorrect::BatchIndex> assignments(ntotal);
-    std::fill(assignments.begin() + nleft, assignments.end(), 1);
-    std::mt19937_64 rng(/* seed = */ ntotal + k * nleft);
+    std::fill(assignments.begin() + nref, assignments.end(), 1);
+    std::mt19937_64 rng(/* seed = */ ntotal + k * nref);
     std::shuffle(assignments.begin(), assignments.end(), rng);
 
-    std::vector<int> left_ids, right_ids;
+    std::vector<int> ref_ids, target_ids;
     for (int i = 0; i < ntotal; ++i) {
         if (assignments[i]) {
-            right_ids.push_back(i);
+            target_ids.push_back(i);
         } else {
-            left_ids.push_back(i);
+            ref_ids.push_back(i);
         }
     }
 
@@ -89,19 +89,19 @@ TEST_P(FindClosestMnnTest, Check) {
 
     // Computing the reference.
     std::vector<double> buffer;
-    auto left_index = subset_and_index(ndim, left_ids, simulated.data(), builder, buffer);
-    auto right_index = subset_and_index(ndim, right_ids, simulated.data(), builder, buffer);
+    auto ref_index = subset_and_index(ndim, ref_ids, simulated.data(), builder, buffer);
+    auto target_index = subset_and_index(ndim, target_ids, simulated.data(), builder, buffer);
 
     mnncorrect::internal::NeighborSet<int, double> all_neighbors(ntotal);
-    find_neighbors(ndim, left_ids, simulated.data(), *right_index, right_ids, k, all_neighbors);
-    find_neighbors(ndim, right_ids, simulated.data(), *left_index, left_ids, k, all_neighbors);
+    find_neighbors(ndim, ref_ids, simulated.data(), *target_index, target_ids, k, all_neighbors);
+    find_neighbors(ndim, target_ids, simulated.data(), *ref_index, ref_ids, k, all_neighbors);
 
-    auto expected_mnns = compute_reference(all_neighbors, left_ids, right_ids);
+    auto expected_mnns = compute_reference(all_neighbors, ref_ids, target_ids);
 
     // Computing our values.
     mnncorrect::internal::FindClosestMnnWorkspace<int> workspace;
     mnncorrect::internal::FindClosestMnnResults<int> mnns;
-    mnncorrect::internal::find_closest_mnn(left_ids, all_neighbors, workspace, mnns);
+    mnncorrect::internal::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
     EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 
@@ -113,7 +113,7 @@ TEST_P(FindClosestMnnTest, Check) {
     }
     std::reverse(workspace.last_checked.begin(), workspace.last_checked.end());
 
-    mnncorrect::internal::find_closest_mnn(left_ids, all_neighbors, workspace, mnns);
+    mnncorrect::internal::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
     EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 }
@@ -122,8 +122,8 @@ INSTANTIATE_TEST_SUITE_P(
     FindClosestMnn,
     FindClosestMnnTest,
     ::testing::Combine(
-        ::testing::Values(100, 1000), // left
-        ::testing::Values(100, 1000), // right
+        ::testing::Values(100, 1000), // ref
+        ::testing::Values(100, 1000), // target
         ::testing::Values(10, 50) // num neighbors
     )
 );

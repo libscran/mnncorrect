@@ -6,12 +6,12 @@ Rcpp::RObject compute(
     Rcpp::NumericMatrix x,
     Rcpp::IntegerVector batch,
     int k,
-    double tol,
+    int steps,
     bool input_order)
 {
     mnncorrect::Options<int, double> opt;
     opt.num_neighbors = k;
-    opt.tolerance = tol;
+    opt.num_steps = steps;
     if (input_order) {
         opt.merge_policy = mnncorrect::MergePolicy::INPUT;
     }
