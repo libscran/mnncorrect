@@ -37,13 +37,15 @@ void find_batch_neighbors(
     parallelize(num_threads, num_obs, [&](int, Index_ start, Index_ length) -> void {
         std::vector<Index_> indices;
         std::vector<Float_> distances;
-        auto searcher = batch.index->initialize();
         std::vector<std::pair<Index_, Float_> > fuse_buffer1, fuse_buffer2;
+
+        auto searcher = batch.index->initialize();
+        auto capped_k = knncolle::cap_k_query(num_neighbors, batch.index->num_observations());
 
         for (Index_ l = start, end = start + length; l < end; ++l) {
             auto k = get_data_id(l);
             auto ptr = data + static_cast<std::size_t>(k) * num_dim;
-            searcher->search(ptr, num_neighbors, &indices, &distances);
+            searcher->search(ptr, capped_k, &indices, &distances);
             for (auto& i : indices) {
                 i += batch.offset;
             }
@@ -60,10 +62,12 @@ void find_batch_neighbors(
 
         for (const auto& extra : batch.extras) {
             auto searcher = extra.index->initialize();
+            auto capped_k = knncolle::cap_k_query(num_neighbors, extra.index->num_observations());
+
             for (Index_ l = start, end = start + length; l < end; ++l) {
                 auto k = get_data_id(l);
                 auto ptr = data + static_cast<std::size_t>(k) * num_dim;
-                searcher->search(ptr, num_neighbors, &indices, &distances);
+                searcher->search(ptr, capped_k, &indices, &distances);
                 for (auto& i : indices) {
                     i = extra.ids[i];
                 }

@@ -302,7 +302,7 @@ CorrectTargetResults<Index_> correct_target(
 
         for (Index_ i = start, end = start + length; i < end; ++i) {
             auto tptr = data + static_cast<std::size_t>(target_ids[i]) * num_dim; // cast to avoid overflow.
-            searcher->search(tptr, 1, &indices, NULL);
+            searcher->search(tptr, 1, &indices, NULL); // no need to cap, we had better have at least one observation in each batch.
 
             auto chosen = indices.front();
             auto correct_ptr = workspace.correction_buffer.data() + num_dim * static_cast<std::size_t>(chosen);
