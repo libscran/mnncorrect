@@ -123,7 +123,7 @@ include(FetchContent)
 FetchContent_Declare(
   mnncorrect
   GIT_REPOSITORY https://github.com/libscran/mnncorrect
-  GIT_TAG master # or any version of interest
+  GIT_TAG master # replace with a pinned release
 )
 
 FetchContent_MakeAvailable(mnncorrect)
@@ -138,6 +138,10 @@ target_link_libraries(myexe mnncorrect)
 # For libaries
 target_link_libraries(mylib INTERFACE mnncorrect)
 ```
+
+By default, this will use `FetchContent` to fetch all external dependencies.
+Applications should consider pinning versions of dependencies for stability - see [`extern/CMakeLists.txt`](extern/CMakeLists.txt) for suggested versions.
+If you want to install them manually, use `-DMNNCORRECT_FETCH_EXTERN=OFF`.
 
 ### CMake with `find_package()`
 
@@ -154,14 +158,12 @@ cmake .. -DMNNCORRECT_TESTS=OFF
 cmake --build . --target install
 ```
 
-By default, this will use `FetchContent` to fetch all external dependencies.
-If you want to install them manually, use `-DMNNCORRECT_FETCH_EXTERN=OFF`.
-See [`extern/CMakeLists.txt`](extern/CMakeLists.txt) to find compatible versions of each dependency.
+Again, this will use `FetchContent` to retrieve dependencies, see comments above.
 
 ### Manual
 
 If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's `-I`.
-This requires the external dependencies listed in [`extern/CMakeLists.txt`](extern/CMakeLists.txt), which also need to be made available during compilation.
+This also requires the external dependencies listed in [`extern/CMakeLists.txt`](extern/CMakeLists.txt). 
 
 ## References
 

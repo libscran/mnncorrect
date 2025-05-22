@@ -22,7 +22,7 @@ option(MNNCORRECT_FETCH_EXTERN "Automatically fetch mnncorrect's external depend
 if(MNNCORRECT_FETCH_EXTERN)
     add_subdirectory(extern)
 else()
-    find_package(knncolle_knncolle 2.0.0 CONFIG REQUIRED)
+    find_package(knncolle_knncolle 3.0.0 CONFIG REQUIRED)
 endif()
 
 target_link_libraries(mnncorrect INTERFACE knncolle::knncolle)
