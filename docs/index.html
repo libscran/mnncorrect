@@ -158,7 +158,7 @@ $(function(){ initResizable(false); });
 <div class="line">FetchContent_Declare(</div>
 <div class="line">  mnncorrect</div>
 <div class="line">  GIT_REPOSITORY https://github.com/libscran/mnncorrect</div>
-<div class="line">  GIT_TAG master # or any version of interest</div>
+<div class="line">  GIT_TAG master # replace with a pinned release</div>
 <div class="line">)</div>
 <div class="line"> </div>
 <div class="line">FetchContent_MakeAvailable(mnncorrect)</div>
@@ -168,16 +168,17 @@ $(function(){ initResizable(false); });
 <div class="line"> </div>
 <div class="line"># For libaries</div>
 <div class="line">target_link_libraries(mylib INTERFACE mnncorrect)</div>
-</div><!-- fragment --><h2>CMake with <code>find_package()</code></h2>
+</div><!-- fragment --><p>By default, this will use <code>FetchContent</code> to fetch all external dependencies. Applications should consider pinning versions of dependencies for stability - see <a href="extern/CMakeLists.txt"><code>extern/CMakeLists.txt</code></a> for suggested versions. If you want to install them manually, use <code>-DMNNCORRECT_FETCH_EXTERN=OFF</code>.</p>
+<h2>CMake with <code>find_package()</code></h2>
 <div class="fragment"><div class="line">find_package(libscran_mnncorrect CONFIG REQUIRED)</div>
 <div class="line">target_link_libraries(mylib INTERFACE libscran::mnncorrect)</div>
 </div><!-- fragment --><p>To install the library, use:</p>
 <div class="fragment"><div class="line">mkdir build &amp;&amp; cd build</div>
 <div class="line">cmake .. -DMNNCORRECT_TESTS=OFF</div>
 <div class="line">cmake --build . --target install</div>
-</div><!-- fragment --><p>By default, this will use <code>FetchContent</code> to fetch all external dependencies. If you want to install them manually, use <code>-DMNNCORRECT_FETCH_EXTERN=OFF</code>. See <a href="extern/CMakeLists.txt"><code>extern/CMakeLists.txt</code></a> to find compatible versions of each dependency.</p>
+</div><!-- fragment --><p>Again, this will use <code>FetchContent</code> to retrieve dependencies, see comments above.</p>
 <h2>Manual</h2>
-<p>If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's <code>-I</code>. This requires the external dependencies listed in <a href="extern/CMakeLists.txt"><code>extern/CMakeLists.txt</code></a>, which also need to be made available during compilation.</p>
+<p>If you're not using CMake, the simple approach is to just copy the files - either directly or with Git submodules - and include their path during compilation with, e.g., GCC's <code>-I</code>. This also requires the external dependencies listed in <a href="extern/CMakeLists.txt"><code>extern/CMakeLists.txt</code></a>.</p>
 <h1>References</h1>
 <p>Haghverdi L, Lun ATL, Morgan MD, Marioni JC (2018). Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors. <em>Nat. Biotechnol.</em> 36(5):421-427 </p>
 </div></div><!-- PageDoc -->
