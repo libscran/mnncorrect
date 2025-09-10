@@ -127,8 +127,8 @@ Public Attributes</h2></td></tr>
 struct mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</div><p><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute()</a></code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Index_</td><td>Integer type for the observation indices. </td></tr>
-    <tr><td class="paramname">Float_</td><td>Floating-point type for the input/output data. </td></tr>
+    <tr><td class="paramname">Index_</td><td>Integer type of the observation indices. </td></tr>
+    <tr><td class="paramname">Float_</td><td>Floating-point type of the input/output data. </td></tr>
     <tr><td class="paramname">Matrix_</td><td>Class of the input data matrix for the neighbor search. This should satisfy the <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html">knncolle::Matrix</a></code> interface. Alternatively, it may be a <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix</a></code>. </td></tr>
   </table>
   </dd>
@@ -164,7 +164,7 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Policy to use to choose the merge order. </p>
+<p>Policy for choosing the merge order. </p>
 
 </div>
 </div>
@@ -181,7 +181,8 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Number of neighbors for the various search steps, primarily to identify MNN pairs. This can also be interpreted as the lower bound on the number of observations in each "subpopulation". Larger values increase improve the stability of the correction, at the cost of reduced resolution when matching subpopulations across batches. </p>
+<p>Number of neighbors to use in the various search steps - specifically, identification of MNN pairs and calculation of the centers of mass. It can be interpreted as the lower bound on the number of observations in each "subpopulation".</p>
+<p>Larger values improve the stability of the correction by increasing the number of MNN pairs and including more observations in each center of mass. However, this comes at the cost of reduced resolution when matching subpopulations across batches. </p>
 
 </div>
 </div>
@@ -198,7 +199,7 @@ template&lt;typename Index_ , typename Float_ , class Matrix_  = knncolle::Matri
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Number of steps for the recursive neighbor search to compute the center of mass. Larger values mitigate the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass. </p>
+<p>Number of steps for the recursive neighbor search to compute the center of mass for each MNN-involved observationc. Larger values mitigate the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass. </p>
 
 </div>
 </div>

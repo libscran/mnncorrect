@@ -229,13 +229,13 @@ template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ 
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Merge batches where observations are arbitrarily ordered in the same array.</p>
+<p>Overload of <code><a class="el" href="#a80ef925234d2c7eca77e69c127e92271">compute()</a></code> to merge batches where observations are arbitrarily ordered in the same array.</p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Index_</td><td>Integer type for the observation index. </td></tr>
-    <tr><td class="paramname">Float_</td><td>Floating-point type for the input/output data. </td></tr>
+    <tr><td class="paramname">Index_</td><td>Integer type of the observation index. </td></tr>
+    <tr><td class="paramname">Float_</td><td>Floating-point type of the input/output data. </td></tr>
     <tr><td class="paramname">Matrix_</td><td>Class of the input data matrix for the neighbor search. This should satisfy the <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html">knncolle::Matrix</a></code> interface. Alternatively, it may be a <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix</a></code>. </td></tr>
-    <tr><td class="paramname">Batch_</td><td>Integer type for the batch IDs.</td></tr>
+    <tr><td class="paramname">Batch_</td><td>Integer type of the batch IDs.</td></tr>
   </table>
   </dd>
 </dl>
@@ -288,11 +288,11 @@ template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>A convenience overload to merge contiguous batches contained in the same array.</p>
+<p>Overload of <code><a class="el" href="#a80ef925234d2c7eca77e69c127e92271">compute()</a></code> to merge contiguous batches contained in the same array.</p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Index_</td><td>Integer type for the observation index. </td></tr>
-    <tr><td class="paramname">Float_</td><td>Floating-point type for the input/output data. </td></tr>
+    <tr><td class="paramname">Index_</td><td>Integer type of the observation index. </td></tr>
+    <tr><td class="paramname">Float_</td><td>Floating-point type of the input/output data. </td></tr>
     <tr><td class="paramname">Matrix_</td><td>Class of the input data matrix for the neighbor search. This should satisfy the <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html">knncolle::Matrix</a></code> interface. Alternatively, it may be a <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix</a></code>.</td></tr>
   </table>
   </dd>
@@ -345,14 +345,15 @@ template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi <em>et al.</em>, 2018). Two cells from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors. The MNN pairs are assumed to represent cells from corresponding subpopulations across the two batches. Any differences in location between the paired cells represents an estimate of the batch effect in that part of the high-dimensional space.</p>
-<p>We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the (unchanged) former. For each Each MNN pair is used to define a correction vector For each observation in the target batch, we find the closest MNN pairs (based on the locations of the paired observation in the same batch) and we compute a robust average of the correction vectors involving those pairs. This average is used to obtain a single correction vector that is applied to the target observation to obtain corrected values.</p>
+<p>This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi <em>et al.</em>, 2018). Two observations from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors. The MNN pairs are assumed to represent observations from corresponding subpopulations across the two batches. Any differences in location between the paired observations represents an estimate of the batch effect in that part of the high-dimensional space.</p>
+<p>We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the former. Each MNN pair defines a correction vector that moves the target observation towards its paired reference observation. For each observation in the target batch, we identify the closest observation in the same batch that is part of a MNN pair (i.e., "MNN-involved observations"). We apply that pair's correction vector to the observation to obtain its corrected coordinates.</p>
 <p>Each MNN pair's correction vector is computed between the "center of mass" locations for the paired observations. The center of mass for each observation is defined by recursively searching the neighbors of each MNN-involved observation (and then the neighbors of those neighbors, up to a recursion depth of <code><a class="el" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">Options::num_steps</a></code>) and computing the mean of their coordinates. This improves the correction by mitigating the "kissing effect", i.e., where the correction vectors only form between the surfaces of the mass of points in each batch.</p>
+<p>In the case of &gt;2 batches, we define a merge order based on <code><a class="el" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">Options::merge_policy</a></code>. For the first batch to be merged, we identify MNN pairs to all other batches at once. The subsequent correction effectively distributes the first batch's observations to all other batches. This process is repeated for all remaining batches until only one batch remains that contains all observations.</p>
 <dl class="section see"><dt>See also</dt><dd>Haghverdi L et al. (2018). Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors. <em>Nature Biotech.</em> 36, 421-427</dd></dl>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Index_</td><td>Integer type for the observation index. </td></tr>
-    <tr><td class="paramname">Float_</td><td>Floating-point type for the input/output data. </td></tr>
+    <tr><td class="paramname">Index_</td><td>Integer type of the observation index. </td></tr>
+    <tr><td class="paramname">Float_</td><td>Floating-point type of the input/output data. </td></tr>
     <tr><td class="paramname">Matrix_</td><td>Class of the input data matrix for the neighbor search. This should satisfy the <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Matrix.html">knncolle::Matrix</a></code> interface. Alternatively, it may be a <code><a class="elRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix</a></code>.</td></tr>
   </table>
   </dd>
