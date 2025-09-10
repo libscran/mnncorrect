@@ -112,7 +112,7 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="preprocessor">#include &quot;<a class="codeRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="preprocessor">#ifndef MNNCORRECT_CUSTOM_PARALLEL</span></div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#include &quot;subpar/subpar.hpp&quot;</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#include &quot;<a class="codeRef" href="https://ltla.github.io/subpar/subpar_8hpp.html">subpar/subpar.hpp</a>&quot;</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span> </div>
 <div class="foldopen" id="foldopen00021" data-start="{" data-end="}">
@@ -127,7 +127,7 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#aaf40fe64b828a94b8d253fca4b32b4a4">   58</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#aaf40fe64b828a94b8d253fca4b32b4a4">parallelize</a>(<span class="keyword">const</span> <span class="keywordtype">int</span> num_workers, <span class="keyword">const</span> Task_ num_tasks, Run_ run_task_range) {</div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="preprocessor">#ifndef MNNCORRECT_CUSTOM_PARALLEL</span></div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    <span class="comment">// Methods could allocate or throw, so nothrow_ = false is safest.</span></div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    subpar::parallelize_range&lt;false&gt;(num_workers, num_tasks, std::move(run_task_range));</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    <a class="code hl_functionRef" href="https://ltla.github.io/subpar/namespacesubpar.html#a9c64cc17f4f8d1fadbba6d25053a8dbe">subpar::parallelize_range&lt;false&gt;</a>(num_workers, num_tasks, std::move(run_task_range));</div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="preprocessor">#else</span></div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    MNNCORRECT_CUSTOM_PARALLEL(num_workers, num_tasks, run_task_range);</div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="preprocessor">#endif</span></div>
@@ -170,6 +170,8 @@ $(function(){ initResizable(false); });
 <div class="ttc" id="anamespacemnncorrect_html_a5a9c9f9569fcad76a5e735cd8fae0197"><div class="ttname"><a href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a></div><div class="ttdeci">MergePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:43</div></div>
 <div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:26</div></div>
 <div class="ttc" id="anamespacemnncorrect_html_aaf40fe64b828a94b8d253fca4b32b4a4"><div class="ttname"><a href="namespacemnncorrect.html#aaf40fe64b828a94b8d253fca4b32b4a4">mnncorrect::parallelize</a></div><div class="ttdeci">void parallelize(const int num_workers, const Task_ num_tasks, Run_ run_task_range)</div><div class="ttdef"><b>Definition</b> utils.hpp:58</div></div>
+<div class="ttc" id="anamespacesubpar_html_a9c64cc17f4f8d1fadbba6d25053a8dbe"><div class="ttname"><a href="https://ltla.github.io/subpar/namespacesubpar.html#a9c64cc17f4f8d1fadbba6d25053a8dbe">subpar::parallelize_range</a></div><div class="ttdeci">void parallelize_range(int num_workers, Task_ num_tasks, Run_ run_task_range)</div></div>
+<div class="ttc" id="asubpar_8hpp_html"><div class="ttname"><a href="https://ltla.github.io/subpar/subpar_8hpp.html">subpar.hpp</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
