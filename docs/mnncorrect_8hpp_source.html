@@ -110,140 +110,144 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &lt;cstddef&gt;</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="preprocessor">#include &quot;<a class="codeRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="preprocessor">#include &quot;AutomaticOrder.hpp&quot;</span></div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#include &quot;restore_input_order.hpp&quot;</span></div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#include &quot;<a class="code" href="utils_8hpp.html">utils.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span> </div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_ = knncolle::Matrix&lt;Index_, Float_&gt; &gt;</div>
-<div class="foldopen" id="foldopen00036" data-start="{" data-end="};">
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html">   36</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options</a> {</div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">   42</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">num_neighbors</a> = 15;</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">   48</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">num_steps</a> = 1;</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">   54</a></span>    std::shared_ptr&lt;knncolle::Builder&lt;Index_, Float_, Float_, Matrix_&gt; &gt; <a class="code hl_variable" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">builder</a>;</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">   59</a></span>    <a class="code hl_enumeration" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">MergePolicy</a> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">merge_policy</a> = MergePolicy::RSS;</div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">   65</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">num_threads</a> = 1;</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>};</div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="preprocessor">#include &quot;sanisizer/sanisizer.hpp&quot;</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span> </div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#include &quot;AutomaticOrder.hpp&quot;</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#include &quot;restore_input_order.hpp&quot;</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="preprocessor">#include &quot;<a class="code" href="utils_8hpp.html">utils.hpp</a>&quot;</span></div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span> </div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacemnncorrect.html">mnncorrect</a> {</div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span> </div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_ = knncolle::Matrix&lt;Index_, Float_&gt; &gt;</div>
+<div class="foldopen" id="foldopen00037" data-start="{" data-end="};">
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html">   37</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options</a> {</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">   43</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">num_neighbors</a> = 15;</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">   49</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">num_steps</a> = 1;</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">   55</a></span>    std::shared_ptr&lt;knncolle::Builder&lt;Index_, Float_, Float_, Matrix_&gt; &gt; <a class="code hl_variable" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">builder</a>;</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span> </div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">   60</a></span>    <a class="code hl_enumeration" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">MergePolicy</a> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">merge_policy</a> = MergePolicy::RSS;</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">   66</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">num_threads</a> = 1;</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>};</div>
 </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="keyword">namespace </span>internal {</div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> std::vector&lt;const Float_*&gt;&amp; batches, Float_* output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="keyword">auto</span> builder = options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">builder</a>;</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="keywordflow">if</span> (!builder) {</div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        <span class="keyword">typedef</span> <a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1EuclideanDistance.html">knncolle::EuclideanDistance&lt;Float_, Float_&gt;</a> Euclidean;</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        builder.reset(<span class="keyword">new</span> <a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1VptreeBuilder.html">knncolle::VptreeBuilder&lt;Index_, Float_, Float_, Matrix_, Euclidean&gt;</a>(std::make_shared&lt;Euclidean&gt;()));</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    }</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    AutomaticOrder&lt;Index_, Float_, Matrix_&gt; runner(</div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>        num_dim,</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        num_obs,</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        batches,</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        output,</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        *builder,</div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">num_neighbors</a>,</div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">num_steps</a>,</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">merge_policy</a>,</div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">num_threads</a></div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    );</div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    runner.merge();</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>}</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span> </div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>}</div>
-<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
-<div class="foldopen" id="foldopen00142" data-start="{" data-end="}">
-<div class="line"><a id="l00142" name="l00142"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">  142</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> std::vector&lt;const Float_*&gt;&amp; batches, Float_* output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
-<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span>    internal::compute(num_dim, num_obs, batches, output, options);</div>
-<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>}</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="keyword">namespace </span>internal {</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(<span class="keyword">const</span> std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> std::vector&lt;const Float_*&gt;&amp; batches, Float_* <span class="keyword">const</span> output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="keyword">auto</span> builder = options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">builder</a>;</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="keywordflow">if</span> (!builder) {</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        <span class="keyword">typedef</span> <a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1EuclideanDistance.html">knncolle::EuclideanDistance&lt;Float_, Float_&gt;</a> Euclidean;</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        builder.reset(<span class="keyword">new</span> <a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1VptreeBuilder.html">knncolle::VptreeBuilder&lt;Index_, Float_, Float_, Matrix_, Euclidean&gt;</a>(std::make_shared&lt;Euclidean&gt;()));</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    }</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    AutomaticOrder&lt;Index_, Float_, Matrix_&gt; runner(</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        num_dim,</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        num_obs,</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        batches,</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        output,</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        *builder,</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">num_neighbors</a>,</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">num_steps</a>,</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">merge_policy</a>,</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        options.<a class="code hl_variable" href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">num_threads</a></div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    );</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span> </div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    runner.merge();</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>}</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span> </div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>}</div>
+<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
+<div class="foldopen" id="foldopen00143" data-start="{" data-end="}">
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">  143</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(<span class="keyword">const</span> std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> std::vector&lt;const Float_*&gt;&amp; batches, Float_* <span class="keyword">const</span> output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>    internal::compute(num_dim, num_obs, batches, output, options);</div>
+<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>}</div>
 </div>
-<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span> </div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
-<div class="foldopen" id="foldopen00168" data-start="{" data-end="}">
-<div class="line"><a id="l00168" name="l00168"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#aaa1ac3e8b237d6402465f21cb5b62f20">  168</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> Float_* input, Float_* output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
-<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    std::vector&lt;const Float_*&gt; batches;</div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    batches.reserve(num_obs.size());</div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> n : num_obs) {</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>        batches.push_back(input);</div>
-<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>        input += <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(n) * num_dim; <span class="comment">// cast to size_t&#39;s to avoid overflow.</span></div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>    }</div>
-<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>    <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(num_dim, num_obs, batches, output, options);</div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>}</div>
+<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span> </div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
+<div class="foldopen" id="foldopen00169" data-start="{" data-end="}">
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#aa1189515065df1b349924e431f261760">  169</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(<span class="keyword">const</span> std::size_t num_dim, <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; num_obs, <span class="keyword">const</span> Float_* <span class="keyword">const</span> input, Float_* <span class="keyword">const</span> output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    std::vector&lt;const Float_*&gt; batches;</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>    batches.reserve(num_obs.size());</div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span> </div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    Index_ accumulated = 0;</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> n : num_obs) {</div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>        batches.push_back(input + sanisizer::product_unsafe&lt;std::size_t&gt;(accumulated, num_dim));</div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span> </div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>        <span class="comment">// After this check, all internal functions may assume that the total number of observations fits in an Index_.</span></div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>        accumulated = sanisizer::sum&lt;decltype(I(accumulated))&gt;(accumulated, n);</div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span>    }</div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span> </div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>    <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(num_dim, num_obs, batches, output, options);</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>}</div>
 </div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span> </div>
-<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">typename</span> Batch_, <span class="keyword">class</span> Matrix_&gt;</div>
-<div class="foldopen" id="foldopen00200" data-start="{" data-end="}">
-<div class="line"><a id="l00200" name="l00200"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#aee9c4838402953d68aec1596983d01ee">  200</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(std::size_t num_dim, Index_ num_obs, <span class="keyword">const</span> Float_* input, <span class="keyword">const</span> Batch_* batch, Float_* output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
-<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>    <span class="keyword">const</span> <a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> nbatches = (num_obs ? <span class="keyword">static_cast&lt;</span><a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a><span class="keyword">&gt;</span>(*std::max_element(batch, batch + num_obs)) + 1 : 0);</div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>    std::vector&lt;Index_&gt; sizes(nbatches);</div>
-<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>    <span class="keywordflow">for</span> (Index_ o = 0; o &lt; num_obs; ++o) {</div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        ++sizes[batch[o]];</div>
-<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>    }</div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span> </div>
-<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>    <span class="comment">// Avoiding the need to allocate a temporary buffer</span></div>
-<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    <span class="comment">// if we&#39;re already dealing with contiguous batches.</span></div>
-<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    <span class="keywordtype">bool</span> already_sorted = <span class="keyword">true</span>;</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    <span class="keywordflow">for</span> (Index_ o = 1; o &lt; num_obs; ++o) {</div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>       <span class="keywordflow">if</span> (batch[o] &lt; batch[o-1]) {</div>
-<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>           already_sorted = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>           <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>       }</div>
-<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>    }</div>
-<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    <span class="keywordflow">if</span> (already_sorted) {</div>
-<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>        <a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">compute</a>(num_dim, sizes, input, output, options);</div>
-<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>        <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>    }</div>
-<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span> </div>
-<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>    std::size_t accumulated = 0; <span class="comment">// use size_t to avoid overflow issues during later multiplication.</span></div>
-<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>    std::vector&lt;std::size_t&gt; offsets(nbatches);</div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>    <span class="keywordflow">for</span> (<a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> b = 0; b &lt; nbatches; ++b) {</div>
-<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>        offsets[b] = accumulated;</div>
-<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>        accumulated += sizes[b];</div>
-<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span>    }</div>
-<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span> </div>
-<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>    <span class="comment">// Dumping everything by order into another vector.</span></div>
-<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>    std::vector&lt;Float_&gt; tmp(num_dim * <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(num_obs)); <span class="comment">// cast to size_t to avoid overflow.</span></div>
-<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    std::vector&lt;const Float_*&gt; ptrs(nbatches);</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span> </div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">typename</span> Batch_, <span class="keyword">class</span> Matrix_&gt;</div>
+<div class="foldopen" id="foldopen00206" data-start="{" data-end="}">
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno"><a class="line" href="namespacemnncorrect.html#af9359355f6e6631ff449caa2a00d6e5c">  206</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(<span class="keyword">const</span> std::size_t num_dim, <span class="keyword">const</span> Index_ num_obs, <span class="keyword">const</span> Float_* <span class="keyword">const</span> input, <span class="keyword">const</span> Batch_* <span class="keyword">const</span> batch, Float_* <span class="keyword">const</span> output, <span class="keyword">const</span> <a class="code hl_struct" href="structmnncorrect_1_1Options.html">Options&lt;Index_, Float_, Matrix_&gt;</a>&amp; options) {</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>    <span class="keyword">const</span> <a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> nbatches = (num_obs ? sanisizer::sum&lt;BatchIndex&gt;(*std::max_element(batch, batch + num_obs), 1) : <span class="keyword">static_cast&lt;</span><a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a><span class="keyword">&gt;</span>(0));</div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    <span class="keyword">auto</span> sizes = sanisizer::create&lt;std::vector&lt;Index_&gt; &gt;(nbatches);</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    <span class="keywordflow">for</span> (Index_ o = 0; o &lt; num_obs; ++o) {</div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>        ++sizes[batch[o]];</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>    }</div>
+<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span> </div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    <span class="comment">// Avoiding the need to allocate a temporary buffer</span></div>
+<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>    <span class="comment">// if we&#39;re already dealing with contiguous batches.</span></div>
+<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>    <span class="keywordtype">bool</span> already_sorted = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    <span class="keywordflow">for</span> (Index_ o = 1; o &lt; num_obs; ++o) {</div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>       <span class="keywordflow">if</span> (batch[o] &lt; batch[o-1]) {</div>
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>           already_sorted = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>           <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>       }</div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>    }</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>    <span class="keywordflow">if</span> (already_sorted) {</div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>        <a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute</a>(num_dim, sizes, input, output, options);</div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>        <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>    }</div>
+<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span> </div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>    Index_ accumulated = 0;</div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>    <span class="keyword">auto</span> offsets = sanisizer::create&lt;std::vector&lt;Index_&gt; &gt;(nbatches);</div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>    std::vector&lt;Float_&gt; tmp(sanisizer::product&lt;<span class="keyword">typename</span> std::vector&lt;Float_&gt;::size_type&gt;(num_dim, num_obs));</div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    <span class="keyword">auto</span> ptrs = sanisizer::create&lt;std::vector&lt;const Float_*&gt; &gt;(nbatches);</div>
 <div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>    <span class="keywordflow">for</span> (<a class="code hl_typedef" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> b = 0; b &lt; nbatches; ++b) {</div>
-<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>        ptrs[b] = tmp.data() + offsets[b] * num_dim; <span class="comment">// already size_t&#39;s, so no need to cast to avoid overflow.</span></div>
-<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>    }</div>
-<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span> </div>
-<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    <span class="keywordflow">for</span> (Index_ o = 0; o &lt; num_obs; ++o) {</div>
-<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>        <span class="keyword">auto</span> current = input + <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(o) * num_dim; <span class="comment">// cast to size_t to avoid overflow.</span></div>
-<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>        <span class="keyword">auto</span>&amp; offset = offsets[batch[o]];</div>
-<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>        <span class="keyword">auto</span> destination = tmp.data() + num_dim * offset; <span class="comment">// already size_t&#39;s, so no need to cast to avoid overflow.</span></div>
-<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>        std::copy_n(current, num_dim, destination);</div>
-<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>        ++offset;</div>
-<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>    }</div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span> </div>
-<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>    internal::compute(num_dim, sizes, ptrs, output, options);</div>
-<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>    internal::restore_input_order(num_dim, sizes, batch, output);</div>
-<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>}</div>
-</div>
+<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>        ptrs[b] = tmp.data() + sanisizer::product_unsafe&lt;std::size_t&gt;(accumulated, num_dim);</div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>        offsets[b] = accumulated;</div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span>        accumulated += sizes[b]; <span class="comment">// this won&#39;t overflow as know that num_obs fits in an Index_.</span></div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    }</div>
+<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span> </div>
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>    <span class="keywordflow">for</span> (Index_ o = 0; o &lt; num_obs; ++o) {</div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>        <span class="keyword">auto</span>&amp; offset = offsets[batch[o]];</div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>        std::copy_n(</div>
+<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>            input + sanisizer::product_unsafe&lt;std::size_t&gt;(o, num_dim),</div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>            num_dim,</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>            tmp.data() + sanisizer::product_unsafe&lt;std::size_t&gt;(offset, num_dim)</div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>        );</div>
+<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>        ++offset;</div>
+<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>    }</div>
 <div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span> </div>
-<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>}</div>
-<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span> </div>
-<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>    internal::compute(num_dim, sizes, ptrs, output, options);</div>
+<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>    internal::restore_input_order(num_dim, sizes, batch, output);</div>
+<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>}</div>
+</div>
+<div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span> </div>
+<div class="line"><a id="l00251" name="l00251"></a><span class="lineno">  251</span>}</div>
+<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span> </div>
+<div class="line"><a id="l00253" name="l00253"></a><span class="lineno">  253</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="aclassknncolle_1_1EuclideanDistance_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1EuclideanDistance.html">knncolle::EuclideanDistance</a></div></div>
 <div class="ttc" id="aclassknncolle_1_1VptreeBuilder_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1VptreeBuilder.html">knncolle::VptreeBuilder</a></div></div>
 <div class="ttc" id="aknncolle_8hpp_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle.hpp</a></div></div>
-<div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> utils.hpp:20</div></div>
-<div class="ttc" id="anamespacemnncorrect_html_a0ce88c6787f0f2ec73101fc234589ee6"><div class="ttname"><a href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute</a></div><div class="ttdeci">void compute(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:142</div></div>
-<div class="ttc" id="anamespacemnncorrect_html_a5a9c9f9569fcad76a5e735cd8fae0197"><div class="ttname"><a href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a></div><div class="ttdeci">MergePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:42</div></div>
-<div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:25</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:36</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html_a2ec5fc17723c0c92611c942a77b1f83f"><div class="ttname"><a href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">mnncorrect::Options::num_steps</a></div><div class="ttdeci">int num_steps</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:48</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html_a7143d3f30635f258730d15fc2eff8e40"><div class="ttname"><a href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">mnncorrect::Options::builder</a></div><div class="ttdeci">std::shared_ptr&lt; knncolle::Builder&lt; Index_, Float_, Float_, Matrix_ &gt; &gt; builder</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:54</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html_aa1e850cce8e765cf5e7b03ea3d240ce2"><div class="ttname"><a href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">mnncorrect::Options::num_threads</a></div><div class="ttdeci">int num_threads</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:65</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html_ab5023728bd400bacaa74812cb8a56b5d"><div class="ttname"><a href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">mnncorrect::Options::num_neighbors</a></div><div class="ttdeci">int num_neighbors</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:42</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html_af9da9756546454fdd88a9ab7afc7a34e"><div class="ttname"><a href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">mnncorrect::Options::merge_policy</a></div><div class="ttdeci">MergePolicy merge_policy</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:59</div></div>
+<div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> utils.hpp:21</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a5a9c9f9569fcad76a5e735cd8fae0197"><div class="ttname"><a href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a></div><div class="ttdeci">MergePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:43</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:26</div></div>
+<div class="ttc" id="anamespacemnncorrect_html_a80ef925234d2c7eca77e69c127e92271"><div class="ttname"><a href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute</a></div><div class="ttdeci">void compute(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:143</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:37</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html_a2ec5fc17723c0c92611c942a77b1f83f"><div class="ttname"><a href="structmnncorrect_1_1Options.html#a2ec5fc17723c0c92611c942a77b1f83f">mnncorrect::Options::num_steps</a></div><div class="ttdeci">int num_steps</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:49</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html_a7143d3f30635f258730d15fc2eff8e40"><div class="ttname"><a href="structmnncorrect_1_1Options.html#a7143d3f30635f258730d15fc2eff8e40">mnncorrect::Options::builder</a></div><div class="ttdeci">std::shared_ptr&lt; knncolle::Builder&lt; Index_, Float_, Float_, Matrix_ &gt; &gt; builder</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:55</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html_aa1e850cce8e765cf5e7b03ea3d240ce2"><div class="ttname"><a href="structmnncorrect_1_1Options.html#aa1e850cce8e765cf5e7b03ea3d240ce2">mnncorrect::Options::num_threads</a></div><div class="ttdeci">int num_threads</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:66</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html_ab5023728bd400bacaa74812cb8a56b5d"><div class="ttname"><a href="structmnncorrect_1_1Options.html#ab5023728bd400bacaa74812cb8a56b5d">mnncorrect::Options::num_neighbors</a></div><div class="ttdeci">int num_neighbors</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:43</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html_af9da9756546454fdd88a9ab7afc7a34e"><div class="ttname"><a href="structmnncorrect_1_1Options.html#af9da9756546454fdd88a9ab7afc7a34e">mnncorrect::Options::merge_policy</a></div><div class="ttdeci">MergePolicy merge_policy</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:60</div></div>
 <div class="ttc" id="autils_8hpp_html"><div class="ttname"><a href="utils_8hpp.html">utils.hpp</a></div><div class="ttdoc">Utilities for MNN correction.</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->

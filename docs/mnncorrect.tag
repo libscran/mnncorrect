@@ -82,29 +82,29 @@
       <type>void</type>
       <name>parallelize</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a1b556e96c8995a0dba23e412b75c838a</anchor>
-      <arglist>(int num_workers, Task_ num_tasks, Run_ run_task_range)</arglist>
+      <anchor>aaf40fe64b828a94b8d253fca4b32b4a4</anchor>
+      <arglist>(const int num_workers, const Task_ num_tasks, Run_ run_task_range)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a0ce88c6787f0f2ec73101fc234589ee6</anchor>
-      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>a80ef925234d2c7eca77e69c127e92271</anchor>
+      <arglist>(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>aaa1ac3e8b237d6402465f21cb5b62f20</anchor>
-      <arglist>(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *input, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>aa1189515065df1b349924e431f261760</anchor>
+      <arglist>(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *const input, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>aee9c4838402953d68aec1596983d01ee</anchor>
-      <arglist>(std::size_t num_dim, Index_ num_obs, const Float_ *input, const Batch_ *batch, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>af9359355f6e6631ff449caa2a00d6e5c</anchor>
+      <arglist>(const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
   </compound>
   <compound kind="page">

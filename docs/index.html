@@ -101,7 +101,7 @@ $(function(){ initResizable(false); });
 <h1>Overview</h1>
 <p>This library performs unsupervised batch correction of high-dimensional data via the use of mutual nearest neighbors (MNNs). MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see <a href="https://doi.org/10.1038/nbt.4091">Haghverdi et al., 2018</a>) but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches. The MNN implementation here is based on the <code>fastMNN()</code> function in the <a href="https://bioconductor.org/packages/batchelor"><b>batchelor</b> package</a>, which provides a number of improvements and speed-ups over the original method in the Haghverdi paper.</p>
 <h1>Quick start</h1>
-<p>Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns, and a vector of integers specifying the batch of origin for each cell. These are supplied to the <code><a class="el" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute()</a></code> function to compute corrected values:</p>
+<p>Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns, and a vector of integers specifying the batch of origin for each cell. These are supplied to the <code><a class="el" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute()</a></code> function to compute corrected values:</p>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &quot;mnncorrect/MnnCorrect.hpp&quot;</span></div>
 <div class="line"> </div>
 <div class="line">std::vector&lt;double&gt; matrix(ndim * nobs); <span class="comment">// fill with values...</span></div>
@@ -109,9 +109,9 @@ $(function(){ initResizable(false); });
 <div class="line"> </div>
 <div class="line"><a class="code hl_struct" href="structmnncorrect_1_1Options.html">mnncorrect::Options&lt;int, double&gt;</a> opt;</div>
 <div class="line">std::vector&lt;double&gt; output(ndim * nobs);</div>
-<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute</a>(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);</div>
-<div class="ttc" id="anamespacemnncorrect_html_a0ce88c6787f0f2ec73101fc234589ee6"><div class="ttname"><a href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute</a></div><div class="ttdeci">void compute(std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:142</div></div>
-<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:36</div></div>
+<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute</a>(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);</div>
+<div class="ttc" id="anamespacemnncorrect_html_a80ef925234d2c7eca77e69c127e92271"><div class="ttname"><a href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute</a></div><div class="ttdeci">void compute(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:143</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Options_html"><div class="ttname"><a href="structmnncorrect_1_1Options.html">mnncorrect::Options</a></div><div class="ttdoc">Options for compute().</div><div class="ttdef"><b>Definition</b> mnncorrect.hpp:37</div></div>
 </div><!-- fragment --><p>We also support batches in separate arrays, storing the corrected values for all batches in a single output array:</p>
 <div class="fragment"><div class="line"><span class="keywordtype">int</span> nbatches = 3;</div>
 <div class="line">std::vector&lt;int&gt; batch_size;</div>
@@ -123,7 +123,7 @@ $(function(){ initResizable(false); });
 <div class="line"> </div>
 <div class="line">std::size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);</div>
 <div class="line">std::vector&lt;double&gt; output(ndim * total_size);</div>
-<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#a0ce88c6787f0f2ec73101fc234589ee6">mnncorrect::compute</a>(ndim, batch_size, batch_ptrs, output.data(), opt);</div>
+<div class="line"><a class="code hl_function" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute</a>(ndim, batch_size, batch_ptrs, output.data(), opt);</div>
 </div><!-- fragment --><p>Advanced users can also fiddle with the options:</p>
 <div class="fragment"><div class="line"><span class="comment">// Number of neighbors to use for MNN identification.</span></div>
 <div class="line">opt.num_neighbors = 10;</div>
