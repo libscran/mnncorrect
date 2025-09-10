@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <memory>
 #include <cstddef>
+#include <type_traits>
 
 #include "knncolle/knncolle.hpp"
 
@@ -54,7 +55,7 @@ enum class MergePolicy : char { INPUT, SIZE, VARIANCE, RSS };
  * Any user-defined macro should accept the same arguments as `subpar::parallelize_range()`.
  */
 template<typename Task_, class Run_>
-void parallelize(int num_workers, Task_ num_tasks, Run_ run_task_range) {
+void parallelize(const int num_workers, const Task_ num_tasks, Run_ run_task_range) {
 #ifndef MNNCORRECT_CUSTOM_PARALLEL
     // Methods could allocate or throw, so nothrow_ = false is safest.
     subpar::parallelize_range<false>(num_workers, num_tasks, std::move(run_task_range));
@@ -86,6 +87,11 @@ struct BatchInfo {
     std::vector<Corrected<Index_, Float_> > extras;
 };
 
+}
+
+template<typename Input_>
+std::remove_cv_t<std::remove_reference_t<Input_> > I(const Input_ x) {
+    return x;
 }
 /**
  * @endcond

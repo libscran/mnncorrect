@@ -7,4 +7,5 @@ PKG_CPPFLAGS=-I${BUILD_DIR}/aarand-src/include \
     -I${BUILD_DIR}/powerit-src/include \
     -I${BUILD_DIR}/knncolle-src/include \
     -I${BUILD_DIR}/subpar-src/include \
+    -I${BUILD_DIR}/sanisizer-src/include \
     -I../../../../include

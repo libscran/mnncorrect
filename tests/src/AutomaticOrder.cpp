@@ -29,8 +29,8 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
 
     std::vector<mnncorrect::BatchIndex> batch_of_origin(num_total);
     mnncorrect::internal::RedistributeCorrectedObservationsWorkspace<int, double> work;
-    work.offsets.resize(10); // filling it with some nonsense to check that the function wipes it.
-    work.buffer.resize(1);
+    work.buffer.resize(num_dim * num_total, 69); // making sure we actually allocate the memory, though it may be filled with nonsense.
+    work.offsets.resize(10, 69); // filling it with some nonsense to check that the function wipes it.
 
     for (int num_threads = 1; num_threads <= 3; num_threads += 2) {
         std::vector<mnncorrect::internal::BatchInfo<int, double> > batches(3);

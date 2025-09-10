@@ -16,11 +16,11 @@ template<typename Index_, typename Distance_>
 void fuse_nn_results(
     const std::vector<std::pair<Index_, Distance_> >& base, 
     const std::vector<std::pair<Index_, Distance_> >& alt, 
-    int k,
+    const int k,
     std::vector<std::pair<Index_, Distance_> >& output)
 {
     output.clear();
-    decltype(output.size()) num_neighbors = k; // converting into size_type for easier comparisons below.
+    decltype(I(output.size())) num_neighbors = k; // converting into size_type for easier comparisons below.
     if (num_neighbors == 0) {
         return;
     }

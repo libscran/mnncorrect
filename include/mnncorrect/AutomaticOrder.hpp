@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <numeric>
 
+#include "sanisizer/sanisizer.hpp"
 #include "knncolle/knncolle.hpp"
 
 #include "utils.hpp"
@@ -22,7 +23,7 @@ namespace internal {
 
 template<typename Index_, typename Float_>
 void fill_batch_ids(const BatchInfo<Index_, Float_>& batch, std::vector<Index_>& ids) {
-    ids.resize(batch.num_obs);
+    ids.resize(batch.num_obs); // this is known to not overflow as AutomaticOrder constructor already reserved the maximum space.
     std::iota(ids.begin(), ids.end(), batch.offset);
     for (const auto& extra : batch.extras) {
         ids.insert(ids.end(), extra.ids.begin(), extra.ids.end());
@@ -38,11 +39,11 @@ struct RedistributeCorrectedObservationsWorkspace {
 
 template<typename Index_, typename Float_>
 void redistribute_corrected_observations(
-    std::size_t num_dim,
+    const std::size_t num_dim,
     CorrectTargetResults<Index_> correct_info,
-    const Float_* data,
+    const Float_* const data,
     const knncolle::Builder<Index_, Float_, Float_>& builder,
-    int num_threads,
+    const int num_threads,
     RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
     std::vector<BatchInfo<Index_, Float_> >& batches,
     std::vector<BatchIndex>& assigned_batch)
@@ -51,34 +52,31 @@ void redistribute_corrected_observations(
     // on contiguous chunks of that allocation within each thread. This allows
     // us to use the upper bound of required space to create an allocation that
     // can be reused across all calls to this function.
-    BatchIndex num_remaining = correct_info.reassignments.size();
+    const BatchIndex num_remaining = correct_info.reassignments.size();
     workspace.offsets.clear();
     workspace.offsets.reserve(num_remaining);
     Index_ sofar = 0;
     for (BatchIndex b = 0; b < num_remaining; ++b) {
         const auto& rem = correct_info.reassignments[b];
         workspace.offsets.push_back(sofar);
-        sofar += rem.size();
-        for (auto r : rem) {
+        sofar += rem.size(); // known to NOT overflow, see mnncorrect::compute().
+        for (const auto r : rem) {
             assigned_batch[r] = b;
         }
     }
 
-    // Technically this is not necessary as we do a big allocation in the
-    // AutomaticOrder constructor... but we just resize it here for safety.
-    workspace.buffer.resize(static_cast<std::size_t>(sofar) * num_dim); // cast to avoid overflow.
-
-    parallelize(num_threads, num_remaining, [&](int, BatchIndex start, BatchIndex length) -> void {
+    parallelize(num_threads, num_remaining, [&](const int, const BatchIndex start, const BatchIndex length) -> void {
         for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            auto storage = workspace.buffer.data() + static_cast<std::size_t>(workspace.offsets[b]) * num_dim; // cast to avoid overflow.
+            // workspace.buffer was already allocated in the AutomaticOrder constructor so this pointer arithmetic is fine.
+            const auto storage = workspace.buffer.data() + sanisizer::product_unsafe<std::size_t>(workspace.offsets[b], num_dim);
 
             auto& reass = correct_info.reassignments[b];
-            auto num_reass = reass.size();
-            for (decltype(num_reass) i = 0; i < num_reass; ++i) {
+            const auto num_reass = reass.size();
+            for (decltype(I(num_reass)) i = 0; i < num_reass; ++i) {
                 std::copy_n(
-                    data + static_cast<std::size_t>(reass[i]) * num_dim, // ditto.
+                    data + sanisizer::product_unsafe<std::size_t>(reass[i], num_dim),
                     num_dim, 
-                    storage + static_cast<std::size_t>(i) * num_dim
+                    storage + sanisizer::product_unsafe<std::size_t>(i, num_dim)
                 );
             }
 
@@ -94,15 +92,15 @@ template<typename Index_, typename Float_, typename Matrix_>
 class AutomaticOrder {
 public:
     AutomaticOrder(
-        std::size_t num_dim,
+        const std::size_t num_dim,
         const std::vector<Index_>& num_obs,
         const std::vector<const Float_*>& batches, 
-        Float_* corrected,
+        Float_* const corrected,
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
-        int num_neighbors, 
-        int num_steps,
-        MergePolicy merge_policy, 
-        int num_threads)
+        const int num_neighbors, 
+        const int num_steps,
+        const MergePolicy merge_policy, 
+        const int num_threads)
     :
         my_num_dim(num_dim), 
         my_builder(builder),
@@ -111,8 +109,8 @@ public:
         my_num_steps(num_steps),
         my_num_threads(num_threads)
     {
-        BatchIndex nbatches = num_obs.size();
-        if (nbatches != batches.size()) {
+        const BatchIndex nbatches = num_obs.size();
+        if (!sanisizer::is_equal(nbatches, batches.size())) {
             throw std::runtime_error("length of 'num_obs' and 'batches' must be equal");
         }
         if (nbatches == 0) {
@@ -120,20 +118,20 @@ public:
         }
 
         my_num_total = 0;
-        std::vector<BatchInfo<Index_, Float_> > tmp_batches(nbatches);
+        auto tmp_batches = sanisizer::create<std::vector<BatchInfo<Index_, Float_> > >(nbatches);
         for (BatchIndex b = 0; b < nbatches; ++b) {
             tmp_batches[b].offset = my_num_total;
-            auto cur_num_obs = num_obs[b];
+            const auto cur_num_obs = num_obs[b];
             tmp_batches[b].num_obs = cur_num_obs;
             std::copy_n(
                 batches[b],
-                static_cast<std::size_t>(cur_num_obs) * num_dim, // cast to size_t to avoid overflow.
-                my_corrected + static_cast<std::size_t>(my_num_total) * num_dim // ditto.
+                sanisizer::product_unsafe<std::size_t>(cur_num_obs, num_dim),
+                my_corrected + sanisizer::product_unsafe<std::size_t>(my_num_total, num_dim)
             );
-            my_num_total += cur_num_obs;
+            my_num_total += cur_num_obs; // known to NOT overflow, see mnncorrect::compute().
         }
 
-        parallelize(num_threads, nbatches, [&](int, BatchIndex start, BatchIndex length) -> void {
+        parallelize(num_threads, nbatches, [&](const int, const BatchIndex start, const BatchIndex length) -> void {
             for (BatchIndex b = start, end = start + length; b < end; ++b) {
                 auto& curbatch = tmp_batches[b];
                 curbatch.index = my_builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_obs[b], batches[b]));
@@ -146,21 +144,21 @@ public:
         if (merge_policy == MergePolicy::SIZE) {
             define_merge_order(num_obs, order);
         } else if (merge_policy == MergePolicy::VARIANCE || merge_policy == MergePolicy::RSS) {
-            bool as_rss = merge_policy == MergePolicy::RSS;
-            std::vector<Float_> vars = compute_total_variances(num_dim, num_obs, batches, as_rss, num_threads);
+            const bool as_rss = merge_policy == MergePolicy::RSS;
+            const auto vars = compute_total_variances(num_dim, num_obs, batches, as_rss, num_threads);
             define_merge_order(vars, order);
         } else { // i.e., merge_policy = INPUT.
-            order.resize(nbatches);
+            sanisizer::resize(order, nbatches);
             std::iota(order.begin(), order.end(), static_cast<BatchIndex>(0));
         }
 
         my_batches.reserve(nbatches);
-        for (auto o : order) {
+        for (const auto o : order) {
             my_batches.emplace_back(std::move(tmp_batches[o]));
         }
 
         // Do this after re-ordering so that we can index into 'my_batches'.
-        my_batch_assignment.resize(my_num_total);
+        sanisizer::resize(my_batch_assignment, my_num_total);
         for (BatchIndex b = 0; b < nbatches; ++b) {
             const auto& curbatch = my_batches[b];
             std::fill_n(my_batch_assignment.begin() + curbatch.offset, curbatch.num_obs, b);
@@ -168,7 +166,10 @@ public:
 
         // Allocate one big space for index construction once, so that we don't
         // have to reallocate within each redistribute_corrected_observations() call.
-        my_build_workspace.buffer.resize(my_num_dim * static_cast<std::size_t>(my_num_total));
+        my_build_workspace.buffer.resize(sanisizer::product<decltype(I(my_build_workspace.buffer.size()))>(my_num_dim, my_num_total));
+
+        // Similarly, avoid repeated allocations in fill_batch_ids(). 
+        my_target_ids.reserve(sanisizer::cast<decltype(I(my_target_ids.size()))>(my_num_total));
     }
 
 protected:
@@ -237,7 +238,7 @@ protected:
         );
 
         // We don't need to do this at the last step.
-        bool remaining = my_batches.size() > 1;
+        const bool remaining = my_batches.size() > 1;
         if (remaining || test) {
             redistribute_corrected_observations(
                 my_num_dim,

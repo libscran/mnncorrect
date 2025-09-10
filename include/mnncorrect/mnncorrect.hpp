@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "knncolle/knncolle.hpp"
+#include "sanisizer/sanisizer.hpp"
 
 #include "AutomaticOrder.hpp"
 #include "restore_input_order.hpp"
@@ -71,7 +72,7 @@ struct Options {
 namespace internal {
 
 template<typename Index_, typename Float_, class Matrix_>
-void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
     auto builder = options.builder;
     if (!builder) {
         typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
@@ -139,7 +140,7 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std:
  * @param options Further options.
  */
 template<typename Index_, typename Float_, class Matrix_>
-void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
     internal::compute(num_dim, num_obs, batches, output, options);
 }
 
@@ -165,13 +166,18 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const std:
  * @param options Further options.
  */
 template<typename Index_, typename Float_, class Matrix_>
-void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* input, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
+void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* const input, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
     std::vector<const Float_*> batches;
     batches.reserve(num_obs.size());
-    for (auto n : num_obs) {
-        batches.push_back(input);
-        input += static_cast<std::size_t>(n) * num_dim; // cast to size_t's to avoid overflow.
+
+    Index_ accumulated = 0;
+    for (const auto n : num_obs) {
+        batches.push_back(input + sanisizer::product_unsafe<std::size_t>(accumulated, num_dim));
+
+        // After this check, all internal functions may assume that the total number of observations fits in an Index_.
+        accumulated = sanisizer::sum<decltype(I(accumulated))>(accumulated, n);
     }
+
     compute(num_dim, num_obs, batches, output, options);
 }
 
@@ -197,9 +203,9 @@ void compute(std::size_t num_dim, const std::vector<Index_>& num_obs, const Floa
  * @param options Further options.
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
-void compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Batch_* batch, Float_* output, const Options<Index_, Float_, Matrix_>& options) {
-    const BatchIndex nbatches = (num_obs ? static_cast<BatchIndex>(*std::max_element(batch, batch + num_obs)) + 1 : 0);
-    std::vector<Index_> sizes(nbatches);
+void compute(const std::size_t num_dim, const Index_ num_obs, const Float_* const input, const Batch_* const batch, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
+    const BatchIndex nbatches = (num_obs ? sanisizer::sum<BatchIndex>(*std::max_element(batch, batch + num_obs), 1) : static_cast<BatchIndex>(0));
+    auto sizes = sanisizer::create<std::vector<Index_> >(nbatches);
     for (Index_ o = 0; o < num_obs; ++o) {
         ++sizes[batch[o]];
     }
@@ -218,25 +224,23 @@ void compute(std::size_t num_dim, Index_ num_obs, const Float_* input, const Bat
         return;
     }
 
-    std::size_t accumulated = 0; // use size_t to avoid overflow issues during later multiplication.
-    std::vector<std::size_t> offsets(nbatches);
+    Index_ accumulated = 0;
+    auto offsets = sanisizer::create<std::vector<Index_> >(nbatches);
+    std::vector<Float_> tmp(sanisizer::product<typename std::vector<Float_>::size_type>(num_dim, num_obs));
+    auto ptrs = sanisizer::create<std::vector<const Float_*> >(nbatches);
     for (BatchIndex b = 0; b < nbatches; ++b) {
+        ptrs[b] = tmp.data() + sanisizer::product_unsafe<std::size_t>(accumulated, num_dim);
         offsets[b] = accumulated;
-        accumulated += sizes[b];
-    }
-
-    // Dumping everything by order into another vector.
-    std::vector<Float_> tmp(num_dim * static_cast<std::size_t>(num_obs)); // cast to size_t to avoid overflow.
-    std::vector<const Float_*> ptrs(nbatches);
-    for (BatchIndex b = 0; b < nbatches; ++b) {
-        ptrs[b] = tmp.data() + offsets[b] * num_dim; // already size_t's, so no need to cast to avoid overflow.
+        accumulated += sizes[b]; // this won't overflow as know that num_obs fits in an Index_.
     }
 
     for (Index_ o = 0; o < num_obs; ++o) {
-        auto current = input + static_cast<std::size_t>(o) * num_dim; // cast to size_t to avoid overflow.
         auto& offset = offsets[batch[o]];
-        auto destination = tmp.data() + num_dim * offset; // already size_t's, so no need to cast to avoid overflow.
-        std::copy_n(current, num_dim, destination);
+        std::copy_n(
+            input + sanisizer::product_unsafe<std::size_t>(o, num_dim),
+            num_dim,
+            tmp.data() + sanisizer::product_unsafe<std::size_t>(offset, num_dim)
+        );
         ++offset;
     }
 

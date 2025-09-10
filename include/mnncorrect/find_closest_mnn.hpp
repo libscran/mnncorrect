@@ -33,26 +33,26 @@ void find_closest_mnn(
     FindClosestMnnWorkspace<Index_>& workspace,
     FindClosestMnnResults<Index_>& results)
 {
-    auto num_total = neighbors.size();
+    const auto num_total = neighbors.size();
     for (auto& rev : workspace.reverse_neighbor_buffer) {
         rev.clear();
     }
-    workspace.reverse_neighbor_buffer.resize(num_total);
+    sanisizer::resize(workspace.reverse_neighbor_buffer, num_total);
     workspace.last_checked.clear();
-    workspace.last_checked.resize(num_total);
+    sanisizer::resize(workspace.last_checked, num_total);
 
     results.ref_mnns.clear();
     results.target_mnns.clear();
 
-    for (auto t : target_ids) {
+    for (const auto t : target_ids) {
         const auto& tvals = neighbors[t];
         bool best_found = false;
         Index_ best_ref = 0;
 
         // tvals should be sorted by distance, so we can quit early when
         // we find the first (and thus closest) MNN.
-        for (auto tpair : tvals) {
-            auto tneighbor = tpair.first;
+        for (const auto& tpair : tvals) {
+            const auto tneighbor = tpair.first;
             auto& other = workspace.reverse_neighbor_buffer[tneighbor];
 
             if (other.empty()) { // Only instantiate this when needed.
@@ -68,7 +68,7 @@ void find_closest_mnn(
             // need to search earlier indices, because there were already
             // processed by an earlier iteration of 't'.
             auto& position = workspace.last_checked[tneighbor];
-            Index_ num_other = other.size();
+            const Index_ num_other = other.size();
             for (; position < num_other; ++position) {
                 if (other[position] >= t) {
                     if (other[position] == t) {
