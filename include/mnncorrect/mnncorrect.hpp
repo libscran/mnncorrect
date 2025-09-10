@@ -27,8 +27,8 @@ namespace mnncorrect {
 
 /**
  * @brief Options for `compute()`.
- * @tparam Index_ Integer type for the observation indices.
- * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Index_ Integer type of the observation indices.
+ * @tparam Float_ Floating-point type of the input/output data.
  * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
  * Alternatively, it may be a `knncolle::SimpleMatrix`.
@@ -36,14 +36,16 @@ namespace mnncorrect {
 template<typename Index_, typename Float_, class Matrix_ = knncolle::Matrix<Index_, Float_> >
 struct Options {
     /**
-     * Number of neighbors for the various search steps, primarily to identify MNN pairs.
-     * This can also be interpreted as the lower bound on the number of observations in each "subpopulation". 
-     * Larger values increase improve the stability of the correction, at the cost of reduced resolution when matching subpopulations across batches.
+     * Number of neighbors to use in the various search steps - specifically, identification of MNN pairs and calculation of the centers of mass. 
+     * It can be interpreted as the lower bound on the number of observations in each "subpopulation". 
+     *
+     * Larger values improve the stability of the correction by increasing the number of MNN pairs and including more observations in each center of mass.
+     * However, this comes at the cost of reduced resolution when matching subpopulations across batches.
      */
     int num_neighbors = 15;
 
     /**
-     * Number of steps for the recursive neighbor search to compute the center of mass.
+     * Number of steps for the recursive neighbor search to compute the center of mass for each MNN-involved observationc.
      * Larger values mitigate the kissing effect but increase the risk of including inappropriately distant subpopulations into the center of mass.
      */
     int num_steps = 1;
@@ -55,7 +57,7 @@ struct Options {
     std::shared_ptr<knncolle::Builder<Index_, Float_, Float_, Matrix_> > builder;
 
     /**
-     * Policy to use to choose the merge order.
+     * Policy for choosing the merge order.
      */
     MergePolicy merge_policy = MergePolicy::RSS;
 
@@ -101,29 +103,32 @@ void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, cons
 
 /**
  * This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi _et al._, 2018).
- * Two cells from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
- * The MNN pairs are assumed to represent cells from corresponding subpopulations across the two batches.
- * Any differences in location between the paired cells represents an estimate of the batch effect in that part of the high-dimensional space.
+ * Two observations from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
+ * The MNN pairs are assumed to represent observations from corresponding subpopulations across the two batches.
+ * Any differences in location between the paired observations represents an estimate of the batch effect in that part of the high-dimensional space.
  *
- * We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the (unchanged) former. 
- * For each 
- * Each MNN pair is used to define a correction vector 
- * For each observation in the target batch, we find the closest MNN pairs (based on the locations of the paired observation in the same batch)
- * and we compute a robust average of the correction vectors involving those pairs.
- * This average is used to obtain a single correction vector that is applied to the target observation to obtain corrected values.
+ * We consider one batch to be the "reference" and the other to be the "target", where the aim is to correct the latter to the former. 
+ * Each MNN pair defines a correction vector that moves the target observation towards its paired reference observation.
+ * For each observation in the target batch, we identify the closest observation in the same batch that is part of a MNN pair (i.e., "MNN-involved observations").
+ * We apply that pair's correction vector to the observation to obtain its corrected coordinates.
  *
  * Each MNN pair's correction vector is computed between the "center of mass" locations for the paired observations.
  * The center of mass for each observation is defined by recursively searching the neighbors of each MNN-involved observation
  * (and then the neighbors of those neighbors, up to a recursion depth of `Options::num_steps`) and computing the mean of their coordinates.
  * This improves the correction by mitigating the "kissing effect", i.e., where the correction vectors only form between the surfaces of the mass of points in each batch.
  *
+ * In the case of >2 batches, we define a merge order based on `Options::merge_policy`.
+ * For the first batch to be merged, we identify MNN pairs to all other batches at once.
+ * The subsequent correction effectively distributes the first batch's observations to all other batches.
+ * This process is repeated for all remaining batches until only one batch remains that contains all observations.
+ *
  * @see
  * Haghverdi L et al. (2018).
  * Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors.
  * _Nature Biotech._ 36, 421-427
  *
- * @tparam Index_ Integer type for the observation index. 
- * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Index_ Integer type of the observation index. 
+ * @tparam Float_ Floating-point type of the input/output data.
  * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
  * Alternatively, it may be a `knncolle::SimpleMatrix`.
@@ -145,10 +150,10 @@ void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, cons
 }
 
 /**
- * A convenience overload to merge contiguous batches contained in the same array.
+ * Overload of `compute()` to merge contiguous batches contained in the same array.
  *
- * @tparam Index_ Integer type for the observation index. 
- * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Index_ Integer type of the observation index. 
+ * @tparam Float_ Floating-point type of the input/output data.
  * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
  * Alternatively, it may be a `knncolle::SimpleMatrix`.
@@ -182,14 +187,14 @@ void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, cons
 }
 
 /**
- * Merge batches where observations are arbitrarily ordered in the same array.
+ * Overload of `compute()` to merge batches where observations are arbitrarily ordered in the same array.
  *
- * @tparam Index_ Integer type for the observation index. 
- * @tparam Float_ Floating-point type for the input/output data.
+ * @tparam Index_ Integer type of the observation index. 
+ * @tparam Float_ Floating-point type of the input/output data.
  * @tparam Matrix_ Class of the input data matrix for the neighbor search.
  * This should satisfy the `knncolle::Matrix` interface.
  * Alternatively, it may be a `knncolle::SimpleMatrix`.
- * @tparam Batch_ Integer type for the batch IDs.
+ * @tparam Batch_ Integer type of the batch IDs.
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Number of observations across all batches.

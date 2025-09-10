@@ -10,17 +10,17 @@
 This library performs unsupervised batch correction of high-dimensional data via the use of mutual nearest neighbors (MNNs).
 MNN correction was initially described in the context of single-cell RNA sequencing data analysis (see [Haghverdi et al., 2018](https://doi.org/10.1038/nbt.4091))
 but the same methodology can be applied for any high-dimensional data containing shared populations across multiple batches.
-The MNN implementation here is based on the `fastMNN()` function in the [**batchelor** package](https://bioconductor.org/packages/batchelor),
+This implementation is loosely based on the `fastMNN()` function in the [**batchelor** package](https://bioconductor.org/packages/batchelor),
 which provides a number of improvements and speed-ups over the original method in the Haghverdi paper.
 
 ## Quick start
 
 Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns,
 and a vector of integers specifying the batch of origin for each cell.
-These are supplied to the `mnncorrect::compute()` function to compute corrected values:
+These are passed to `mnncorrect::compute()` to compute corrected values:
 
 ```cpp
-#include "mnncorrect/MnnCorrect.hpp"
+#include "mnncorrect/mnncorrect.hpp"
 
 std::vector<double> matrix(ndim * nobs); // fill with values...
 std::vector<int> batch(nobs) // fill with batch IDs from [0, num_batches)
@@ -74,16 +74,17 @@ In contrast, a subpopulation unique to a single batch will not contain any MNNs 
 as it will not have a corresponding subpopulation in the other batch for which it can be the closest neighbor.
 
 To remove batch effects, we consider one batch to be the "reference" and another to be the "target".
-For each MNN pair, we compute a correction vector that moves the target batch towards the reference.
-For each cell $i$ in the target batch, we identify the closest cell in the same batch that is part of a MNN pair (i.e., "MNN-involved cells") and apply the pair's correction vector to $i$'s coordinates.
+Each MNN pair defines a correction vector that moves the target cell towards its paired reference cell.
+For each cell $i$ in the target batch, we identify the closest cell in the same batch that is part of a MNN pair (i.e., "MNN-involved cells").
+We apply that pair's correction vector to $i$ to obtain its corrected coordinates.
 The use of the closest MNN-involved cell allows the correction to adjust to local variations in the magnitude and direction of the batch effect.
 If an MNN-involved cell in the target batch is part of multiple MNN pairs, we only use the correction vector of the pair with the shortest distance between its paired cells, for simplicity.
 
 The correction vector for each MNN pair is not directly computed from its two paired cells.
 Rather, for each cell, we compute a "center of mass" using neighboring points from the same batch.
-Most simply, the center of mass is defined as the mean coordinates of the $k$ nearest neighbors of each MNN-involved cell.
+Each center of mass is defined as the centroid of the set of $k$ nearest neighbors of each MNN-involved cell.
 This can be done recursively with the neighbors of those neighbors, etc., up to a user-specified recursion depth.
-The aim is to eliminate "kissing" effects where the correction only brings the surfaces of the batches into contact.
+The aim is to mitigate "kissing" effects where the correction only brings the surfaces of the batches into contact.
 
 In the case of >2 batches, we define a merge order based on the batch size, variance, residual sum of squares, or the input order.
 For the first batch to be merged, we identify MNN pairs to all other batches at once.
@@ -94,9 +95,9 @@ By using all batches to identify MNN pairs at each step, we improve the chance o
 ## Examples
 
 The `tests/R/examples` directory contains a few examples using the C++ code on some real datasets (namely, single-cell RNA-seq datasets).
-To run these, install the package at `tests/R/package` (this requires the [**scran.chan**](https://github.com/LTLA/scran.chan) package, which also wraps this C++ library in a more complete package).
+To run these, install the package at `tests/R/package` (this also requires the [**scrapper**](https://github.com/libscran/scrapper) package for the various preprocessing steps):
 
-`pbmc`: mergesthe PBMC 3K and 4K datasets from 10X Genomics.
+`pbmc`: merges the PBMC 3K and 4K datasets from 10X Genomics.
 These are technical replicates (I think) so a complete merge is to be expected.
 
 ![pbmc-output](https://raw.githubusercontent.com/libscran/mnncorrect/images/tests/R/examples/pbmc/output_simple.png)

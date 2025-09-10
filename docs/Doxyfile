@@ -917,11 +917,8 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ../include/mnncorrect/compute.hpp \
-                         ../include/mnncorrect/utils.hpp \
-                         ../include/mnncorrect/Options.hpp \
+INPUT                  = ../include/mnncorrect/utils.hpp \
                          ../include/mnncorrect/mnncorrect.hpp \
-                         ../include/mnncorrect/parallelize.hpp \
                          ../README.md
 
 # This tag can be used to specify the character encoding of the source files
