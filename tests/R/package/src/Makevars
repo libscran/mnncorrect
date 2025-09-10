@@ -2,10 +2,7 @@
 # root directory for this repository, so that the headers for all dependencies
 # are available.
 BUILD_DIR=../../../../build/_deps
-PKG_CPPFLAGS=-I${BUILD_DIR}/aarand-src/include \
-    -I${BUILD_DIR}/kmeans-src/include \
-    -I${BUILD_DIR}/powerit-src/include \
-    -I${BUILD_DIR}/knncolle-src/include \
+PKG_CPPFLAGS=-I${BUILD_DIR}/knncolle-src/include \
     -I${BUILD_DIR}/subpar-src/include \
     -I${BUILD_DIR}/sanisizer-src/include \
     -I../../../../include
