@@ -66,7 +66,7 @@ TEST_P(FindClosestMnnTest, Check) {
     int ndim = 7;
     int ntotal = nref + ntarget;
     auto simulated = scran_tests::simulate_vector(ntotal * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = 42 + nref + ntarget * 10 + k;
         return sparams;
     }());

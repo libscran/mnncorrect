@@ -20,7 +20,7 @@ TEST(AutomaticOrder, RedistributeCorrectedObservations) {
     correct_info.reassignments[2] = std::vector<int>{ 1, 23 };
 
     auto data = scran_tests::simulate_vector(num_total * num_dim, [&]{
-        scran_tests::SimulationParameters params;
+        scran_tests::SimulateVectorParameters params;
         params.seed = 69;
         return params;
     }());
@@ -178,7 +178,7 @@ TEST_F(AutomaticOrderInitTest, Input) {
     std::vector<std::vector<double> > data(nbatches);
     for (decltype(nbatches) b = 0; b < nbatches; ++b) {
         data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = 42 + ndim * 10 + sizes[b];
             return sparams;
         }());
@@ -224,7 +224,7 @@ TEST_F(AutomaticOrderInitTest, MaxSize) {
     std::vector<std::vector<double> > data(nbatches);
     for (decltype(nbatches) b = 0; b < nbatches; ++b) {
         data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = 69 + ndim * 10 + sizes[b];
             return sparams;
         }());
@@ -268,7 +268,7 @@ TEST_F(AutomaticOrderInitTest, MaxVariance) {
     std::vector<std::vector<double> > data(nbatches);
     for (decltype(nbatches) b = 0; b < nbatches; ++b) {
         data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = 4269 + ndim * 10 + sizes[b];
             sparams.lower = -3.0 * (b + 1); // later batches are more variable.
             sparams.upper = 3.0 * (b + 1);
@@ -317,7 +317,7 @@ TEST_F(AutomaticOrderInitTest, MaxRss) {
     std::vector<std::vector<double> > data(nbatches);
     for (decltype(nbatches) b = 0; b < nbatches; ++b) {
         data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = 4269 + ndim * 10 + sizes[b];
             sparams.lower = -3.0 / (b + 1); // later batches are less variable.
             sparams.upper = 3.0 / (b + 1);
@@ -368,7 +368,7 @@ TEST_P(AutomaticOrderNextTest, Basic) {
     constexpr std::size_t ndim = 7;
     for (decltype(nbatches) b = 0; b < nbatches; ++b) {
         data[b] = scran_tests::simulate_vector(sizes[b] * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = 4269 + ndim * 10 + sizes[b];
             return sparams;
         }());

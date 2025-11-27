@@ -20,7 +20,7 @@ protected:
 
         nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
         data = scran_tests::simulate_vector(nobs * ndim, [&]{
-            scran_tests::SimulationParameters sparams;
+            scran_tests::SimulateVectorParameters sparams;
             sparams.seed = ndim * k + nobs;
             sparams.lower = -2;
             sparams.upper = 2;
@@ -201,7 +201,7 @@ TEST(Overall, Sanity) {
     std::vector<int> sizes{ 300, 400, 110 };
     auto nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     auto data = scran_tests::simulate_vector(nobs * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = 9999;
         sparams.lower = -0.5;
         sparams.upper = 0.5;

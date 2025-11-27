@@ -22,7 +22,7 @@ protected:
         auto num_batches = batch_sizes.size();
         num_total = std::accumulate(batch_sizes.begin(), batch_sizes.end(), 0);
         simulated = scran_tests::simulate_vector(num_dim * num_total, [&]{
-            scran_tests::SimulationParameters opt;
+            scran_tests::SimulateVectorParameters opt;
             opt.seed = num_total * num_batches;
             return opt;
         }());

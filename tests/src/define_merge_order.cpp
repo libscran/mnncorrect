@@ -11,7 +11,7 @@
 TEST(DefineMergeOrder, RunningVariances) {
     int ndim = 12;
     int nobs = 34;
-    auto data = scran_tests::simulate_vector(ndim * nobs, scran_tests::SimulationParameters());
+    auto data = scran_tests::simulate_vector(ndim * nobs, scran_tests::SimulateVectorParameters());
 
     double ref = 0;
     for (int d = 0; d < ndim; ++d) {
@@ -42,7 +42,7 @@ TEST(DefineMergeOrder, RunningVariances) {
 
     // Overlord function works, even with multiple threads.
     int nobs2 = 100;
-    auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulationParameters());
+    auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulateVectorParameters());
 
     auto vars = mnncorrect::internal::compute_total_variances<int, double>(ndim, { nobs, nobs2 }, { data.data(), data2.data() }, false, /* num_threads = */ 1);
     EXPECT_FLOAT_EQ(vars[0], running);

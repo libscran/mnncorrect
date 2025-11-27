@@ -58,7 +58,7 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     std::size_t ndim = 5;
     int nobs = 100;
     auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = k * 10 + steps;
         return sparams;
     }());
@@ -222,7 +222,7 @@ TEST_P(ComputeCenterOfMassTest, Basic) {
     std::size_t ndim = 5;
     int nobs = 100;
     auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = k * 10 + steps;
         return sparams;
     }());
@@ -348,7 +348,7 @@ TEST(CorrectTarget, BuildMnnOnlyIndex) {
     std::size_t ndim = 5;
     int nobs = 100;
     auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = 999;
         return sparams;
     }());
@@ -399,7 +399,7 @@ TEST_P(CorrectTargetTest, Sanity) {
 
     int ntotal = nleft + nright;
     auto simulated = scran_tests::simulate_vector(ntotal * ndim, [&]{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.lower = -2;
         sparams.upper = 2;
         sparams.seed = 42 + nleft * 10 + nright + k;

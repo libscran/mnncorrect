@@ -124,7 +124,7 @@ TEST(FuseNnResults, Recovery) {
     std::size_t NR = 10;
     int NC = 100;
     auto contents = scran_tests::simulate_vector(NR * NC, []{
-        scran_tests::SimulationParameters sparams;
+        scran_tests::SimulateVectorParameters sparams;
         sparams.seed = 69;
         return sparams;
     }());
