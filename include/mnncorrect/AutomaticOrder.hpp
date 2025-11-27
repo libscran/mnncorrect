@@ -37,12 +37,12 @@ struct RedistributeCorrectedObservationsWorkspace {
     std::vector<Float_> buffer;
 };
 
-template<typename Index_, typename Float_>
+template<typename Index_, typename Float_, typename Matrix_>
 void redistribute_corrected_observations(
     const std::size_t num_dim,
     CorrectTargetResults<Index_> correct_info,
     const Float_* const data,
-    const knncolle::Builder<Index_, Float_, Float_>& builder,
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
     const int num_threads,
     RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
     std::vector<BatchInfo<Index_, Float_> >& batches,
