@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 project(mnncorrect
-    VERSION 3.0.1
+    VERSION 3.0.2
     DESCRIPTION "MNN correction in C++"
     LANGUAGES CXX)
 
@@ -22,9 +22,9 @@ option(MNNCORRECT_FETCH_EXTERN "Automatically fetch mnncorrect's external depend
 if(MNNCORRECT_FETCH_EXTERN)
     add_subdirectory(extern)
 else()
-    find_package(knncolle_knncolle 3.0.0 CONFIG REQUIRED)
-    find_package(ltla_subpar 0.4.0 CONFIG REQUIRED)
-    find_package(ltla_sanisizer 0.1.3 CONFIG REQUIRED)
+    find_package(knncolle_knncolle 3.1.0 CONFIG REQUIRED)
+    find_package(ltla_subpar 0.5.0 CONFIG REQUIRED)
+    find_package(ltla_sanisizer 0.2.0 CONFIG REQUIRED)
 endif()
 
 target_link_libraries(mnncorrect INTERFACE knncolle::knncolle ltla::subpar ltla::sanisizer)
