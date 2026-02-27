@@ -41,7 +41,7 @@ std::vector<Float_> compute_total_variances(const std::size_t ndim, const std::v
     parallelize(num_threads, num_batches, [&](const int, const BatchIndex start, const BatchIndex length) -> void {
         auto mean_buffer = sanisizer::create<std::vector<Float_> >(ndim);
         for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            vars[b] = compute_total_variance<Float_>(ndim, nobs[b], batches[b], mean_buffer, as_rss);
+            vars[b] = compute_total_variance(ndim, nobs[b], batches[b], mean_buffer, as_rss);
         }
     });
 
