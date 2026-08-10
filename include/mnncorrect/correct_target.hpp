@@ -8,6 +8,7 @@
 #include <numeric>
 #include <unordered_set>
 #include <unordered_map>
+#include <cassert>
 
 #include "knncolle/knncolle.hpp"
 #include "sanisizer/sanisizer.hpp"
@@ -298,10 +299,15 @@ CorrectTargetResults<Index_> correct_target(
     parallelize(num_threads, num_target, [&](const int, const Index_ start, const Index_ length) -> void {
         auto searcher = target_mnn_index->initialize();
         std::vector<Index_> indices;
+        assert(target_mnn_index->num_observations() > 0);
 
         for (Index_ i = start, end = start + length; i < end; ++i) {
             const auto tptr = data + sanisizer::product_unsafe<std::size_t>(target_ids[i], num_dim);
-            searcher->search(tptr, 1, &indices, NULL); // no need to cap, we had better have at least one observation in each batch.
+
+            // No need to cap the number of neighbors to a value below 1.
+            // If we don't any MNN-involved cells in 'target_mnn_index', it means we don't have any cells at all in the target batch.
+            // In which case, num_target == 0 and we wouldn't get to this point in the first place - see the assert above.
+            searcher->search(tptr, 1, &indices, NULL);
 
             const auto chosen = indices.front();
             const auto correct_ptr = workspace.correction_buffer.data() + sanisizer::product_unsafe<std::size_t>(num_dim, chosen);

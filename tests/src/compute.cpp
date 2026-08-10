@@ -123,10 +123,10 @@ TEST_P(OverallTest, OtherInputs) {
     }
 
     // Creating a mock batch vector.
-    int nobs = std::accumulate(sizes.begin(), sizes.end(), 0);
     std::vector<int> batch(nobs);
     auto bIt = batch.begin();
-    for (size_t b = 0; b < sizes.size(); ++b) {
+    const auto nbatches = sizes.size();
+    for (size_t b = 0; b < nbatches; ++b) {
         std::fill(bIt, bIt + sizes[b], b);
         bIt += sizes[b];
     }
@@ -134,12 +134,12 @@ TEST_P(OverallTest, OtherInputs) {
     {
         // Vanilla checks first, where the batch vector is ordered.
         std::vector<double> output3(nobs * ndim);
-        mnncorrect::compute(ndim, nobs, data.data(), batch.data(), output3.data(), opt);
+        mnncorrect::compute(ndim, nobs, data.data(), batch.data(), nbatches, output3.data(), opt);
         EXPECT_EQ(output, output3);
     }
 
     // Trying again after shuffling the batch vector.
-    std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * sizes.size())); // just varying the seed a bit.
+    std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * nbatches)); // just varying the seed a bit.
     {
         // Scrambling both the data and the expected results to match the scrambled batches.
         auto copy = data;
@@ -148,9 +148,30 @@ TEST_P(OverallTest, OtherInputs) {
         mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), ref.data());
 
         std::vector<double> output3(nobs * ndim);
-        mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), output3.data(), opt);
+        mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), nbatches, output3.data(), opt);
         EXPECT_EQ(ref, output3);
     }
+}
+
+TEST_P(OverallTest, EmptyBatch) {
+    mnncorrect::Options<int, double> opt;
+    opt.num_neighbors = k;
+
+    std::vector<double> output(nobs * ndim);
+    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
+
+    // Creating a mock batch vector where every even batch is empty.
+    std::vector<int> batch(nobs);
+    auto bIt = batch.begin();
+    const auto nbatches = sizes.size();
+    for (size_t b = 0; b < nbatches; ++b) {
+        std::fill(bIt, bIt + sizes[b], b * 2 + 1);
+        bIt += sizes[b];
+    }
+
+    std::vector<double> output3(nobs * ndim);
+    mnncorrect::compute(ndim, nobs, data.data(), batch.data(), nbatches * 2 + 1, output3.data(), opt);
+    EXPECT_EQ(output, output3);
 }
 
 TEST_P(OverallTest, OtherParams) {

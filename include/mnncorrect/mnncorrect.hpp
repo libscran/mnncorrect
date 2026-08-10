@@ -202,21 +202,28 @@ void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, cons
  * The number of rows is equal to `num_dim` and the number of columns is equal to `num_obs`.
  * Observations from the same batch do not need to be stored in adjacent columns.
  * @param[in] batch Pointer to an array of length `num_obs` containing the batch identity for each observation.
- * IDs should be zero-indexed and lie within \f$[0, N)\f$ where \f$N\f$ is the number of unique batches.
+ * IDs should be zero-indexed and lie within `[0, num_batches)`.
+ * @param num_batches Number of batches in `batch`.
  * @param[out] output Pointer to an array containing a column-major matrix of the same dimensions as that in `input`, where the corrected values for all batches are stored.
  * The order of observations in `output` is the same as that in the `input`. 
  * @param options Further options.
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
-void compute(const std::size_t num_dim, const Index_ num_obs, const Float_* const input, const Batch_* const batch, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
-    const BatchIndex nbatches = (num_obs ? sanisizer::sum<BatchIndex>(*std::max_element(batch, batch + num_obs), 1) : static_cast<BatchIndex>(0));
-    auto sizes = sanisizer::create<std::vector<Index_> >(nbatches);
+void compute(
+    const std::size_t num_dim,
+    const Index_ num_obs,
+    const Float_* const input,
+    const Batch_* const batch,
+    const BatchIndex num_batches,
+    Float_* const output,
+    const Options<Index_, Float_, Matrix_>& options
+) {
+    auto sizes = sanisizer::create<std::vector<Index_> >(num_batches);
     for (Index_ o = 0; o < num_obs; ++o) {
         ++sizes[batch[o]];
     }
 
-    // Avoiding the need to allocate a temporary buffer
-    // if we're already dealing with contiguous batches.
+    // Avoiding the need to allocate a temporary buffer if we're already dealing with contiguous batches.
     bool already_sorted = true;
     for (Index_ o = 1; o < num_obs; ++o) {
        if (batch[o] < batch[o-1]) {
@@ -230,10 +237,10 @@ void compute(const std::size_t num_dim, const Index_ num_obs, const Float_* cons
     }
 
     Index_ accumulated = 0;
-    auto offsets = sanisizer::create<std::vector<Index_> >(nbatches);
+    auto offsets = sanisizer::create<std::vector<Index_> >(num_batches);
     std::vector<Float_> tmp(sanisizer::product<typename std::vector<Float_>::size_type>(num_dim, num_obs));
-    auto ptrs = sanisizer::create<std::vector<const Float_*> >(nbatches);
-    for (BatchIndex b = 0; b < nbatches; ++b) {
+    auto ptrs = sanisizer::create<std::vector<const Float_*> >(num_batches);
+    for (BatchIndex b = 0; b < num_batches; ++b) {
         ptrs[b] = tmp.data() + sanisizer::product_unsafe<std::size_t>(accumulated, num_dim);
         offsets[b] = accumulated;
         accumulated += sizes[b]; // this won't overflow as know that num_obs fits in an Index_.
