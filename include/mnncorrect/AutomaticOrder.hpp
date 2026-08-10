@@ -138,6 +138,7 @@ public:
             }
         });
 
+
         // Different policies to choose the batch order. 'order' is filled
         // in reverse order of batches to merge, with the first batch being unchanged. 
         std::vector<BatchIndex> order;
@@ -163,6 +164,8 @@ public:
             const auto& curbatch = my_batches[b];
             std::fill_n(my_batch_assignment.begin() + curbatch.offset, curbatch.num_obs, b);
         }
+
+        my_correct_workspace = CorrectTargetWorkspace<Index_, Float_>(my_num_total);
 
         // Allocate one big space for index construction once, so that we don't
         // have to reallocate within each redistribute_corrected_observations() call.
@@ -223,7 +226,6 @@ protected:
 
         auto correct_info = correct_target(
             my_num_dim,
-            my_num_total,
             my_batches,
             target_batch,
             my_target_ids,

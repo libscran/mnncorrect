@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 class WalkAroundNeighborhoodTest : public ::testing::TestWithParam<std::tuple<int, int, bool> > {
 protected:
@@ -92,17 +93,17 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     batch.index = builder.build_unique(knncolle::SimpleMatrix(ndim, batch.num_obs, vec.data() + static_cast<std::size_t>(batch.offset) * ndim));
 
     std::vector<int> to_check { 1, 5, 17, 31, 53, 97 };
-    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace(nobs);
     mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nobs, 
         to_check,
         vec.data(),
         batch,
         k,
         steps,
         /* num_threads = */ 1,
-        workspace
+        workspace.walk,
+        workspace.neighbors
     );
 
     // Checking against a reference.
@@ -121,21 +122,22 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     // Check that it gives the same results for multiple threads. Also giving it some
     // dirty output containers to check that it sanitizes them. 
     auto pcopy = workspace.neighbors;
-    workspace.ids.resize(1000, -1); 
-    workspace.next_visit.resize(1000, -1); 
+    workspace.walk.ids.resize(1000, -1); 
+    workspace.walk.next_ids.resize(1000, -1); 
+    workspace.walk.all_ids.resize(1000, -1); 
     for (auto& nn : workspace.neighbors) {
         std::reverse(nn.begin(), nn.end());
     }
     mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nobs, 
         to_check,
         vec.data(),
         batch,
         k,
         steps,
         /* num_threads = */ 3,
-        workspace
+        workspace.walk,
+        workspace.neighbors
     );
     for (int o = 0; o < nobs; ++o) {
         EXPECT_EQ(workspace.neighbors[o], copy[o]);
@@ -167,17 +169,17 @@ TEST(CorrectTarget, WalkAroundNeighborhoodQuitEarly) {
     // steps, in this case because we've already covered all the observations
     // in the dataset after the first step.
     std::vector<int> to_check{ 5 };
-    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace(nobs);
     mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nobs, 
         to_check,
         vec.data(),
         target,
         /* num_neighbors = */ nobs,
         /* num_steps = */ 3,
         /* num_threads = */ 3,
-        workspace
+        workspace.walk,
+        workspace.neighbors
     );
 
     for (const auto& found : workspace.neighbors) {
@@ -235,17 +237,17 @@ TEST_P(ComputeCenterOfMassTest, Basic) {
 
     // Finding neighbors.
     std::vector<int> to_check { 1, 5, 17, 31, 53, 97 };
-    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace(nobs);
     mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nobs, 
         to_check,
         vec.data(),
         target,
         k,
         steps,
         /* num_threads = */ 1,
-        workspace
+        workspace.walk,
+        workspace.neighbors
     );
 
     // Now computing a center of mass.
@@ -258,6 +260,7 @@ TEST_P(ComputeCenterOfMassTest, Basic) {
         steps,
         /* num_threads = */ 1,
         workspace.neighbors,
+        workspace.walk,
         workspace.ref_center_buffer.data()
     );
 
@@ -280,6 +283,20 @@ TEST_P(ComputeCenterOfMassTest, Basic) {
             EXPECT_FLOAT_EQ(ref[d] / used.size(), workspace.ref_center_buffer[d + i * ndim]);
         }
     }
+
+    // Same results with more threads. 
+    std::vector<double> alt_center_buffer(full_size);
+    mnncorrect::internal::compute_center_of_mass(
+        ndim,
+        to_check,
+        vec.data(),
+        steps,
+        /* num_threads = */ 3,
+        workspace.neighbors,
+        workspace.walk,
+        alt_center_buffer.data()
+    );
+    EXPECT_EQ(workspace.ref_center_buffer, alt_center_buffer);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -303,17 +320,17 @@ TEST(CorrectTarget, ComputeCenterOfMassTestQuitEarly) {
     target.index = builder.build_unique(knncolle::SimpleMatrix(ndim, nobs, vec.data()));
 
     std::vector<int> to_check{ 5 };
-    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace;
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> workspace(nobs);
     mnncorrect::internal::walk_around_neighborhood(
         ndim,
-        nobs, 
         to_check,
         vec.data(),
         target,
         /* num_neighbors = */ nobs,
         /* num_steps = */ 3,
         /* num_threads = */ 3,
-        workspace
+        workspace.walk,
+        workspace.neighbors
     );
 
     // Gets some coverage on our loop break if we don't need to use all of the
@@ -327,6 +344,7 @@ TEST(CorrectTarget, ComputeCenterOfMassTestQuitEarly) {
         /* num_steps = */ 3,
         /* num_threads = */ 1,
         workspace.neighbors,
+        workspace.walk,
         center.data()
     );
 
@@ -445,12 +463,11 @@ TEST_P(CorrectTargetTest, Sanity) {
     // Actually running the correction now. Note that this needs more steps
     // to search for the center of mass, to make sure the corrected points
     // are well-mixed enough that the means fall under the tolerance. 
-    mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work;
+    mnncorrect::internal::CorrectTargetWorkspace<int, double> correct_work(ntotal);
 
     auto copy = simulated;
     auto correct_res = mnncorrect::internal::correct_target(
         ndim,
-        ntotal,
         references,
         target,
         target_ids,
@@ -500,13 +517,12 @@ TEST_P(CorrectTargetTest, Sanity) {
         std::reverse(correct_work.ref_center_buffer.begin(), correct_work.ref_center_buffer.end());
         std::reverse(correct_work.correction_buffer.begin(), correct_work.correction_buffer.end());
         std::reverse(correct_work.neighbors.begin(), correct_work.neighbors.end());
-        std::reverse(correct_work.ids.begin(), correct_work.ids.end());
+        std::reverse(correct_work.walk.ids.begin(), correct_work.walk.ids.end());
         std::reverse(correct_work.new_target_batch.begin(), correct_work.new_target_batch.end());
 
         auto pcopy = simulated;
         auto correct_res = mnncorrect::internal::correct_target(
             ndim,
-            ntotal,
             references,
             target,
             target_ids,
