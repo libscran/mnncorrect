@@ -136,9 +136,9 @@ Functions</h2></td></tr>
 <tr class="memitem:aa1189515065df1b349924e431f261760" id="r_aa1189515065df1b349924e431f261760"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
 <tr class="memitem:aa1189515065df1b349924e431f261760"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#aa1189515065df1b349924e431f261760">compute</a> (const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *const input, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
 <tr class="separator:aa1189515065df1b349924e431f261760"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af9359355f6e6631ff449caa2a00d6e5c" id="r_af9359355f6e6631ff449caa2a00d6e5c"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ &gt; </td></tr>
-<tr class="memitem:af9359355f6e6631ff449caa2a00d6e5c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#af9359355f6e6631ff449caa2a00d6e5c">compute</a> (const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
-<tr class="separator:af9359355f6e6631ff449caa2a00d6e5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a16950bbec1359ec9df9a23d97875815f" id="r_a16950bbec1359ec9df9a23d97875815f"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:a16950bbec1359ec9df9a23d97875815f"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#a16950bbec1359ec9df9a23d97875815f">compute</a> (const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, const <a class="el" href="#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> num_batches, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:a16950bbec1359ec9df9a23d97875815f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Batch correction with mutual nearest neighbors. </p>
@@ -189,8 +189,8 @@ Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="af9359355f6e6631ff449caa2a00d6e5c" name="af9359355f6e6631ff449caa2a00d6e5c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af9359355f6e6631ff449caa2a00d6e5c">&#9670;&#160;</a></span>compute() <span class="overload">[1/3]</span></h2>
+<a id="a16950bbec1359ec9df9a23d97875815f" name="a16950bbec1359ec9df9a23d97875815f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a16950bbec1359ec9df9a23d97875815f">&#9670;&#160;</a></span>compute() <span class="overload">[1/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -220,6 +220,11 @@ template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ 
         <tr>
           <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">const <a class="el" href="#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a></td>          <td class="paramname"><span class="paramname"><em>num_batches</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
           <td class="paramtype">Float_ *const</td>          <td class="paramname"><span class="paramname"><em>output</em></span>, </td>
         </tr>
         <tr>
@@ -244,7 +249,8 @@ template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ 
     <tr><td class="paramdir"></td><td class="paramname">num_dim</td><td>Number of dimensions. </td></tr>
     <tr><td class="paramdir"></td><td class="paramname">num_obs</td><td>Number of observations across all batches. </td></tr>
     <tr><td class="paramdir">[in]</td><td class="paramname">input</td><td>Pointer to an array containing a column-major matrix of uncorrected values from all batches. The number of rows is equal to <code>num_dim</code> and the number of columns is equal to <code>num_obs</code>. Observations from the same batch do not need to be stored in adjacent columns. </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">batch</td><td>Pointer to an array of length <code>num_obs</code> containing the batch identity for each observation. IDs should be zero-indexed and lie within \([0, N)\) where \(N\) is the number of unique batches. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">batch</td><td>Pointer to an array of length <code>num_obs</code> containing the batch identity for each observation. IDs should be zero-indexed and lie within <code>[0, num_batches)</code>. </td></tr>
+    <tr><td class="paramdir"></td><td class="paramname">num_batches</td><td>Number of batches in <code>batch</code>. </td></tr>
     <tr><td class="paramdir">[out]</td><td class="paramname">output</td><td>Pointer to an array containing a column-major matrix of the same dimensions as that in <code>input</code>, where the corrected values for all batches are stored. The order of observations in <code>output</code> is the same as that in the <code>input</code>. </td></tr>
     <tr><td class="paramdir"></td><td class="paramname">options</td><td>Further options. </td></tr>
   </table>

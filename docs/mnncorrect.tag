@@ -103,8 +103,8 @@
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>af9359355f6e6631ff449caa2a00d6e5c</anchor>
-      <arglist>(const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>a16950bbec1359ec9df9a23d97875815f</anchor>
+      <arglist>(const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, const BatchIndex num_batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
   </compound>
   <compound kind="page">
