@@ -40,6 +40,10 @@ TEST(DefineMergeOrder, RunningVariances) {
     double rss = mnncorrect::internal::compute_total_variance(ndim, nobs, data.data(), buffer, true);
     EXPECT_FLOAT_EQ(rss, ref * (nobs - 1));
 
+    // Variance is set to zero if there aren't enough cells.
+    EXPECT_EQ(mnncorrect::internal::compute_total_variance(ndim, 0, data.data(), buffer, false), 0);
+    EXPECT_EQ(mnncorrect::internal::compute_total_variance(ndim, 1, data.data(), buffer, false), 0);
+
     // Overlord function works, even with multiple threads.
     int nobs2 = 100;
     auto data2 = scran_tests::simulate_vector(ndim * nobs2, scran_tests::SimulateVectorParameters());

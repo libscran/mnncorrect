@@ -29,7 +29,9 @@ Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const F
     }
 
     if (!as_rss) {
-        total /= nobs - 1;
+        if (nobs > 1) { // batches with fewer than 2 cells get a 'variance' of zero, to avoid problems during sorting.
+            total /= nobs - 1;
+        }
     }
     return total;
 }
