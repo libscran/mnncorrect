@@ -5,6 +5,7 @@
 Rcpp::RObject compute(
     Rcpp::NumericMatrix x,
     Rcpp::IntegerVector batch,
+    int num_batches,
     int k,
     int steps,
     bool input_order)
@@ -22,6 +23,7 @@ Rcpp::RObject compute(
         x.ncol(), 
         static_cast<const double*>(x.begin()), 
         static_cast<const int*>(batch.begin()), 
+        num_batches,
         static_cast<double*>(output.begin()),
         opt
     );
