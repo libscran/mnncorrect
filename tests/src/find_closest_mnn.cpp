@@ -108,7 +108,7 @@ TEST_P(FindClosestMnnTest, Check) {
     // Checking that we are unaffected by existing values in the workspace or results.
     std::reverse(mnns.target_mnns.begin(), mnns.target_mnns.end());
     std::reverse(mnns.ref_mnns.begin(), mnns.ref_mnns.end());
-    for (auto& rb : workspace.reverse_neighbor_buffer) {
+    for (auto& rb : workspace.resorted_neighbors) {
         std::reverse(rb.begin(), rb.end());
     }
     std::reverse(workspace.last_checked.begin(), workspace.last_checked.end());

@@ -14,7 +14,7 @@
 #include "utils.hpp"
 #include "find_closest_mnn.hpp"
 #include "find_neighbors.hpp"
-#include "correct_target.hpp"
+#include "compute_center_of_mass.hpp"
 #include "define_merge_order.hpp"
 
 namespace mnncorrect {
@@ -29,60 +29,21 @@ void fill_batch_ids(const MetaBatch<Index_, Float_>& meta_batch, std::vector<Ind
     std::sort(ids.begin(), ids.end());
 }
 
-template<typename Index_, typename Float_>
-struct RedistributeCorrectedObservationsWorkspace {
-    std::vector<Index_> offsets;
-    std::vector<Float_> buffer;
-};
-
-template<typename Index_, typename Float_, typename Matrix_>
-void redistribute_corrected_observations(
+template<typename Index_, typename Float_, class Matrix_>
+std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > subset_and_index(
     const std::size_t num_dim,
-    CorrectTargetResults<Index_> correct_info,
+    const std::vector<Index_>& subset,
     const Float_* const data,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
-    const int num_threads,
-    RedistributeCorrectedObservationsWorkspace<Index_, Float_>& workspace,
-    std::vector<MetaBatch<Index_, Float_> >& meta_batches,
-    std::vector<BatchIndex>& meta_batch_assignments
+    Float_* const buffer
 ) {
-    // The idea with the workspace is to do one big allocation and then operate on contiguous chunks of that allocation within each thread.
-    // This allows us to use the upper bound of required space to create an allocation that can be reused across all calls to this function.
-    // False sharing should not be a major issue as there aren't many boundaries between threads at which contention could occur.
-    const auto num_remaining = correct_info.reassignments.size();
-    workspace.offsets.clear();
-    workspace.offsets.reserve(num_remaining);
-    Index_ sofar = 0;
-    for (I<decltype(num_remaining)> b = 0; b < num_remaining; ++b) {
-        const auto& rem = correct_info.reassignments[b];
-        workspace.offsets.push_back(sofar);
-        sofar += rem.size(); // known to NOT overflow, see Coordinator's constructor.
-        for (const auto r : rem) {
-            meta_batch_assignments[r] = b;
-        }
+    const auto num_subset = subset.size();
+    for (I<decltype(num_subset)> f = 0; f < num_subset; ++f) {
+        assert(f == 0 || subset[f - 1] < subset[f]); // check it's sorted and unique.
+        const auto curdata = data + sanisizer::product_unsafe<std::size_t>(subset[f], num_dim);
+        std::copy_n(curdata, num_dim, buffer + sanisizer::product_unsafe<std::size_t>(f, num_dim));
     }
-
-    parallelize(num_threads, num_remaining, [&](const int, const I<decltype(num_remaining)> start, const I<decltype(num_remaining)> length) -> void {
-        for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            // workspace.buffer was already allocated in the Coordinator constructor so this pointer arithmetic is fine.
-            const auto storage = workspace.buffer.data() + sanisizer::product_unsafe<std::size_t>(workspace.offsets[b], num_dim);
-
-            auto& reass = correct_info.reassignments[b];
-            const auto num_reass = reass.size();
-            for (I<decltype(num_reass)> i = 0; i < num_reass; ++i) {
-                std::copy_n(
-                    data + sanisizer::product_unsafe<std::size_t>(reass[i], num_dim),
-                    num_dim, 
-                    storage + sanisizer::product_unsafe<std::size_t>(i, num_dim)
-                );
-            }
-
-            meta_batches[b].corrected.emplace_back(
-                builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_reass, storage)),
-                std::move(reass)
-            );
-        }
-    });
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_subset, buffer));
 }
 
 template<typename Index_, typename Float_, typename Matrix_>
@@ -90,6 +51,7 @@ class Coordinator {
 public:
     Coordinator(
         const std::size_t num_dim,
+        const Index_ num_total,
         const std::vector<Batch<Index_> >& all_batches,
         Float_* const corrected,
         const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
@@ -166,28 +128,27 @@ public:
             }
         });
 
-        Index_ num_total = 0;
-        for (BatchIndex b = 0; b < num_batches; ++b) {
-            const auto cur_size = my_meta_batches[b].original_ids.size;
-            num_total = sanisizer::sum<Index_>(num_total, cur_size);
-        }
-        my_correct_workspace = CorrectTargetWorkspace<Index_, Float_>(num_total);
-
         // Do this after re-ordering so that we can index into 'my_meta_batches'.
-        sanisizer::resize(my_meta_batch_assignment, num_total);
+        sanisizer::resize(my_meta_batch_assignments, num_total);
         for (BatchIndex b = 0; b < num_batches; ++b) {
             const auto& curbatch = my_meta_batches[b].original_ids;
-            std::fill_n(my_meta_batch_assignment.begin() + curbatch.start, curbatch.size, b);
+            std::fill_n(my_meta_batch_assignments.begin() + curbatch.start, curbatch.size, b);
         }
 
-        // Allocate one big space for index construction once, so that we don't have to reallocate within each redistribute_corrected_observations() call.
-        my_build_workspace.buffer.resize(sanisizer::product<I<decltype(my_build_workspace.buffer.size())> >(my_num_dim, num_total));
+        // Populating the remaining buffers to be re-used across next() calls.
+        my_reassignments.reserve(sanisizer::cast<I<decltype(my_reassignments.size())> >(num_batches - 1));
 
-        // Avoid repeated allocations in fill_batch_ids(). 
-        my_target_ids.reserve(sanisizer::cast<I<decltype(my_target_ids.size())> >(num_total));
-
-        // Avoid repeated allocations in find_neighbors().
         sanisizer::resize(my_neighbors, num_total);
+
+        my_target_ids.reserve(sanisizer::cast<I<decltype(my_target_ids.size())> >(num_total));
+        my_mnn_workspace = FindClosestMnnWorkspace<Index_>(num_total);
+
+        my_walk_workspace = NeighborhoodWalkWorkspace<Index_>(num_total);
+
+        my_big_buffer.resize(sanisizer::product<I<decltype(my_big_buffer.size())> >(my_num_dim, num_total));
+        sanisizer::resize(my_target_meta_batch, num_total);
+
+        my_redist_offsets.reserve(num_batches - 1);
     }
 
 protected:
@@ -197,14 +158,21 @@ protected:
 
     Float_* my_corrected;
 
-    std::vector<Index_> my_target_ids;
-    std::vector<BatchIndex> my_meta_batch_assignment;
+    std::vector<BatchIndex> my_meta_batch_assignments;
+    std::vector<std::vector<Index_> > my_reassignments;
 
     NeighborSet<Index_, Float_> my_neighbors;
+
+    std::vector<Index_> my_target_ids;
     FindClosestMnnResults<Index_> my_mnns;
     FindClosestMnnWorkspace<Index_> my_mnn_workspace;
-    CorrectTargetWorkspace<Index_, Float_> my_correct_workspace;
-    RedistributeCorrectedObservationsWorkspace<Index_, Float_> my_build_workspace;
+
+    NeighborhoodWalkWorkspace<Index_> my_walk_workspace;
+
+    std::vector<Float_> my_big_buffer;
+    std::vector<BatchIndex> my_target_meta_batch;
+
+    std::vector<Index_> my_redist_offsets;
 
     int my_num_neighbors;
     double my_num_steps;
@@ -214,8 +182,6 @@ protected:
     bool next(bool test) {
         MetaBatch<Index_, Float_> target_meta_batch(std::move(my_meta_batches.back()));
         my_meta_batches.pop_back();
-
-        fill_batch_ids(target_meta_batch, my_target_ids);
 
         find_neighbors(
             my_num_dim,
@@ -227,6 +193,7 @@ protected:
             my_neighbors 
         );
 
+        fill_batch_ids(target_meta_batch, my_target_ids);
         find_closest_mnn(
             my_target_ids,
             my_neighbors,
@@ -234,37 +201,140 @@ protected:
             my_mnns
         );
 
-        auto correct_info = correct_target(
+        // Build this first so that we can re-use the big buffer for the center of mass calculations.
+        const auto target_mnn_index = subset_and_index(
             my_num_dim,
-            my_meta_batches,
-            target_meta_batch,
-            my_meta_batch_assignment,
-            my_target_ids,
-            my_mnns,
-            my_builder,
-            my_num_neighbors,
-            my_num_steps,
-            my_num_threads,
+            my_mnns.target_mnns,
             my_corrected,
-            my_correct_workspace
+            my_builder,
+            my_big_buffer.data()
         );
 
-        // We don't need to do this at the last step.
-        const bool remaining = my_meta_batches.size() > 1;
-        if (remaining || test) {
-            redistribute_corrected_observations(
+        const auto num_refs = my_meta_batches.size();
+        my_reassignments.resize(num_refs); // known to be safe as we allocated in the constructor.
+
+        // Split MNN-involved reference cells back into their meta-batches of origin.
+        // Here we use 'my_reassignments' as a temporary place to put this information; we will overwrite it later.
+        // We also abuse members of 'my_walk_workspace' as a proxy for a hashmap.
+        my_walk_workspace.all_ids.clear();
+        assert(std::accumulate(my_walk_workspace.visited.begin(), my_walk_workspace.visited.end(), static_cast<Index_>(0)) == 0);
+        for (auto& reass : my_reassignments) {
+            reass.clear();
+        }
+        for (const auto r : my_mnns.ref_mnns) {
+            if (my_walk_workspace.visited[r]) {
+                continue;
+            }
+            my_reassignments[my_meta_batch_assignments[r]].push_back(r);
+            my_walk_workspace.visited[r] = true;
+            my_walk_workspace.all_ids.push_back(r);
+        }
+        for (const auto r : my_walk_workspace.all_ids) {
+            my_walk_workspace.visited[r] = false;
+        }
+
+        // Compute the center of mass for each MNN-involved cell in the reference meta-batches.
+        for (I<decltype(num_refs)> r = 0; r < num_refs; ++r) {
+            compute_center_of_mass(
                 my_num_dim,
-                std::move(correct_info),
+                my_reassignments[r],
+                my_meta_batches[r],
                 my_corrected,
-                my_builder,
+                my_num_neighbors,
+                my_num_steps,
                 my_num_threads,
-                my_build_workspace,
-                my_meta_batches,
-                my_meta_batch_assignment
+                my_walk_workspace,
+                my_neighbors, // used as workspace only, should be ignored on output.
+                my_big_buffer.data()
             );
         }
 
-        return remaining;
+        // Now computing the correction vector for each MNN pair.
+        compute_center_of_mass(
+            my_num_dim,
+            my_mnns.target_mnns,
+            target_meta_batch,
+            my_corrected,
+            my_num_neighbors,
+            my_num_steps,
+            my_num_threads,
+            my_walk_workspace,
+            my_neighbors, // used as workspace only, should be ignored on output.
+            my_big_buffer.data()
+        );
+
+        // Replacing each MNN-involved target cell's center of mass with the MNN-derived correction vector.
+        // This saves us a subtraction in the inner loop when correcting all cells in tthe target metabatch.
+        // Again, recall that 'target_mnns' is unique so this step will never modify each target cell's values in 'my_big_buffer' more than once.
+        const auto num_pairs = my_mnns.target_mnns.size();
+        for (I<decltype(num_pairs)> p = 0; p < num_pairs; ++p) {
+            for (std::size_t d = 0; d < my_num_dim; ++d) {
+                auto& correction = my_big_buffer[sanisizer::nd_offset<std::size_t>(d, my_num_dim, my_mnns.target_mnns[p])];
+                correction = my_big_buffer[sanisizer::nd_offset<std::size_t>(d, my_num_dim, my_mnns.ref_mnns[p])] - correction;
+            }
+        }
+
+        // Apply the correction to each cell in the target meta-batch based on its closest MNN-involved cell in the same batch.
+        const Index_ num_target = my_target_ids.size();
+        parallelize(my_num_threads, num_target, [&](const int, const Index_ start, const Index_ length) -> void {
+            auto searcher = target_mnn_index->initialize();
+            std::vector<Index_> indices;
+            assert(target_mnn_index->num_observations() > 0);
+
+            for (Index_ i = start, end = start + length; i < end; ++i) {
+                const auto tptr = my_corrected + sanisizer::product_unsafe<std::size_t>(my_target_ids[i], my_num_dim);
+                // No need to cap the number of neighbors to a value below 1.
+                // Each batch is expected to be non-empty at this point, see the assert above.
+                searcher->search(tptr, 1, &indices, NULL);
+
+                const auto mnn_i = indices.front();
+                const auto correct_ptr = my_big_buffer.data() + sanisizer::product_unsafe<std::size_t>(my_num_dim, my_mnns.target_mnns[mnn_i]);
+                for (std::size_t d = 0; d < my_num_dim; ++d) {
+                    tptr[d] += correct_ptr[d];
+                }
+
+                my_target_meta_batch[i] = my_meta_batch_assignments[my_mnns.ref_mnns[mnn_i]];
+            }
+        });
+
+        // We don't need to do this at the last step, unless we're testing and we want to check the output.
+        if (num_refs > 1 || test) {
+            for (auto& reass : my_reassignments) {
+                reass.clear();
+            }
+            for (I<decltype(num_target)> i = 0; i < num_target; ++i) {
+                my_reassignments[my_target_meta_batch[i]].push_back(my_target_ids[i]);
+            }
+
+            // Now, re-using 'my_big_buffer' to create the NN indices of the redistributed observations in each remaining metabatch. 
+            // We organize our redistributed observations so that we can operate on contiguous chunks of the big buffer within each thread.
+            // False sharing should not be a major issue as there aren't many boundaries between threads at which contention could occur.
+            my_redist_offsets.clear();
+            Index_ sofar = 0;
+            for (I<decltype(num_refs)> b = 0; b < num_refs; ++b) {
+                const auto& rem = my_reassignments[b];
+                my_redist_offsets.push_back(sofar);
+                sofar += rem.size(); // known to NOT overflow as sofar <= num_total.
+                for (const auto r : rem) {
+                    my_meta_batch_assignments[r] = b;
+                }
+            }
+
+            parallelize(my_num_threads, num_refs, [&](const int, const I<decltype(num_refs)> start, const I<decltype(num_refs)> length) -> void {
+                for (BatchIndex b = start, end = start + length; b < end; ++b) {
+                    auto& reass = my_reassignments[b];
+                    if (reass.empty()) {
+                        continue;
+                    }
+                    // Construct 'subdex' first before moving into the metabatch, to avoid problems from also moving 'reass' in the same call.
+                    auto storage = my_big_buffer.data() + sanisizer::product_unsafe<std::size_t>(my_redist_offsets[b], my_num_dim);
+                    auto subdex = subset_and_index(my_num_dim, reass, my_corrected, my_builder, storage);
+                    my_meta_batches[b].corrected.emplace_back(std::move(subdex), std::move(reass));
+                }
+            });
+        }
+
+        return num_refs;
     }
 
 public:

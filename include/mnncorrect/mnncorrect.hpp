@@ -11,6 +11,7 @@
 #include "sanisizer/sanisizer.hpp"
 
 #include "Coordinator.hpp"
+#include "reorder_matrix_in_place.hpp"
 #include "utils.hpp"
 
 /**
@@ -68,6 +69,41 @@ struct Options {
 };
 
 /**
+ * @cond
+ */
+template<typename Index_, typename Float_, class Matrix_>
+void compute_internal(
+    const std::size_t num_dim,
+    const Index_ num_total,
+    const std::vector<Batch<Index_> >& batches,
+    Float_* const data,
+    const Options<Index_, Float_, Matrix_>& options
+) {
+    auto builder = options.builder;
+    if (!builder) {
+        typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
+        builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
+    }
+
+    Coordinator<Index_, Float_, Matrix_> runner(
+        num_dim,
+        num_total,
+        batches,
+        data,
+        *builder,
+        options.num_neighbors,
+        options.num_steps,
+        options.merge_policy,
+        options.num_threads
+    );
+
+    runner.merge();
+}
+/**
+ * @endcond
+ */
+
+/**
  * This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi _et al._, 2018).
  * Two observations from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
  * The MNN pairs are assumed to represent observations from corresponding subpopulations across the two batches.
@@ -112,24 +148,11 @@ struct Options {
  */
 template<typename Index_, typename Float_, class Matrix_>
 void compute(const std::size_t num_dim, const std::vector<Batch<Index_> >& batches, Float_* const data, const Options<Index_, Float_, Matrix_>& options) {
-    auto builder = options.builder;
-    if (!builder) {
-        typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
-        builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
+    Index_ num_total = 0;
+    for (const auto& batch : batches) {
+        num_total = sanisizer::sum<Index_>(num_total, batch.size);
     }
-
-    Coordinator<Index_, Float_, Matrix_> runner(
-        num_dim,
-        batches,
-        data,
-        *builder,
-        options.num_neighbors,
-        options.num_steps,
-        options.merge_policy,
-        options.num_threads
-    );
-
-    runner.merge();
+    compute_internal(num_dim, num_total, batches, data, options);
 }
 
 /**
@@ -178,46 +201,40 @@ void compute(
     }
 
     if (non_contiguous == 0) {
-        compute(num_dim, batches, data, options);
+        compute_internal(num_dim, num_obs, batches, data, options);
         return;
     }
 
     // Otherwise, we reorganize the data so that observations from the same batch are in a single block.
     Index_ accumulated = 0;
     auto offsets = sanisizer::create<std::vector<Index_> >(num_batches);
-    std::vector<Float_> tmp(sanisizer::product<typename std::vector<Float_>::size_type>(num_dim, num_obs));
     for (BatchIndex b = 0; b < num_batches; ++b) {
         offsets[b] = accumulated;
         batches[b].start = accumulated;
         accumulated += batches[b].size; // this won't overflow as know that num_obs fits in an Index_.
     }
 
+    auto reordered = sanisizer::create<std::vector<Index_> >(num_obs);
     for (Index_ o = 0; o < num_obs; ++o) {
         auto& offset = offsets[batch[o]];
-        std::copy_n(
-            data + sanisizer::product_unsafe<std::size_t>(o, num_dim),
-            num_dim,
-            tmp.data() + sanisizer::product_unsafe<std::size_t>(offset, num_dim)
-        );
+        reordered[offset] = o;
         ++offset;
     }
+    auto mbuffer = sanisizer::create<std::vector<Float_> >(num_dim); 
+    reorder_matrix_in_place(num_dim, num_obs, reordered, data, mbuffer);
 
-    compute(num_dim, batches, tmp.data(), options);
+    compute_internal(num_dim, num_obs, batches, data, options);
 
     // Reorganizing back to the original ordering.
     for (BatchIndex b = 0; b < num_batches; ++b) {
         offsets[b] = batches[b].start;
     }
-
     for (Index_ o = 0; o < num_obs; ++o) {
         auto& offset = offsets[batch[o]];
-        std::copy_n(
-            tmp.data() + sanisizer::product_unsafe<std::size_t>(offset, num_dim),
-            num_dim,
-            data + sanisizer::product_unsafe<std::size_t>(o, num_dim)
-        );
+        reordered[o] = offset;
         ++offset;
     }
+    reorder_matrix_in_place(num_dim, num_obs, reordered, data, mbuffer);
 }
 
 }
