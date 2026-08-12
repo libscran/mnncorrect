@@ -65,34 +65,47 @@ void parallelize(const int num_workers, const Task_ num_tasks, Run_ run_task_ran
 }
 
 /**
+ * @brief Start and size of each batch.
+ * @tparam Index_ Integer type of the observation indices.
+ */
+template<typename Index_>
+struct Batch {
+    /**
+     * Starting index of each batch, i.e., the index of the first observation in the batch.
+     */
+    Index_ start = 0;
+
+    /**
+     * Size of each batch, i.e., the number of observations in the batch.
+     */
+    Index_ size = 0;
+};
+
+/**
  * @cond
  */
-namespace internal {
-
 template<typename Index_, typename Distance_>
 using NeighborSet = std::vector<std::vector<std::pair<Index_, Distance_> > >;
 
 template<typename Index_, typename Float_>
-struct Corrected {
-    Corrected() = default;
-    Corrected(std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index, std::vector<Index_> ids) : index(std::move(index)), ids(std::move(ids)) {}
-    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
-    std::vector<Index_> ids;
-};
+struct MetaBatch {
+    // Each uncorrected metabatch has an original contiguous set of observations.
+    // Once corrected, the metabatch ceases to exist as it becomes part of the destination metabatch.
+    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > original_index;
+    Batch<Index_> original_ids;
 
-template<typename Index_, typename Float_>
-struct BatchInfo {
-    Index_ offset, num_obs;
-    std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
-    std::vector<Corrected<Index_, Float_> > extras;
+    // Corrected observations from other (meta)batches that have been redistributed into this meta batch.
+    struct CorrectedBatch {
+        CorrectedBatch() = default;
+        CorrectedBatch(std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index, std::vector<Index_> ids) : index(std::move(index)), ids(std::move(ids)) {}
+        std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > index;
+        std::vector<Index_> ids;
+    };
+    std::vector<CorrectedBatch> corrected;
 };
-
-}
 
 template<typename Input_>
-std::remove_cv_t<std::remove_reference_t<Input_> > I(const Input_ x) {
-    return x;
-}
+using I = std::remove_cv_t<std::remove_reference_t<Input_> >;
 /**
  * @endcond
  */

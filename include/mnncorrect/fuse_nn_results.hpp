@@ -5,22 +5,20 @@
 #include <utility>
 
 #include "knncolle/knncolle.hpp"
+#include "sanisizer/sanisizer.hpp"
 
 #include "utils.hpp"
 
 namespace mnncorrect {
 
-namespace internal {
-
 template<typename Index_, typename Distance_>
 void fuse_nn_results(
     const std::vector<std::pair<Index_, Distance_> >& base, 
     const std::vector<std::pair<Index_, Distance_> >& alt, 
-    const int k,
-    std::vector<std::pair<Index_, Distance_> >& output)
-{
+    const int num_neighbors,
+    std::vector<std::pair<Index_, Distance_> >& output
+) {
     output.clear();
-    decltype(I(output.size())) num_neighbors = k; // converting into size_type for easier comparisons below.
     if (num_neighbors == 0) {
         return;
     }
@@ -61,20 +59,18 @@ void fuse_nn_results(
                     break;
                 }
             }
-        } while (output.size() < num_neighbors);
+        } while (sanisizer::is_less_than(output.size(), num_neighbors));
     }
 
-    while (bIt != bEnd && output.size() < num_neighbors) {
+    while (bIt != bEnd && sanisizer::is_less_than(output.size(), num_neighbors)) {
         output.push_back(*bIt);
         ++bIt;
     }
 
-    while (aIt != aEnd && output.size() < num_neighbors) {
+    while (aIt != aEnd && sanisizer::is_less_than(output.size(), num_neighbors)) {
         output.push_back(*aIt);
         ++aIt;
     }
-}
-
 }
 
 }

@@ -27,16 +27,17 @@ protected:
             return sparams;
         }());
 
-        ptrs.resize(sizes.size());
-        std::size_t sofar = 0;
+        batches.resize(sizes.size());
+        int accumulated = 0;
         for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
-            auto current = data.data() + sofar;
+            auto current = data.data() + accumulated * ndim;
             std::size_t len = sizes[b] * ndim;
             for (size_t i = 0; i < len; ++i) { // introducing our own batch effect.
                 current[i] += multiplier * b;
             }
-            ptrs[b] = current;
-            sofar += len;
+            batches[b].start = accumulated;
+            batches[b].size = sizes[b];
+            accumulated += sizes[b];
         }
 
         return;
@@ -49,7 +50,7 @@ protected:
 
     // Simulated.
     std::vector<double> data;
-    std::vector<const double*> ptrs;
+    std::vector<mnncorrect::Batch<int> > batches;
 };
 
 TEST_P(OverallTest, Basic) {
@@ -58,8 +59,8 @@ TEST_P(OverallTest, Basic) {
     opt.num_neighbors = k;
     opt.num_steps = 4; // bumping it up to guarantee a good merge.
 
-    std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
+    std::vector<double> output = data;
+    mnncorrect::compute(ndim, batches, output.data(), opt);
 
     // Reference batch is the first, as we set an INPUT policy.
     size_t refbatch = 0;
@@ -90,7 +91,8 @@ TEST_P(OverallTest, Basic) {
     }
 
     // Check that the first batch is indeed unchanged.
-    std::vector<double> original(ptrs[refbatch], ptrs[refbatch] + sizes[refbatch] * ndim);
+    const auto ptr = data.data() + batches[refbatch].start * ndim;
+    std::vector<double> original(ptr, ptr + batches[refbatch].size * ndim);
     size_t offset = 0;
     for (size_t b = 0; b < refbatch; ++b) {
         offset += sizes[b];
@@ -99,8 +101,8 @@ TEST_P(OverallTest, Basic) {
     EXPECT_EQ(original, corrected);
 
     // Same results when multiple threads are in use.
-    std::vector<double> par_output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, par_output.data(), [&]{
+    std::vector<double> par_output = data;
+    mnncorrect::compute(ndim, batches, par_output.data(), [&]{
         mnncorrect::Options<int, double> opt2 = opt;
         opt2.num_threads = 3;
         return opt2;
@@ -112,15 +114,8 @@ TEST_P(OverallTest, OtherInputs) {
     mnncorrect::Options<int, double> opt;
     opt.num_neighbors = k;
 
-    std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
-
-    {
-        // Getting some coverage on the other input approach.
-        std::vector<double> output2(nobs * ndim);
-        mnncorrect::compute(ndim, sizes, data.data(), output2.data(), opt);
-        EXPECT_EQ(output, output2);
-    }
+    std::vector<double> output = data;
+    mnncorrect::compute(ndim, batches, output.data(), opt);
 
     // Creating a mock batch vector.
     std::vector<int> batch(nobs);
@@ -133,23 +128,27 @@ TEST_P(OverallTest, OtherInputs) {
 
     {
         // Vanilla checks first, where the batch vector is ordered.
-        std::vector<double> output3(nobs * ndim);
-        mnncorrect::compute(ndim, nobs, data.data(), batch.data(), nbatches, output3.data(), opt);
-        EXPECT_EQ(output, output3);
+        std::vector<double> output2 = data;
+        mnncorrect::compute(ndim, nobs, output2.data(), batch.data(), nbatches, opt);
+        EXPECT_EQ(output, output2);
     }
 
     // Trying again after shuffling the batch vector.
-    std::shuffle(batch.begin(), batch.end(), std::default_random_engine(nobs * nbatches)); // just varying the seed a bit.
+    std::vector<int> shuffler(nobs);
+    std::iota(shuffler.begin(), shuffler.end(), 0);
+    std::shuffle(shuffler.begin(), shuffler.end(), std::default_random_engine(nobs * nbatches)); // just varying the seed a bit.
     {
-        // Scrambling both the data and the expected results to match the scrambled batches.
-        auto copy = data;
-        mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), copy.data());
-        auto ref = output;
-        mnncorrect::internal::restore_input_order(ndim, sizes, batch.data(), ref.data());
-
-        std::vector<double> output3(nobs * ndim);
-        mnncorrect::compute(ndim, nobs, copy.data(), batch.data(), nbatches, output3.data(), opt);
-        EXPECT_EQ(ref, output3);
+        std::vector<double> shuffled_data(data.size());
+        std::vector<double> shuffled_ref(data.size());
+        std::vector<int> shuffled_batch(nobs);
+        for (int o = 0; o < nobs; ++o) {
+            const auto chosen = shuffler[o];
+            shuffled_batch[o] = batch[chosen];
+            std::copy_n(data.begin() + chosen * ndim, ndim, shuffled_data.begin() + o * ndim);
+            std::copy_n(output.begin() + chosen * ndim, ndim, shuffled_ref.begin() + o * ndim);
+        }
+        mnncorrect::compute(ndim, nobs, shuffled_data.data(), shuffled_batch.data(), nbatches, opt);
+        EXPECT_EQ(shuffled_ref, shuffled_data);
     }
 }
 
@@ -157,8 +156,8 @@ TEST_P(OverallTest, EmptyBatch) {
     mnncorrect::Options<int, double> opt;
     opt.num_neighbors = k;
 
-    std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
+    std::vector<double> output = data;
+    mnncorrect::compute(ndim, batches, output.data(), opt);
 
     // Creating a mock batch vector where every even batch is empty.
     std::vector<int> batch(nobs);
@@ -169,22 +168,22 @@ TEST_P(OverallTest, EmptyBatch) {
         bIt += sizes[b];
     }
 
-    std::vector<double> output3(nobs * ndim);
-    mnncorrect::compute(ndim, nobs, data.data(), batch.data(), nbatches * 2 + 1, output3.data(), opt);
-    EXPECT_EQ(output, output3);
+    std::vector<double> output2 = data;
+    mnncorrect::compute(ndim, nobs, output2.data(), batch.data(), nbatches * 2 + 1, opt);
+    EXPECT_EQ(output, output2);
 }
 
 TEST_P(OverallTest, OtherParams) {
     mnncorrect::Options<int, double> opt;
     opt.num_neighbors = k;
 
-    std::vector<double> output(nobs * ndim);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), opt);
+    std::vector<double> output = data;
+    mnncorrect::compute(ndim, batches, output.data(), opt);
 
     // Trying different options to check they have some effect.    
     {
-        std::vector<double> output2(nobs * ndim);
-        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
+        std::vector<double> output2 = data;
+        mnncorrect::compute(ndim, batches, output2.data(), [&]{
             auto opt2 = opt;
             opt2.num_steps = 2;
             return opt2;
@@ -193,8 +192,8 @@ TEST_P(OverallTest, OtherParams) {
     }
 
     {
-        std::vector<double> output2(nobs * ndim);
-        mnncorrect::compute(ndim, sizes, ptrs, output2.data(), [&]{
+        std::vector<double> output2 = data;
+        mnncorrect::compute(ndim, batches, output2.data(), [&]{
             auto opt2 = opt;
             opt2.builder.reset(new knncolle::VptreeBuilder<int, double, double>(std::make_shared<knncolle::ManhattanDistance<double, double> >()));
             return opt2;
@@ -230,28 +229,29 @@ TEST(Overall, Sanity) {
     }());
 
     constexpr double batch_multiplier = 10, within_multiplier = 20;
-    std::vector<const double*> ptrs(sizes.size());
-    std::size_t sofar = 0;
+    std::vector<mnncorrect::Batch<int> > batches(sizes.size());
+    int accumulated = 0;
     for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
-        auto current = data.data() + sofar;
+        auto current = data.data() + accumulated * ndim;
         auto len = sizes[b]; 
         for (int c = 0; c < len; ++c) {
             current[c * ndim] += batch_multiplier * b; // first dimension represents the batch effect.
             current[c * ndim + b + 1] += (c % 2 == 1) * within_multiplier; // some other dimension represents within-batch structure, shifted for every second observation.
         }
-        ptrs[b] = current;
-        sofar += ndim * len;
+        batches[b].start = accumulated;
+        batches[b].size = len;
+        accumulated += len;
     }
 
-    std::vector<double> output(ndim * nobs);
-    mnncorrect::compute(ndim, sizes, ptrs, output.data(), [&]{
+    std::vector<double> output = data;
+    mnncorrect::compute(ndim, batches, output.data(), [&]{
         mnncorrect::Options<int, double> opt;
         opt.num_steps = 4; // bumping it up to guarantee a good merge.
         return opt;
     }());
 
     size_t refbatch = 1; // highest RSS, as it has the most observations.
-    sofar = 0;
+    std::size_t sofar = 0;
     for (std::size_t b = 0, bend = sizes.size(); b < bend; ++b) {
         auto len = sizes[b];
         auto ptr = output.data() + sofar;

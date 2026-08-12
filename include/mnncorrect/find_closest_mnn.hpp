@@ -5,11 +5,8 @@
 #include <algorithm>
 
 #include "utils.hpp"
-#include "find_batch_neighbors.hpp"
 
 namespace mnncorrect {
-
-namespace internal {
 
 template<typename Index_>
 struct FindClosestMnnResults {
@@ -31,8 +28,8 @@ void find_closest_mnn(
     const std::vector<Index_>& target_ids,
     const NeighborSet<Index_, Float_>& neighbors,
     FindClosestMnnWorkspace<Index_>& workspace,
-    FindClosestMnnResults<Index_>& results)
-{
+    FindClosestMnnResults<Index_>& results
+) {
     const auto num_total = neighbors.size();
     for (auto& rev : workspace.reverse_neighbor_buffer) {
         rev.clear();
@@ -86,8 +83,6 @@ void find_closest_mnn(
             }
         }
     }
-}
-
 }
 
 }

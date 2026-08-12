@@ -10,8 +10,7 @@
 #include "knncolle/knncolle.hpp"
 #include "sanisizer/sanisizer.hpp"
 
-#include "AutomaticOrder.hpp"
-#include "restore_input_order.hpp"
+#include "Coordinator.hpp"
 #include "utils.hpp"
 
 /**
@@ -69,39 +68,6 @@ struct Options {
 };
 
 /**
- * @cond
- */
-namespace internal {
-
-template<typename Index_, typename Float_, class Matrix_>
-void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
-    auto builder = options.builder;
-    if (!builder) {
-        typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
-        builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
-    }
-
-    AutomaticOrder<Index_, Float_, Matrix_> runner(
-        num_dim,
-        num_obs,
-        batches,
-        output,
-        *builder,
-        options.num_neighbors,
-        options.num_steps,
-        options.merge_policy,
-        options.num_threads
-    );
-
-    runner.merge();
-}
-
-}
-/**
- * @endcond
- */
-
-/**
  * This function implements a variant of the mutual nearest neighbors (MNN) method for batch correction (Haghverdi _et al._, 2018).
  * Two observations from different batches can form an MNN pair if they each belong in each other's set of nearest neighbors.
  * The MNN pairs are assumed to represent observations from corresponding subpopulations across the two batches.
@@ -145,45 +111,25 @@ void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, cons
  * @param options Further options.
  */
 template<typename Index_, typename Float_, class Matrix_>
-void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const std::vector<const Float_*>& batches, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
-    internal::compute(num_dim, num_obs, batches, output, options);
-}
-
-/**
- * Overload of `compute()` to merge contiguous batches contained in the same array.
- *
- * @tparam Index_ Integer type of the observation index. 
- * @tparam Float_ Floating-point type of the input/output data.
- * @tparam Matrix_ Class of the input data matrix for the neighbor search.
- * This should satisfy the `knncolle::Matrix` interface.
- * Alternatively, it may be a `knncolle::SimpleMatrix`.
- *
- * @param num_dim Number of dimensions.
- * @param num_obs Vector of length equal to the number of batches.
- * The `i`-th entry contains the number of observations in batch `i`.
- * @param[in] input Pointer to an array containing a column-major matrix of uncorrected values from all batches.
- * The number of rows is equal to `num_dim` and the number of columns is equal to the sum of `num_obs`.
- * The first `num_obs[0]` columns contain the uncorrected data for the first batch,
- * the next `num_obs[1]` columns contain observations for the second batch, and so on.
- * @param[out] output Pointer to an array containing a column-major matrix of the same dimensions as that in `input`, where the corrected values for all batches are stored.
- * On output, the first `num_obs[0]` columns contain the corrected values of the first batch, 
- * the second `num_obs[1]` columns contain the corrected values of the second batch, and so on.
- * @param options Further options.
- */
-template<typename Index_, typename Float_, class Matrix_>
-void compute(const std::size_t num_dim, const std::vector<Index_>& num_obs, const Float_* const input, Float_* const output, const Options<Index_, Float_, Matrix_>& options) {
-    std::vector<const Float_*> batches;
-    batches.reserve(num_obs.size());
-
-    Index_ accumulated = 0;
-    for (const auto n : num_obs) {
-        batches.push_back(input + sanisizer::product_unsafe<std::size_t>(accumulated, num_dim));
-
-        // After this check, all internal functions may assume that the total number of observations fits in an Index_.
-        accumulated = sanisizer::sum<decltype(I(accumulated))>(accumulated, n);
+void compute(const std::size_t num_dim, const std::vector<Batch<Index_> >& batches, Float_* const data, const Options<Index_, Float_, Matrix_>& options) {
+    auto builder = options.builder;
+    if (!builder) {
+        typedef knncolle::EuclideanDistance<Float_, Float_> Euclidean;
+        builder.reset(new knncolle::VptreeBuilder<Index_, Float_, Float_, Matrix_, Euclidean>(std::make_shared<Euclidean>()));
     }
 
-    compute(num_dim, num_obs, batches, output, options);
+    Coordinator<Index_, Float_, Matrix_> runner(
+        num_dim,
+        batches,
+        data,
+        *builder,
+        options.num_neighbors,
+        options.num_steps,
+        options.merge_policy,
+        options.num_threads
+    );
+
+    runner.merge();
 }
 
 /**
@@ -212,52 +158,66 @@ template<typename Index_, typename Float_, typename Batch_, class Matrix_>
 void compute(
     const std::size_t num_dim,
     const Index_ num_obs,
-    const Float_* const input,
+    Float_* const data,
     const Batch_* const batch,
     const BatchIndex num_batches,
-    Float_* const output,
     const Options<Index_, Float_, Matrix_>& options
 ) {
-    auto sizes = sanisizer::create<std::vector<Index_> >(num_batches);
+    // Avoiding allocation of a temporary buffer if we're already dealing with contiguous batches.
+    auto batches = sanisizer::create<std::vector<Batch<Index_> > >(num_batches);
+    Index_ non_contiguous = 0;
     for (Index_ o = 0; o < num_obs; ++o) {
-        ++sizes[batch[o]];
+        auto& curbatch = batches[batch[o]];
+        if (curbatch.size == 0) {
+            curbatch.start = o;
+            curbatch.size = 1;
+        } else {
+            non_contiguous += (o != curbatch.start + curbatch.size);
+            ++curbatch.size;
+        }
     }
 
-    // Avoiding the need to allocate a temporary buffer if we're already dealing with contiguous batches.
-    bool already_sorted = true;
-    for (Index_ o = 1; o < num_obs; ++o) {
-       if (batch[o] < batch[o-1]) {
-           already_sorted = false;
-           break;
-       }
-    }
-    if (already_sorted) {
-        compute(num_dim, sizes, input, output, options);
+    if (non_contiguous == 0) {
+        compute(num_dim, batches, data, options);
         return;
     }
 
+    // Otherwise, we reorganize the data so that observations from the same batch are in a single block.
     Index_ accumulated = 0;
     auto offsets = sanisizer::create<std::vector<Index_> >(num_batches);
     std::vector<Float_> tmp(sanisizer::product<typename std::vector<Float_>::size_type>(num_dim, num_obs));
-    auto ptrs = sanisizer::create<std::vector<const Float_*> >(num_batches);
     for (BatchIndex b = 0; b < num_batches; ++b) {
-        ptrs[b] = tmp.data() + sanisizer::product_unsafe<std::size_t>(accumulated, num_dim);
         offsets[b] = accumulated;
-        accumulated += sizes[b]; // this won't overflow as know that num_obs fits in an Index_.
+        batches[b].start = accumulated;
+        accumulated += batches[b].size; // this won't overflow as know that num_obs fits in an Index_.
     }
 
     for (Index_ o = 0; o < num_obs; ++o) {
         auto& offset = offsets[batch[o]];
         std::copy_n(
-            input + sanisizer::product_unsafe<std::size_t>(o, num_dim),
+            data + sanisizer::product_unsafe<std::size_t>(o, num_dim),
             num_dim,
             tmp.data() + sanisizer::product_unsafe<std::size_t>(offset, num_dim)
         );
         ++offset;
     }
 
-    internal::compute(num_dim, sizes, ptrs, output, options);
-    internal::restore_input_order(num_dim, sizes, batch, output);
+    compute(num_dim, batches, tmp.data(), options);
+
+    // Reorganizing back to the original ordering.
+    for (BatchIndex b = 0; b < num_batches; ++b) {
+        offsets[b] = batches[b].start;
+    }
+
+    for (Index_ o = 0; o < num_obs; ++o) {
+        auto& offset = offsets[batch[o]];
+        std::copy_n(
+            tmp.data() + sanisizer::product_unsafe<std::size_t>(offset, num_dim),
+            num_dim,
+            data + sanisizer::product_unsafe<std::size_t>(o, num_dim)
+        );
+        ++offset;
+    }
 }
 
 }

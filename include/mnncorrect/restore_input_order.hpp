@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cstddef>
+#include <cassert>
 
 #include "sanisizer/sanisizer.hpp"
 
@@ -12,56 +13,59 @@
 
 namespace mnncorrect {
 
-namespace internal {
+template<typename Index_, typename Batch_, typename Float_>
+void restore_input_order(const std::size_t num_dim, const Index_ num_total, const std::vector<Batch<Index_> >& contiguous_batches, const Batch_* const batch_factor, Float_* const output) {
+    assert([&]{
+        Index_ actual = 0;
+        for (auto& batch : contiguous_batches) {
+            actual += batch.size;
+        }
+        return actual == num_total;
+    }());
 
-template<typename Index_, typename Batch, typename Float_>
-void restore_input_order(const std::size_t ndim, const std::vector<Index_>& sizes, const Batch* const batch, Float_* const output) {
-    const BatchIndex nbatches = sizes.size();
-    Index_ nobs = 0;
-    auto offsets = sanisizer::create<std::vector<Index_> >(nbatches);
-    for (BatchIndex b = 0; b < nbatches; ++b) {
-        offsets[b] = nobs;
-        nobs += sizes[b]; // known to NOT overflow, see mnncorrect::compute().
+    auto reindex = sanisizer::create<std::vector<Index_> >(num_total);
+    {
+        const auto nbatches = contiguous_batches.size();
+        auto offsets = sanisizer::create<std::vector<Index_> >(nbatches);
+        for (I<decltype(nbatches)> b = 0; b < nbatches; ++b) {
+            offsets[b] = contiguous_batches[b].offset;
+        }
+        for (Index_ o = 0; o < num_total; ++o) {
+            auto& off = offsets[batch_factor[o]];
+            reindex[o] = off;
+            ++off;
+        }
     }
 
-    auto reindex = sanisizer::create<std::vector<Index_> >(nobs);
-    for (Index_ o = 0; o < nobs; ++o) {
-        auto& off = offsets[batch[o]];
-        reindex[o] = off;
-        ++off;
-    }
-
-    auto used = sanisizer::create<std::vector<unsigned char> >(nobs);
-    auto buffer = sanisizer::create<std::vector<Float_> >(ndim);
-    for (Index_ i = 0; i < nobs; ++i) {
-        if (used[i]) {
+    auto buffer = sanisizer::create<std::vector<Float_> >(num_dim);
+    for (Index_ i = 0; i < num_total; ++i) {
+        // We use 'num_total' as a sentinel to indicate that this observation has already been reindexed.
+        if (reindex[i] == num_total) {
             continue;
         }
 
-        used[i] = true;
         auto target = reindex[i];
-        if (target != i) {
-            // Moving the current vector into a buffer to free up 
-            // some space for the shuffling. This avoids the need
-            // to do a bunch of std::swap() calls.
-            auto current_ptr = output + sanisizer::product_unsafe<std::size_t>(i, ndim);
-            std::copy_n(current_ptr, ndim, buffer.data());
-
-            while (target != i) {
-                const auto tptr = output + sanisizer::product_unsafe<std::size_t>(target, ndim);
-                std::copy_n(tptr, ndim, current_ptr);
-                used[target] = true;
-                current_ptr = tptr;
-                target = reindex[target];
-            }
-
-            std::copy_n(buffer.data(), ndim, current_ptr);
+        reindex[i] = num_total;
+        if (target == i) {
+            continue;
         }
+
+        // Moving the current vector into a buffer to free up some space for the shuffling.
+        // This avoids the need/ to do a bunch of std::swap() calls.
+        auto current_ptr = output + sanisizer::product_unsafe<std::size_t>(i, num_dim);
+        std::copy_n(current_ptr, num_dim, buffer.data());
+
+        do {
+            const auto tptr = output + sanisizer::product_unsafe<std::size_t>(target, num_dim);
+            std::copy_n(tptr, num_dim, current_ptr);
+            const auto new_target = reindex[target];
+            reindex[target] = num_total;
+            target = new_target;
+            current_ptr = tptr;
+        } while (target != i);
+
+        std::copy_n(buffer.data(), num_dim, current_ptr);
     }
-
-    return;
-}
-
 }
 
 }

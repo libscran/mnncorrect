@@ -16,13 +16,15 @@
 
 namespace mnncorrect {
 
-namespace internal {
-
 template<typename Index_>
 struct NeighborhoodWalkWorkspace {
     NeighborhoodWalkWorkspace() = default;
     NeighborhoodWalkWorkspace(Index_ num_total) : visited(sanisizer::cast<decltype(visited.size())>(num_total)) {}
-    std::vector<char> visited; // This should always be reset to all-falsy after its use in a given scope.
+
+    // 'visited' and 'all_ids' combine to form an unordered_set for integers in [0, num_total).
+    // If 'visited[i] == true', 'i' was already added; otherwise, we set 'visited[i] = true' and 'all_ids.push_back(i)'.
+    // Once we're done in a given scope, we must run through 'all_ids' and set all positions of 'visited' back to false prior to next use.
+    std::vector<char> visited;
     std::vector<Index_> ids, next_ids, all_ids;
 };
 
@@ -44,29 +46,29 @@ struct CorrectTargetWorkspace {
 
     // For the correction itself.
     std::vector<Index_> ref_remapping;
-    std::vector<BatchIndex> new_target_batch;
+    std::vector<BatchIndex> new_target_meta_batch;
 };
 
-// Find all neighbors of each MNN-involved observation within its own batch.
+// Find all neighbors of each MNN-involved observation within its own meta-batch.
 // Here, 'output' will contain neighbor indices relative to the entire dataset.
 template<typename Index_, typename Float_>
 void walk_around_neighborhood(
     const std::size_t num_dim,
     const std::vector<Index_>& ids,
     const Float_* data,
-    const BatchInfo<Index_, Float_>& batch,
+    const MetaBatch<Index_, Float_>& meta_batch,
     const int num_neighbors,
     const int num_steps,
     const int num_threads,
     NeighborhoodWalkWorkspace<Index_>& walkspace, 
     NeighborSet<Index_, Float_>& neighbors
 ) {
-    find_batch_neighbors(
+    find_neighbors(
         num_dim,
         static_cast<Index_>(ids.size()),
         [&](Index_ i) -> Index_ { return ids[i]; },
+        meta_batch,
         data,
-        batch,
         num_neighbors,
         false,
         num_threads,
@@ -94,12 +96,12 @@ void walk_around_neighborhood(
             break;
         }
 
-        find_batch_neighbors(
+        find_neighbors(
             num_dim,
             static_cast<Index_>(walkspace.next_ids.size()),
             [&](Index_ i) -> Index_ { return walkspace.next_ids[i]; },
+            meta_batch,
             data,
-            batch,
             num_neighbors,
             false,
             num_threads,
@@ -210,8 +212,8 @@ std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > build_mnn_only_inde
     std::vector<Float_>& buffer)
 {
     const auto num_in_mnn = in_mnn.size();
-    buffer.resize(sanisizer::product<decltype(I(buffer.size()))>(num_dim, num_in_mnn));
-    for (decltype(I(num_in_mnn)) f = 0; f < num_in_mnn; ++f) {
+    buffer.resize(sanisizer::product<I<decltype(buffer.size())> >(num_dim, num_in_mnn));
+    for (I<decltype(num_in_mnn)> f = 0; f < num_in_mnn; ++f) {
         const auto curdata = data + sanisizer::product_unsafe<std::size_t>(in_mnn[f], num_dim);
         std::copy_n(curdata, num_dim, buffer.begin() + sanisizer::product_unsafe<std::size_t>(f, num_dim));
     }
@@ -226,10 +228,10 @@ struct CorrectTargetResults {
 template<typename Index_, typename Float_, class Matrix_>
 CorrectTargetResults<Index_> correct_target(
     const std::size_t num_dim,
-    const std::vector<BatchInfo<Index_, Float_> >& references,
-    const BatchInfo<Index_, Float_>& target,
+    const std::vector<MetaBatch<Index_, Float_> >& reference_meta_batches,
+    const MetaBatch<Index_, Float_>& target_meta_batch,
+    const std::vector<BatchIndex>& meta_batch_assignments,
     const std::vector<Index_>& target_ids,
-    const std::vector<BatchIndex>& batch_of_origin,
     const FindClosestMnnResults<Index_>& mnns,
     const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder, 
     const int num_neighbors,
@@ -240,10 +242,10 @@ CorrectTargetResults<Index_> correct_target(
 ) {
     CorrectTargetResults<Index_> results;
 
-    // Split reference MNNs back into their batches of origin.
+    // Split reference MNNs back into their meta-batches of origin.
     // Here we use the 'results.reassignments' as a temporary place to put this information; we will overwrite it before we return from this function.
     // We also abuse 'workspace.walk' as a proxy for a hashmap.
-    const auto num_refs = references.size();
+    const auto num_refs = reference_meta_batches.size();
     {
         sanisizer::resize(results.reassignments, num_refs);
         for (auto& reass : results.reassignments) {
@@ -255,7 +257,7 @@ CorrectTargetResults<Index_> correct_target(
             if (workspace.walk.visited[r]) {
                 continue;
             }
-            results.reassignments[batch_of_origin[r]].push_back(r);
+            results.reassignments[meta_batch_assignments[r]].push_back(r);
             workspace.walk.visited[r] = true;
             workspace.walk.all_ids.push_back(r);
         }
@@ -264,19 +266,19 @@ CorrectTargetResults<Index_> correct_target(
         }
 
         const auto num_unique_ref_mnns = workspace.walk.all_ids.size();
-        workspace.ref_center_buffer.resize(sanisizer::product<decltype(I(workspace.ref_center_buffer.size()))>(num_dim, num_unique_ref_mnns));
+        workspace.ref_center_buffer.resize(sanisizer::product<I<decltype(workspace.ref_center_buffer.size())> >(num_dim, num_unique_ref_mnns));
     }
 
-    // Find neighbors in each of the reference batches.
+    // Find neighbors in each of the reference meta-batches.
     Index_ counter = 0;
-    for (decltype(I(num_refs)) r = 0; r < num_refs; ++r) {
+    for (I<decltype(num_refs)> r = 0; r < num_refs; ++r) {
         const auto& curass = results.reassignments[r];
 
         walk_around_neighborhood(
             num_dim,
             curass,
             data,
-            references[r],
+            reference_meta_batches[r],
             num_neighbors,
             num_steps,
             num_threads,
@@ -315,7 +317,7 @@ CorrectTargetResults<Index_> correct_target(
         num_dim,
         mnns.target_mnns,
         data,
-        target,
+        target_meta_batch,
         num_neighbors,
         num_steps,
         num_threads,
@@ -323,7 +325,7 @@ CorrectTargetResults<Index_> correct_target(
         workspace.neighbors
     );
 
-    workspace.correction_buffer.resize(sanisizer::product<decltype(I(workspace.correction_buffer.size()))>(num_dim, mnns.target_mnns.size()));
+    workspace.correction_buffer.resize(sanisizer::product<I<decltype(workspace.correction_buffer.size())> >(num_dim, mnns.target_mnns.size()));
     compute_center_of_mass(
         num_dim,
         mnns.target_mnns,
@@ -336,7 +338,7 @@ CorrectTargetResults<Index_> correct_target(
     );
 
     const auto num_pairs = mnns.target_mnns.size();
-    for (decltype(I(num_pairs)) p = 0; p < num_pairs; ++p) {
+    for (I<decltype(num_pairs)> p = 0; p < num_pairs; ++p) {
         const auto ref_index = workspace.ref_remapping[mnns.ref_mnns[p]];
         for (std::size_t d = 0; d < num_dim; ++d) {
             auto& correction = workspace.correction_buffer[sanisizer::nd_offset<std::size_t>(d, num_dim, p)];
@@ -344,9 +346,9 @@ CorrectTargetResults<Index_> correct_target(
         }
     }
 
-    // Apply the correction in the target based on its closest MNN-involved cell.
+    // Apply the correction in the target meta-batch based on its closest MNN-involved cell.
     const Index_ num_target = target_ids.size();
-    sanisizer::resize(workspace.new_target_batch, num_target);
+    sanisizer::resize(workspace.new_target_meta_batch, num_target);
 
     parallelize(num_threads, num_target, [&](const int, const Index_ start, const Index_ length) -> void {
         auto searcher = target_mnn_index->initialize();
@@ -357,8 +359,7 @@ CorrectTargetResults<Index_> correct_target(
             const auto tptr = data + sanisizer::product_unsafe<std::size_t>(target_ids[i], num_dim);
 
             // No need to cap the number of neighbors to a value below 1.
-            // If we don't any MNN-involved cells in 'target_mnn_index', it means we don't have any cells at all in the target batch.
-            // In which case, num_target == 0 and we wouldn't get to this point in the first place - see the assert above.
+            // Each batch is expected to be non-empty at this point.
             searcher->search(tptr, 1, &indices, NULL);
 
             const auto chosen = indices.front();
@@ -367,20 +368,18 @@ CorrectTargetResults<Index_> correct_target(
                 tptr[d] += correct_ptr[d];
             }
 
-            workspace.new_target_batch[i] = batch_of_origin[mnns.ref_mnns[chosen]];
+            workspace.new_target_meta_batch[i] = meta_batch_assignments[mnns.ref_mnns[chosen]];
         }
     });
 
     for (auto& reass : results.reassignments) {
         reass.clear();
     }
-    for (decltype(I(num_target)) i = 0; i < num_target; ++i) {
-        results.reassignments[workspace.new_target_batch[i]].push_back(target_ids[i]);
+    for (I<decltype(num_target)> i = 0; i < num_target; ++i) {
+        results.reassignments[workspace.new_target_meta_batch[i]].push_back(target_ids[i]);
     }
 
     return results;
-}
-
 }
 
 }

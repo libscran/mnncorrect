@@ -11,8 +11,6 @@
 
 namespace mnncorrect {
 
-namespace internal {
-
 template<typename Index_, typename Float_>
 Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const Float_* const values, std::vector<Float_>& mbuffer, const bool as_rss) {
     std::fill(mbuffer.begin(), mbuffer.end(), 0);
@@ -37,37 +35,69 @@ Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const F
 }
 
 template<typename Index_, typename Float_>
-std::vector<Float_> compute_total_variances(const std::size_t ndim, const std::vector<Index_>& nobs, const std::vector<const Float_*>& batches, const bool as_rss, const int num_threads) {
-    const BatchIndex num_batches = nobs.size();
-    auto vars = sanisizer::create<std::vector<Float_> >(num_batches);
-    parallelize(num_threads, num_batches, [&](const int, const BatchIndex start, const BatchIndex length) -> void {
+std::vector<Float_> compute_total_variances(
+    const std::size_t ndim,
+    const std::vector<Batch<Index_> >& batches,
+    const Float_* const data,
+    const bool as_rss,
+    const int num_threads
+) {
+    const auto num_batches = batches.size();
+    auto output = sanisizer::create<std::vector<Float_> >(num_batches);
+    parallelize(num_threads, num_batches, [&](const int, const I<decltype(num_batches)> start, const I<decltype(num_batches)> length) -> void {
         auto mean_buffer = sanisizer::create<std::vector<Float_> >(ndim);
-        for (BatchIndex b = start, end = start + length; b < end; ++b) {
-            vars[b] = compute_total_variance(ndim, nobs[b], batches[b], mean_buffer, as_rss);
+        for (I<decltype(num_batches)> b = start, end = start + length; b < end; ++b) {
+            output[b] = compute_total_variance(
+                ndim,
+                batches[b].size,
+                data + sanisizer::product_unsafe<std::size_t>(batches[b].start, ndim),
+                mean_buffer,
+                as_rss
+            );
         }
     });
-
-    return vars;
+    return output;
 }
 
-template<typename Stat_>
-void define_merge_order(const std::vector<Stat_>& stat, std::vector<BatchIndex>& order) {
-    const auto nbatches = stat.size();
-    std::vector<std::pair<Stat_, BatchIndex> > ordering;
-    ordering.reserve(nbatches);
-
-    for (decltype(I(nbatches)) b = 0; b < nbatches; ++b) {
-        ordering.emplace_back(stat[b], b);
-    }
-    std::sort(ordering.begin(), ordering.end(), std::greater<std::pair<Stat_, BatchIndex> >()); // batches with largest values for the statistic are more 'reference-y'. 
-
-    order.clear();
-    order.reserve(nbatches);
-    for (const auto& batch : ordering) {
-        order.push_back(batch.second);
-    }
+template<class Fun_>
+void define_merge_order(const BatchIndex num_batches, Fun_ fun, std::vector<BatchIndex>& order) {
+    sanisizer::resize(order, num_batches);
+    std::iota(order.begin(), order.end(), static_cast<BatchIndex>(0));
+    std::sort(
+        order.begin(),
+        order.end(),
+        [&](BatchIndex left, BatchIndex right) -> bool {
+            const auto lval = fun(left);
+            const auto rval = fun(right);
+            if (lval == rval) {
+                return left < right;
+            } else {
+                return lval > rval;
+            }
+        }
+    );
 }
 
+template<typename Index_>
+void define_size_merge_order(const std::vector<Batch<Index_> >& batches, std::vector<BatchIndex>& order) {
+    define_merge_order(
+        batches.size(), // we already assume that number of batches can fit in a BatchIndex.
+        [&](BatchIndex i) -> Index_ {
+            return batches[i].size;
+        },
+        order
+    );
+}
+
+template<class Float_>
+void define_variance_merge_order(const std::vector<Float_>& variances, std::vector<BatchIndex>& order) {
+    define_merge_order(
+        variances.size(), // we already assume that number of batches can fit in a BatchIndex.
+        [&](BatchIndex i) -> Float_ {
+            return variances[i];
+        },
+        order
+    );
 }
 
 }
