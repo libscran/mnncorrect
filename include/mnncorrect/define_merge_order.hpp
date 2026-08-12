@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include <cstddef>
+#include <cassert>
 
 #include "sanisizer/sanisizer.hpp"
 
@@ -13,6 +14,7 @@ namespace mnncorrect {
 
 template<typename Index_, typename Float_>
 Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const Float_* const values, std::vector<Float_>& mbuffer, const bool as_rss) {
+    assert(mbuffer.size() == ndim);
     std::fill(mbuffer.begin(), mbuffer.end(), 0);
 
     Float_ total = 0;

@@ -19,10 +19,10 @@
 class FindClosestMnnTest : public ::testing::TestWithParam<std::tuple<int, int, int> > {
 protected:
     static std::pair<std::vector<int>, std::vector<int> > compute_reference(
-        const mnncorrect::internal::NeighborSet<int, double>& all_neighbors, 
+        const mnncorrect::NeighborSet<int, double>& all_neighbors, 
         const std::vector<int>& ref_ids,
-        const std::vector<int>& target_ids) 
-    {
+        const std::vector<int>& target_ids
+    ) {
         std::map<std::pair<int, int>, double> found;
         for (auto r : ref_ids) {
             const auto& current = all_neighbors[r];
@@ -92,16 +92,16 @@ TEST_P(FindClosestMnnTest, Check) {
     auto ref_index = subset_and_index(ndim, ref_ids, simulated.data(), builder, buffer);
     auto target_index = subset_and_index(ndim, target_ids, simulated.data(), builder, buffer);
 
-    mnncorrect::internal::NeighborSet<int, double> all_neighbors(ntotal);
+    mnncorrect::NeighborSet<int, double> all_neighbors(ntotal);
     find_neighbors(ndim, ref_ids, simulated.data(), *target_index, target_ids, k, all_neighbors);
     find_neighbors(ndim, target_ids, simulated.data(), *ref_index, ref_ids, k, all_neighbors);
 
     auto expected_mnns = compute_reference(all_neighbors, ref_ids, target_ids);
 
     // Computing our values.
-    mnncorrect::internal::FindClosestMnnWorkspace<int> workspace;
-    mnncorrect::internal::FindClosestMnnResults<int> mnns;
-    mnncorrect::internal::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
+    mnncorrect::FindClosestMnnWorkspace<int> workspace;
+    mnncorrect::FindClosestMnnResults<int> mnns;
+    mnncorrect::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
     EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 
@@ -113,7 +113,7 @@ TEST_P(FindClosestMnnTest, Check) {
     }
     std::reverse(workspace.last_checked.begin(), workspace.last_checked.end());
 
-    mnncorrect::internal::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
+    mnncorrect::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);
     EXPECT_EQ(expected_mnns.second, mnns.ref_mnns);
 }
