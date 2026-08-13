@@ -22,6 +22,7 @@ macro(create_test name)
 #        src/correct_target.cpp
 #        src/AutomaticOrder.cpp
         src/define_merge_order.cpp
+        src/reorder_matrix_in_place.cpp
         src/compute.cpp
     )
 

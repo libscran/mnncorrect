@@ -106,6 +106,24 @@ struct MetaBatch {
 
 template<typename Input_>
 using I = std::remove_cv_t<std::remove_reference_t<Input_> >;
+
+// Putting this here so that we can re-use it in the tests.
+template<typename Index_, typename Float_, class Matrix_>
+std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > subset_and_index(
+    const std::size_t num_dim,
+    const std::vector<Index_>& subset,
+    const Float_* const data,
+    const knncolle::Builder<Index_, Float_, Float_, Matrix_>& builder,
+    Float_* const buffer
+) {
+    const auto num_subset = subset.size();
+    for (I<decltype(num_subset)> f = 0; f < num_subset; ++f) {
+        assert(f == 0 || subset[f - 1] < subset[f]); // check it's sorted and unique.
+        const auto curdata = data + sanisizer::product_unsafe<std::size_t>(subset[f], num_dim);
+        std::copy_n(curdata, num_dim, buffer + sanisizer::product_unsafe<std::size_t>(f, num_dim));
+    }
+    return builder.build_unique(knncolle::SimpleMatrix<Index_, Float_>(num_dim, num_subset, buffer));
+}
 /**
  * @endcond
  */

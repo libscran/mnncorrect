@@ -88,9 +88,9 @@ TEST_P(FindClosestMnnTest, Check) {
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
 
     // Computing the reference.
-    std::vector<double> buffer;
-    auto ref_index = subset_and_index(ndim, ref_ids, simulated.data(), builder, buffer);
-    auto target_index = subset_and_index(ndim, target_ids, simulated.data(), builder, buffer);
+    std::vector<double> buffer(ntotal * ndim);
+    auto ref_index = mnncorrect::subset_and_index(ndim, ref_ids, simulated.data(), builder, buffer.data());
+    auto target_index = mnncorrect::subset_and_index(ndim, target_ids, simulated.data(), builder, buffer.data());
 
     mnncorrect::NeighborSet<int, double> all_neighbors(ntotal);
     find_neighbors(ndim, ref_ids, simulated.data(), *target_index, target_ids, k, all_neighbors);

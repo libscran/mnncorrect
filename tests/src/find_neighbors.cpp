@@ -10,6 +10,50 @@
 #include <algorithm>
 #include <random>
 
+TEST(SubsetAndIndex, Basic) {
+    const int num_dim = 6;
+    const int num_total = 314;
+    auto simulated = scran_tests::simulate_vector(num_dim * num_total, {});
+
+    std::vector<int> subset, other;
+    std::mt19937_64 rng(32897);
+    std::uniform_real_distribution<> udist;
+    for (int o = 0; o < num_total; ++o) {
+        if (udist(rng) < 0.2) {
+            subset.push_back(o);
+        } else {
+            other.push_back(o);
+        }
+    }
+    ASSERT_LT(subset.size(), num_total);
+
+    std::vector<double> buffer(num_dim * num_total);
+    knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
+    auto subdex = mnncorrect::subset_and_index(num_dim, subset, simulated.data(), builder, buffer.data());
+    
+    EXPECT_EQ(subdex->num_dimensions(), num_dim);
+    EXPECT_EQ(subdex->num_observations(), subset.size());
+
+    auto searcher = subdex->initialize();
+    std::vector<int> indices;
+    std::vector<double> distances;
+    const int num_sub = subset.size();
+    for (int i = 0; i < num_sub; ++i) {
+        searcher->search(simulated.data() + subset[i] * num_dim, 2, &indices, &distances);
+        EXPECT_EQ(indices[0], i);
+        EXPECT_NE(indices[1], i);
+        EXPECT_EQ(distances[0], 0);
+        EXPECT_GT(distances[1], 0);
+    }
+
+    for (auto o : other) {
+        searcher->search(simulated.data() + o * num_dim, 1, &indices, &distances);
+        EXPECT_GT(distances[0], 0);
+    }
+}
+
+/**********************************/
+
 TEST(FuseNnResults, Basic) {
     {
         std::vector<std::pair<int, double> > base { { 1, 1.1 }, { 2, 2.2 }, { 3, 3.3 } };
@@ -217,13 +261,13 @@ protected:
         std::shuffle(all_batches.begin(), all_batches.end(), rng);
 
         // Creating the indices.
-        std::vector<double> buffer;
+        std::vector<double> buffer(num_total * num_dim);
         for (std::size_t b = 0; b < num_batches; ++b) {
             auto& batch = all_batches[b];
             auto ptr = simulated.data() + static_cast<std::size_t>(batch.original_ids.start) * num_dim;
             batch.original_index = nn_builder->build_unique(knncolle::SimpleMatrix<int, double>(num_dim, batch.original_ids.size, ptr));
             for (auto& extra : batch.corrected) {
-                extra.index = subset_and_index(num_dim, extra.ids, simulated.data(), *nn_builder, buffer);
+                extra.index = mnncorrect::subset_and_index(num_dim, extra.ids, simulated.data(), *nn_builder, buffer.data());
             }
         }
     }
@@ -259,9 +303,9 @@ TEST_P(FindNeighborsTest, Basic) {
         }
         std::sort(reference_assignment.begin(), reference_assignment.end());
 
-        std::vector<double> buffer;
-        auto target_index = subset_and_index(num_dim, target_assignment, simulated.data(), *nn_builder, buffer);
-        auto reference_index = subset_and_index(num_dim, reference_assignment, simulated.data(), *nn_builder, buffer);
+        std::vector<double> buffer(num_total * num_dim);
+        auto target_index = mnncorrect::subset_and_index(num_dim, target_assignment, simulated.data(), *nn_builder, buffer.data());
+        auto reference_index = mnncorrect::subset_and_index(num_dim, reference_assignment, simulated.data(), *nn_builder, buffer.data());
 
         find_neighbors(num_dim, reference_assignment, simulated.data(), *target_index, target_assignment, num_neighbors, expected);
         find_neighbors(num_dim, target_assignment, simulated.data(), *reference_index, reference_assignment, num_neighbors, expected);
