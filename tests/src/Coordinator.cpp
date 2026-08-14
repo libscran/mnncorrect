@@ -79,7 +79,6 @@ TEST_F(CoordinatorInitTest, Empty) {
 
     // Empty batches only.
     {
-        mnncorrect::Batch<int> batch;
         Coordinator2 overlord(
             5,
             0,

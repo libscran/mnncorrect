@@ -17,14 +17,13 @@ Rcpp::RObject compute(
         opt.merge_policy = mnncorrect::MergePolicy::INPUT;
     }
 
-    Rcpp::NumericMatrix output(x.nrow(), x.ncol());
+    auto output = Rcpp::clone(x);
     mnncorrect::compute(
         x.nrow(),
         x.ncol(), 
-        static_cast<const double*>(x.begin()), 
+        static_cast<double*>(output.begin()), 
         static_cast<const int*>(batch.begin()), 
         num_batches,
-        static_cast<double*>(output.begin()),
         opt
     );
 
