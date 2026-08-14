@@ -8,6 +8,7 @@
 #include "knncolle/knncolle.hpp"
 #include "sanisizer/sanisizer.hpp"
 
+#include "find_neighbors.hpp"
 #include "utils.hpp"
 
 namespace mnncorrect {

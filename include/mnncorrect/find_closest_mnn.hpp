@@ -10,8 +10,13 @@ namespace mnncorrect {
 
 template<typename Index_>
 struct FindClosestMnnResults {
-    std::vector<Index_> target_mnns; // observation of the target batch in the MNN pair, guaranteed to be sorted and unique.
-    std::vector<Index_> ref_mnns; // 1:1 with target_mnns, specifying the other observation of the MNN pair in the reference metabatch.
+    // Index of the observation of the target metabatch in each MNN pair.
+    // This is guaranteed to be sorted and unique.
+    std::vector<Index_> target_mnns; 
+
+    // 1:1 with target_mnns, specifying the other observation of the MNN pair in the reference metabatch.
+    // This is not guaranteed to be sorted or unique.
+    std::vector<Index_> ref_mnns;
 };
 
 template<typename Index_>

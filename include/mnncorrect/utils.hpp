@@ -118,7 +118,6 @@ std::unique_ptr<knncolle::Prebuilt<Index_, Float_, Float_> > subset_and_index(
 ) {
     const auto num_subset = subset.size();
     for (I<decltype(num_subset)> f = 0; f < num_subset; ++f) {
-        assert(f == 0 || subset[f - 1] < subset[f]); // check it's sorted and unique.
         const auto curdata = data + sanisizer::product_unsafe<std::size_t>(subset[f], num_dim);
         std::copy_n(curdata, num_dim, buffer + sanisizer::product_unsafe<std::size_t>(f, num_dim));
     }

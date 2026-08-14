@@ -13,15 +13,15 @@
 namespace mnncorrect {
 
 template<typename Index_, typename Float_>
-Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const Float_* const values, std::vector<Float_>& mbuffer, const bool as_rss) {
-    assert(mbuffer.size() == ndim);
-    std::fill(mbuffer.begin(), mbuffer.end(), 0);
+Float_ compute_total_variance(const std::size_t ndim, const Index_ nobs, const Float_* const values, std::vector<Float_>& mean_buffer, const bool as_rss) {
+    assert(mean_buffer.size() == ndim);
+    std::fill(mean_buffer.begin(), mean_buffer.end(), 0);
 
     Float_ total = 0;
     for (Index_ i = 0; i < nobs; ++i) {
         for (std::size_t d = 0; d < ndim; ++d) {
             const auto curval = values[sanisizer::nd_offset<std::size_t>(d, ndim, i)];
-            auto& curmean = mbuffer[d];
+            auto& curmean = mean_buffer[d];
             const Float_ delta = curval - curmean;
             curmean += delta/(i + 1);
             total += delta * (curval -  curmean);

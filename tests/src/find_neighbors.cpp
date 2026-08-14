@@ -27,7 +27,7 @@ TEST(SubsetAndIndex, Basic) {
     }
     ASSERT_LT(subset.size(), num_total);
 
-    std::vector<double> buffer(num_dim * num_total);
+    std::vector<double> buffer(num_dim * num_total, 123454); // putting in some initial gunk to check it's ignored.
     knncolle::VptreeBuilder<int, double, double> builder(std::make_shared<knncolle::EuclideanDistance<double, double> >());
     auto subdex = mnncorrect::subset_and_index(num_dim, subset, simulated.data(), builder, buffer.data());
     

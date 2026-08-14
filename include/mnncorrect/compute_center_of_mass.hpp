@@ -12,7 +12,7 @@
 #include "sanisizer/sanisizer.hpp"
 
 #include "utils.hpp"
-#include "find_closest_mnn.hpp"
+#include "find_neighbors.hpp"
 
 namespace mnncorrect {
 
@@ -109,7 +109,7 @@ void compute_center_of_mass(
     const int num_threads,
     NeighborhoodWalkWorkspace<Index_>& walkspace,
     NeighborSet<Index_, Float_>& neighbors,
-    Float_* const buffer
+    Float_* const centers
 ) {
     walk_around_neighborhood(
         num_dim,
@@ -140,6 +140,7 @@ void compute_center_of_mass(
             walkspace.ids.clear();
             walkspace.next_ids.clear();
             walkspace.all_ids.clear();
+            assert(std::accumulate(walkspace.visited.begin(), walkspace.visited.end(), static_cast<Index_>(0)) == 0);
         }
         auto& visited = (t > 0 ? *tmp_visited : walkspace.visited);
         auto& current_processed = (t > 0 ? *tmp_current_processed : walkspace.ids);
@@ -186,7 +187,7 @@ void compute_center_of_mass(
 
             const double denom = all_processed.size();
             for (std::size_t d = 0; d < num_dim; ++d) {
-                buffer[sanisizer::nd_offset<std::size_t>(d, num_dim, curmnn)] = mean[d] / denom;
+                centers[sanisizer::nd_offset<std::size_t>(d, num_dim, curmnn)] = mean[d] / denom;
             }
 
             for (const auto x : all_processed) {
