@@ -99,7 +99,7 @@ TEST_P(FindClosestMnnTest, Check) {
     auto expected_mnns = compute_reference(all_neighbors, ref_ids, target_ids);
 
     // Computing our values.
-    mnncorrect::FindClosestMnnWorkspace<int> workspace;
+    mnncorrect::FindClosestMnnWorkspace<int> workspace(ntotal);
     mnncorrect::FindClosestMnnResults<int> mnns;
     mnncorrect::find_closest_mnn(target_ids, all_neighbors, workspace, mnns);
     EXPECT_EQ(expected_mnns.first, mnns.target_mnns);

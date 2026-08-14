@@ -57,6 +57,9 @@ void walk_around_neighborhood(
     walkspace.all_ids.clear();
     walkspace.all_ids.insert(walkspace.all_ids.end(), mnn_ids.begin(), mnn_ids.end());
     assert(std::accumulate(walkspace.visited.begin(), walkspace.visited.end(), static_cast<Index_>(0)) == 0);
+    for (auto& x : mnn_ids) {
+        walkspace.visited[x] = true;
+    }
 
     for (int s = 0; s < num_steps; ++s) {
         walkspace.next_ids.clear();

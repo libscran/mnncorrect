@@ -70,7 +70,7 @@ TEST_P(WalkAroundNeighborhoodTest, Basic) {
     auto seed = k * 10 + steps + with_extras + density * 100;
 
     std::size_t ndim = 5;
-    int nobs = 127;
+    int nobs = 100;
     auto vec = scran_tests::simulate_vector(static_cast<std::size_t>(nobs) * ndim, [&]{
         scran_tests::SimulateVectorParameters sparams;
         sparams.seed = seed;
