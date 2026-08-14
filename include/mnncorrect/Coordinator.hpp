@@ -246,6 +246,28 @@ protected:
             my_big_buffer.data()
         );
 
+#ifndef NDEBUG
+        {
+            // Double-checking that 'target_mnns' are unique and do not overlap with 'ref_mnns'.
+            // This is important for the validity of the next step where we store the correction vector in the same 'big_buffer'.
+            auto crosscheck = sanisizer::create<std::vector<char> >(my_neighbors.size());
+            for (I<decltype(num_refs)> r = 0; r < num_refs; ++r) {
+                for (const auto rx : my_reassignments[r]) {
+                    assert(crosscheck[rx] == 0);
+                    crosscheck[rx] = 1;
+                }
+            }
+            {
+                const auto num_pairs = my_mnns.target_mnns.size();
+                for (I<decltype(num_pairs)> p = 0; p < num_pairs; ++p) {
+                    const auto t = my_mnns.target_mnns[p];
+                    assert(crosscheck[t] == 0);
+                    crosscheck[t] = 1;
+                }
+            }
+        }
+#endif
+
         // Replacing each MNN-involved target cell's center of mass with the MNN-derived correction vector.
         // This saves us a subtraction in the inner loop when correcting all cells in tthe target metabatch.
         // Again, recall that 'target_mnns' is unique so this step will never modify each target cell's values in 'my_big_buffer' more than once.
@@ -257,7 +279,7 @@ protected:
             }
         }
 
-        // Apply the correction to each cell in the target meta-batch based on its closest MNN-involved cell in the same batch.
+        // Apply the correction to each cell in the target meta-batch based on its closest MNN-involved cell in the same meta-batch.
         const Index_ num_target = my_target_ids.size();
         parallelize(my_num_threads, num_target, [&](const int, const Index_ start, const Index_ length) -> void {
             auto searcher = target_mnn_index->initialize();
@@ -280,6 +302,7 @@ protected:
             }
         });
 
+        // Distributing observations of the target metabatch to one of the reference metabatches, based on its closest MNN pair.
         // We don't need to do this at the last step, unless we're testing and we want to check the output.
         if (num_refs > 1 || test) {
             for (auto& reass : my_reassignments) {
@@ -289,8 +312,8 @@ protected:
                 my_reassignments[my_target_meta_batch[i]].push_back(my_target_ids[i]);
             }
 
-            // Now, re-using 'my_big_buffer' to create the NN indices of the redistributed observations in each remaining metabatch. 
-            // We organize our redistributed observations so that we can operate on contiguous chunks of the big buffer within each thread.
+            // We need to create the NN indices of the redistributed observations in each remaining metabatch. 
+            // We organize our redistributed observations so that we can operate on contiguous chunks of 'big_buffer' within each thread.
             // False sharing should not be a major issue as there aren't many boundaries between threads at which contention could occur.
             my_redist_offsets.clear();
             Index_ sofar = 0;
@@ -309,7 +332,7 @@ protected:
                     if (reass.empty()) {
                         continue;
                     }
-                    // Construct 'subdex' first before moving into the metabatch, to avoid problems from also moving 'reass' in the same call.
+                    // Construct 'subdex' first before moving it into the metabatch, to avoid problems from also moving 'reass' in the same call.
                     auto storage = my_big_buffer.data() + sanisizer::product_unsafe<std::size_t>(my_redist_offsets[b], my_num_dim);
                     auto subdex = subset_and_index(my_num_dim, reass, my_corrected, my_builder, storage);
                     my_meta_batches[b].corrected.emplace_back(std::move(subdex), std::move(reass));
@@ -317,7 +340,7 @@ protected:
             });
         }
 
-        return num_refs;
+        return num_refs > 1;
     }
 
 public:
