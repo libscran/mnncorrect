@@ -12,7 +12,27 @@
     <name>utils.hpp</name>
     <path>mnncorrect/</path>
     <filename>utils_8hpp.html</filename>
+    <class kind="struct">mnncorrect::Batch</class>
     <namespace>mnncorrect</namespace>
+  </compound>
+  <compound kind="struct">
+    <name>mnncorrect::Batch</name>
+    <filename>structmnncorrect_1_1Batch.html</filename>
+    <templarg>typename Index_</templarg>
+    <member kind="variable">
+      <type>Index_</type>
+      <name>start</name>
+      <anchorfile>structmnncorrect_1_1Batch.html</anchorfile>
+      <anchor>a0336c19e53b77436dcba063d919f2d73</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Index_</type>
+      <name>size</name>
+      <anchorfile>structmnncorrect_1_1Batch.html</anchorfile>
+      <anchor>ac867c2368a88364d173b48b649db3cbb</anchor>
+      <arglist></arglist>
+    </member>
   </compound>
   <compound kind="struct">
     <name>mnncorrect::Options</name>
@@ -59,6 +79,7 @@
   <compound kind="namespace">
     <name>mnncorrect</name>
     <filename>namespacemnncorrect.html</filename>
+    <class kind="struct">mnncorrect::Batch</class>
     <class kind="struct">mnncorrect::Options</class>
     <member kind="typedef">
       <type>std::size_t</type>
@@ -89,22 +110,15 @@
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a80ef925234d2c7eca77e69c127e92271</anchor>
-      <arglist>(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>a69f71b8f3bcc3819a2dab424007ca41d</anchor>
+      <arglist>(const std::size_t num_dim, const std::vector&lt; Batch&lt; Index_ &gt; &gt; &amp;batches, Float_ *const data, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
       <name>compute</name>
       <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>aa1189515065df1b349924e431f261760</anchor>
-      <arglist>(const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *const input, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
-    </member>
-    <member kind="function">
-      <type>void</type>
-      <name>compute</name>
-      <anchorfile>namespacemnncorrect.html</anchorfile>
-      <anchor>a16950bbec1359ec9df9a23d97875815f</anchor>
-      <arglist>(const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, const BatchIndex num_batches, Float_ *const output, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
+      <anchor>ac676a2f9ff8f0d9513daf3a522efc8ed</anchor>
+      <arglist>(const std::size_t num_dim, const Index_ num_obs, Float_ *const data, const Batch_ *const batch, const BatchIndex num_batches, const Options&lt; Index_, Float_, Matrix_ &gt; &amp;options)</arglist>
     </member>
   </compound>
   <compound kind="page">

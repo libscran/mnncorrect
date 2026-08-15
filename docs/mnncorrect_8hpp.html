@@ -114,8 +114,8 @@ $(function(){ initResizable(false); });
 <code>#include &lt;cstddef&gt;</code><br />
 <code>#include &quot;<a class="elRef" href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle/knncolle.hpp</a>&quot;</code><br />
 <code>#include &quot;sanisizer/sanisizer.hpp&quot;</code><br />
-<code>#include &quot;AutomaticOrder.hpp&quot;</code><br />
-<code>#include &quot;restore_input_order.hpp&quot;</code><br />
+<code>#include &quot;Coordinator.hpp&quot;</code><br />
+<code>#include &quot;reorder_matrix_in_place.hpp&quot;</code><br />
 <code>#include &quot;<a class="el" href="utils_8hpp_source.html">utils.hpp</a>&quot;</code><br />
 </div><div class="textblock"><div class="dynheader">
 Include dependency graph for mnncorrect.hpp:</div>
@@ -137,10 +137,10 @@ Include dependency graph for mnncorrect.hpp:</div>
 <area shape="poly" title=" " alt="" coords="392,32,381,67,381,86,388,103,412,111,466,122,606,147,605,153,465,128,411,116,385,107,376,88,376,67,387,31"/>
 <area shape="rect" title=" " alt="" coords="591,79,742,105"/>
 <area shape="poly" title=" " alt="" coords="442,29,606,72,605,77,441,34"/>
-<area shape="rect" title=" " alt="" coords="766,79,903,105"/>
-<area shape="poly" title=" " alt="" coords="471,29,751,74,750,80,470,34"/>
-<area shape="rect" title=" " alt="" coords="927,79,1083,105"/>
-<area shape="poly" title=" " alt="" coords="486,27,912,76,911,81,486,32"/>
+<area shape="rect" title=" " alt="" coords="767,79,878,105"/>
+<area shape="poly" title=" " alt="" coords="470,29,752,76,751,81,469,34"/>
+<area shape="rect" title=" " alt="" coords="902,79,1084,105"/>
+<area shape="poly" title=" " alt="" coords="486,28,887,75,886,80,486,33"/>
 <area shape="rect" href="utils_8hpp.html" title="Utilities for MNN correction." alt="" coords="254,79,324,105"/>
 <area shape="poly" title=" " alt="" coords="379,34,321,72,319,68,376,29"/>
 <area shape="poly" title=" " alt="" coords="255,106,95,152,93,147,254,101"/>
@@ -161,26 +161,23 @@ Include dependency graph for mnncorrect.hpp:</div>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structmnncorrect_1_1Options.html">mnncorrect::Options&lt; Index_, Float_, Matrix_ &gt;</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">compute()</a></code>.  <a href="structmnncorrect_1_1Options.html#details">More...</a><br /></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structmnncorrect_1_1Options.html" title="Options for compute().">Options</a> for <code><a class="el" href="namespacemnncorrect.html#a69f71b8f3bcc3819a2dab424007ca41d">compute()</a></code>.  <a href="structmnncorrect_1_1Options.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html">mnncorrect</a></td></tr>
-<tr class="memdesc:namespacemnncorrect"><td class="mdescLeft">&#160;</td><td class="mdescRight">Batch correction with mutual nearest neighbors. <br /></td></tr>
+<tr class="memdesc:namespacemnncorrect"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structmnncorrect_1_1Batch.html" title="Start and size of each batch.">Batch</a> correction with mutual nearest neighbors. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a80ef925234d2c7eca77e69c127e92271" id="r_a80ef925234d2c7eca77e69c127e92271"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
-<tr class="memitem:a80ef925234d2c7eca77e69c127e92271"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a80ef925234d2c7eca77e69c127e92271">mnncorrect::compute</a> (const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const std::vector&lt; const Float_ * &gt; &amp;batches, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
-<tr class="separator:a80ef925234d2c7eca77e69c127e92271"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa1189515065df1b349924e431f261760" id="r_aa1189515065df1b349924e431f261760"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
-<tr class="memitem:aa1189515065df1b349924e431f261760"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#aa1189515065df1b349924e431f261760">mnncorrect::compute</a> (const std::size_t num_dim, const std::vector&lt; Index_ &gt; &amp;num_obs, const Float_ *const input, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
-<tr class="separator:aa1189515065df1b349924e431f261760"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a16950bbec1359ec9df9a23d97875815f" id="r_a16950bbec1359ec9df9a23d97875815f"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ &gt; </td></tr>
-<tr class="memitem:a16950bbec1359ec9df9a23d97875815f"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a16950bbec1359ec9df9a23d97875815f">mnncorrect::compute</a> (const std::size_t num_dim, const Index_ num_obs, const Float_ *const input, const Batch_ *const batch, const <a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> num_batches, Float_ *const output, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
-<tr class="separator:a16950bbec1359ec9df9a23d97875815f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a69f71b8f3bcc3819a2dab424007ca41d" id="r_a69f71b8f3bcc3819a2dab424007ca41d"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:a69f71b8f3bcc3819a2dab424007ca41d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#a69f71b8f3bcc3819a2dab424007ca41d">mnncorrect::compute</a> (const std::size_t num_dim, const std::vector&lt; <a class="el" href="structmnncorrect_1_1Batch.html">Batch</a>&lt; Index_ &gt; &gt; &amp;batches, Float_ *const data, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:a69f71b8f3bcc3819a2dab424007ca41d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac676a2f9ff8f0d9513daf3a522efc8ed" id="r_ac676a2f9ff8f0d9513daf3a522efc8ed"><td class="memTemplParams" colspan="2">template&lt;typename Index_ , typename Float_ , typename Batch_ , class Matrix_ &gt; </td></tr>
+<tr class="memitem:ac676a2f9ff8f0d9513daf3a522efc8ed"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacemnncorrect.html#ac676a2f9ff8f0d9513daf3a522efc8ed">mnncorrect::compute</a> (const std::size_t num_dim, const Index_ num_obs, Float_ *const data, const Batch_ *const batch, const <a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">BatchIndex</a> num_batches, const <a class="el" href="structmnncorrect_1_1Options.html">Options</a>&lt; Index_, Float_, Matrix_ &gt; &amp;options)</td></tr>
+<tr class="separator:ac676a2f9ff8f0d9513daf3a522efc8ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Batch correction with mutual nearest neighbors. </p>

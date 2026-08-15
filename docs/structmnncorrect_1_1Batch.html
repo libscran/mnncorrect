@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.12.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>mnncorrect: Namespace Members</title>
+<title>mnncorrect: mnncorrect::Batch&lt; Index_ &gt; Struct Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -64,8 +64,6 @@ $(function() {
 /* @license-end */
 </script>
 <div id="main-nav"></div>
-</div><!-- top -->
-<div id="doc-content">
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
 $(function(){ initResizable(false); });
@@ -92,12 +90,78 @@ $(function(){ initResizable(false); });
 </div>
 </div>
 
+<div id="nav-path" class="navpath">
+  <ul>
+<li class="navelem"><a class="el" href="namespacemnncorrect.html">mnncorrect</a></li><li class="navelem"><a class="el" href="structmnncorrect_1_1Batch.html">Batch</a></li>  </ul>
+</div>
+</div><!-- top -->
+<div id="doc-content">
+<div class="header">
+  <div class="summary">
+<a href="#pub-attribs">Public Attributes</a> &#124;
+<a href="structmnncorrect_1_1Batch-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">mnncorrect::Batch&lt; Index_ &gt; Struct Template Reference</div></div>
+</div><!--header-->
 <div class="contents">
-<div class="textblock">Here is a list of all documented namespace members with links to the namespaces they belong to:</div><ul>
-<li>BatchIndex&#160;:&#160;<a class="el" href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect</a></li>
-<li>compute()&#160;:&#160;<a class="el" href="namespacemnncorrect.html#a69f71b8f3bcc3819a2dab424007ca41d">mnncorrect</a></li>
-<li>MergePolicy&#160;:&#160;<a class="el" href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect</a></li>
-<li>parallelize()&#160;:&#160;<a class="el" href="namespacemnncorrect.html#aaf40fe64b828a94b8d253fca4b32b4a4">mnncorrect</a></li>
+
+<p>Start and size of each batch.  
+ <a href="#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="utils_8hpp_source.html">utils.hpp</a>&gt;</code></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
+Public Attributes</h2></td></tr>
+<tr class="memitem:a0336c19e53b77436dcba063d919f2d73" id="r_a0336c19e53b77436dcba063d919f2d73"><td class="memItemLeft" align="right" valign="top">Index_&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0336c19e53b77436dcba063d919f2d73">start</a> = 0</td></tr>
+<tr class="separator:a0336c19e53b77436dcba063d919f2d73"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac867c2368a88364d173b48b649db3cbb" id="r_ac867c2368a88364d173b48b649db3cbb"><td class="memItemLeft" align="right" valign="top">Index_&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac867c2368a88364d173b48b649db3cbb">size</a> = 0</td></tr>
+<tr class="separator:ac867c2368a88364d173b48b649db3cbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename Index_&gt;<br />
+struct mnncorrect::Batch&lt; Index_ &gt;</div><p>Start and size of each batch. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Index_</td><td>Integer type of the observation indices. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Member Data Documentation</h2>
+<a id="ac867c2368a88364d173b48b649db3cbb" name="ac867c2368a88364d173b48b649db3cbb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac867c2368a88364d173b48b649db3cbb">&#9670;&#160;</a></span>size</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Index_ &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">Index_ <a class="el" href="structmnncorrect_1_1Batch.html">mnncorrect::Batch</a>&lt; Index_ &gt;::size = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Size of each batch, i.e., the number of observations in the batch. </p>
+
+</div>
+</div>
+<a id="a0336c19e53b77436dcba063d919f2d73" name="a0336c19e53b77436dcba063d919f2d73"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0336c19e53b77436dcba063d919f2d73">&#9670;&#160;</a></span>start</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Index_ &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">Index_ <a class="el" href="structmnncorrect_1_1Batch.html">mnncorrect::Batch</a>&lt; Index_ &gt;::start = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Starting index of each batch, i.e., the index of the first observation in the batch. </p>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
+<li>mnncorrect/<a class="el" href="utils_8hpp_source.html">utils.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

@@ -134,43 +134,71 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>}</div>
 </div>
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="keyword">namespace </span>internal {</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Distance_&gt;</div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="keyword">using </span>NeighborSet = std::vector&lt;std::vector&lt;std::pair&lt;Index_, Distance_&gt; &gt; &gt;;</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span> </div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_&gt;</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="keyword">struct </span>Corrected {</div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    Corrected() = <span class="keywordflow">default</span>;</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>    Corrected(std::unique_ptr&lt;<a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html">knncolle::Prebuilt&lt;Index_, Float_, Float_&gt;</a> &gt; index, std::vector&lt;Index_&gt; ids) : index(std::move(index)), ids(std::move(ids)) {}</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; index;</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    std::vector&lt;Index_&gt; ids;</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>};</div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_&gt;</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="keyword">struct </span>BatchInfo {</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    Index_ offset, num_obs;</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>    std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; index;</div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    std::vector&lt;Corrected&lt;Index_, Float_&gt; &gt; extras;</div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>};</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>}</div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span> </div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Input_&gt;</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>std::remove_cv_t&lt;std::remove_reference_t&lt;Input_&gt; &gt; I(<span class="keyword">const</span> Input_ x) {</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    <span class="keywordflow">return</span> x;</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>}</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>}</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_&gt;</div>
+<div class="foldopen" id="foldopen00072" data-start="{" data-end="};">
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Batch.html">   72</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structmnncorrect_1_1Batch.html">Batch</a> {</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Batch.html#a0336c19e53b77436dcba063d919f2d73">   76</a></span>    Index_ <a class="code hl_variable" href="structmnncorrect_1_1Batch.html#a0336c19e53b77436dcba063d919f2d73">start</a> = 0;</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="structmnncorrect_1_1Batch.html#ac867c2368a88364d173b48b649db3cbb">   81</a></span>    Index_ <a class="code hl_variable" href="structmnncorrect_1_1Batch.html#ac867c2368a88364d173b48b649db3cbb">size</a> = 0;</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>};</div>
 </div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span> </div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span> </div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Distance_&gt;</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="keyword">using </span>NeighborSet = std::vector&lt;std::vector&lt;std::pair&lt;Index_, Distance_&gt; &gt; &gt;;</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_&gt;</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="keyword">struct </span>MetaBatch {</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    <span class="comment">// Each uncorrected metabatch has an original contiguous set of observations.</span></div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    <span class="comment">// Once corrected, the metabatch ceases to exist as it becomes part of the destination metabatch.</span></div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; original_index;</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <a class="code hl_struct" href="structmnncorrect_1_1Batch.html">Batch&lt;Index_&gt;</a> original_ids;</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span> </div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    <span class="comment">// Corrected observations from other (meta)batches that have been redistributed into this meta batch.</span></div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    <span class="keyword">struct </span>CorrectedBatch {</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        CorrectedBatch() = <span class="keywordflow">default</span>;</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        CorrectedBatch(std::unique_ptr&lt;<a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html">knncolle::Prebuilt&lt;Index_, Float_, Float_&gt;</a> &gt; index, std::vector&lt;Index_&gt; ids) : index(std::move(index)), ids(std::move(ids)) {}</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; index;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        std::vector&lt;Index_&gt; ids;</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>    };</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    std::vector&lt;CorrectedBatch&gt; corrected;</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>};</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Input_&gt;</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span><span class="keyword">using </span>I = std::remove_cv_t&lt;std::remove_reference_t&lt;Input_&gt; &gt;;</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span> </div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="comment">// Putting this here so that we can re-use it in the tests.</span></div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Index_, <span class="keyword">typename</span> Float_, <span class="keyword">class</span> Matrix_&gt;</div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>std::unique_ptr&lt;knncolle::Prebuilt&lt;Index_, Float_, Float_&gt; &gt; subset_and_index(</div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>    <span class="keyword">const</span> std::size_t num_dim,</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>    <span class="keyword">const</span> std::vector&lt;Index_&gt;&amp; subset,</div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>    <span class="keyword">const</span> Float_* <span class="keyword">const</span> data,</div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>    <span class="keyword">const</span> <a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html">knncolle::Builder&lt;Index_, Float_, Float_, Matrix_&gt;</a>&amp; builder,</div>
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>    Float_* <span class="keyword">const</span> buffer</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>) {</div>
+<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>    <span class="keyword">const</span> <span class="keyword">auto</span> num_subset = subset.size();</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    <span class="keywordflow">for</span> (I&lt;<span class="keyword">decltype</span>(num_subset)&gt; f = 0; f &lt; num_subset; ++f) {</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>        <span class="keyword">const</span> <span class="keyword">auto</span> curdata = data + sanisizer::product_unsafe&lt;std::size_t&gt;(subset[f], num_dim);</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>        std::copy_n(curdata, num_dim, buffer + sanisizer::product_unsafe&lt;std::size_t&gt;(f, num_dim));</div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    }</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    <span class="keywordflow">return</span> builder.<a class="code hl_functionRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html#a93cac638de3e4ad31919bc5d677d16b7">build_unique</a>(<a class="code hl_classRef" href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix&lt;Index_, Float_&gt;</a>(num_dim, num_subset, buffer));</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>}</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>}</div>
+</div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span> </div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span><span class="preprocessor">#endif</span></div>
+<div class="ttc" id="aclassknncolle_1_1Builder_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html">knncolle::Builder</a></div></div>
+<div class="ttc" id="aclassknncolle_1_1Builder_html_a93cac638de3e4ad31919bc5d677d16b7"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1Builder.html#a93cac638de3e4ad31919bc5d677d16b7">knncolle::Builder::build_unique</a></div><div class="ttdeci">std::unique_ptr&lt; Prebuilt&lt; Index_, Data_, Distance_ &gt; &gt; build_unique(const Matrix_ &amp;data) const</div></div>
 <div class="ttc" id="aclassknncolle_1_1Prebuilt_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1Prebuilt.html">knncolle::Prebuilt</a></div></div>
+<div class="ttc" id="aclassknncolle_1_1SimpleMatrix_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/classknncolle_1_1SimpleMatrix.html">knncolle::SimpleMatrix</a></div></div>
 <div class="ttc" id="aknncolle_8hpp_html"><div class="ttname"><a href="https://knncolle.github.io/knncolle/knncolle_8hpp.html">knncolle.hpp</a></div></div>
 <div class="ttc" id="anamespacemnncorrect_html"><div class="ttname"><a href="namespacemnncorrect.html">mnncorrect</a></div><div class="ttdoc">Batch correction with mutual nearest neighbors.</div><div class="ttdef"><b>Definition</b> utils.hpp:21</div></div>
 <div class="ttc" id="anamespacemnncorrect_html_a5a9c9f9569fcad76a5e735cd8fae0197"><div class="ttname"><a href="namespacemnncorrect.html#a5a9c9f9569fcad76a5e735cd8fae0197">mnncorrect::MergePolicy</a></div><div class="ttdeci">MergePolicy</div><div class="ttdef"><b>Definition</b> utils.hpp:43</div></div>
 <div class="ttc" id="anamespacemnncorrect_html_a67ab090aec935cd48ad2e5d3383926f7"><div class="ttname"><a href="namespacemnncorrect.html#a67ab090aec935cd48ad2e5d3383926f7">mnncorrect::BatchIndex</a></div><div class="ttdeci">std::size_t BatchIndex</div><div class="ttdef"><b>Definition</b> utils.hpp:26</div></div>
 <div class="ttc" id="anamespacemnncorrect_html_aaf40fe64b828a94b8d253fca4b32b4a4"><div class="ttname"><a href="namespacemnncorrect.html#aaf40fe64b828a94b8d253fca4b32b4a4">mnncorrect::parallelize</a></div><div class="ttdeci">void parallelize(const int num_workers, const Task_ num_tasks, Run_ run_task_range)</div><div class="ttdef"><b>Definition</b> utils.hpp:58</div></div>
 <div class="ttc" id="anamespacesubpar_html_aa2ea2594f895ea5837bd3df8ad31af14"><div class="ttname"><a href="https://ltla.github.io/subpar/namespacesubpar.html#aa2ea2594f895ea5837bd3df8ad31af14">subpar::parallelize_range</a></div><div class="ttdeci">int parallelize_range(int num_workers, const Task_ num_tasks, const Run_ run_task_range)</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Batch_html"><div class="ttname"><a href="structmnncorrect_1_1Batch.html">mnncorrect::Batch</a></div><div class="ttdoc">Start and size of each batch.</div><div class="ttdef"><b>Definition</b> utils.hpp:72</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Batch_html_a0336c19e53b77436dcba063d919f2d73"><div class="ttname"><a href="structmnncorrect_1_1Batch.html#a0336c19e53b77436dcba063d919f2d73">mnncorrect::Batch::start</a></div><div class="ttdeci">Index_ start</div><div class="ttdef"><b>Definition</b> utils.hpp:76</div></div>
+<div class="ttc" id="astructmnncorrect_1_1Batch_html_ac867c2368a88364d173b48b649db3cbb"><div class="ttname"><a href="structmnncorrect_1_1Batch.html#ac867c2368a88364d173b48b649db3cbb">mnncorrect::Batch::size</a></div><div class="ttdeci">Index_ size</div><div class="ttdef"><b>Definition</b> utils.hpp:81</div></div>
 <div class="ttc" id="asubpar_8hpp_html"><div class="ttname"><a href="https://ltla.github.io/subpar/subpar_8hpp.html">subpar.hpp</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
