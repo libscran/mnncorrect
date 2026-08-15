@@ -136,14 +136,13 @@ void compute_internal(
  * Alternatively, it may be a `knncolle::SimpleMatrix`.
  *
  * @param num_dim Number of dimensions.
- * @param num_obs Vector of length equal to the number of batches.
- * The `i`-th entry contains the number of observations in batch `i`.
  * @param[in] batches Vector of length equal to the number of batches.
- * The `i`-th entry points to a column-major dimension-by-observation array containing the uncorrected data for batch `i`,
- * where the number of rows is equal to `num_dim` and the number of columns is equal to `num_obs[i]`.
- * @param[out] output Pointer to an array containing a column-major matrix with number of rows equal to `num_dim` and number of columns equal to the sum of `num_obs`.
- * On output, the first `num_obs[0]` columns contain the corrected values of the first batch, 
- * the second `num_obs[1]` columns contain the corrected values of the second batch, and so on.
+ * The `i`-th entry contains the starting position and size of batch `i` in `data`.
+ * Batches should be contiguous and non-overlapping, i.e., each observation in `data` should be assigned to exactly one batch in `batches`.
+ * @param[in,out] data Pointer to an array containing a column-major matrix with number of rows equal to `num_dim` and number of columns equal to the sum of sizes in `batches`.
+ * On input, it contains the uncorrected data for all observations from all batches.
+ * Observations from the same batch should be stored in adjacent columns, where `batches[i]` specifies the first such column and number of columns in batch `i`.
+ * On output, this contains the corrected values for all observations.
  * @param options Further options.
  */
 template<typename Index_, typename Float_, class Matrix_>
@@ -167,14 +166,13 @@ void compute(const std::size_t num_dim, const std::vector<Batch<Index_> >& batch
  *
  * @param num_dim Number of dimensions.
  * @param num_obs Number of observations across all batches.
- * @param[in] input Pointer to an array containing a column-major matrix of uncorrected values from all batches.
- * The number of rows is equal to `num_dim` and the number of columns is equal to `num_obs`.
- * Observations from the same batch do not need to be stored in adjacent columns.
+ * @param[in,out] data Pointer to an array containing a column-major matrix with number of rows equal to `num_dim` and number of columns equal to `num_obs`.
+ * On input, it contains the uncorrected data for all observations. 
+ * (For this overload, observations from the same batch need not be in adjacent colmns.)
+ * On output, this contains the corrected values for all observations.
  * @param[in] batch Pointer to an array of length `num_obs` containing the batch identity for each observation.
  * IDs should be zero-indexed and lie within `[0, num_batches)`.
  * @param num_batches Number of batches in `batch`.
- * @param[out] output Pointer to an array containing a column-major matrix of the same dimensions as that in `input`, where the corrected values for all batches are stored.
- * The order of observations in `output` is the same as that in the `input`. 
  * @param options Further options.
  */
 template<typename Index_, typename Float_, typename Batch_, class Matrix_>
