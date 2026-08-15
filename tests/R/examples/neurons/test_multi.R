@@ -32,7 +32,7 @@ sf <- centerSizeFactors(qc.metrics$sum[keep], block=f.block)
 normalized <- normalizeCounts(filtered, sf)
 
 variances <- modelGeneVariances(normalized, block=f.block, span=0.4, num.threads=1)
-hvgs <- chooseHighlyVariableGenes(variances$statistics$residual, top=4000)
+hvgs <- chooseHighlyVariableGenes(variances$statistics$residuals, top=4000)
 
 pca <- runPca(normalized[hvgs,], number=25, num.threads=1, block=f.block)
 pcs <- pca$components
