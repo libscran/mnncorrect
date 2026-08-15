@@ -23,7 +23,7 @@ macro(create_test name)
         src/Coordinator.cpp
         src/define_merge_order.cpp
         src/reorder_matrix_in_place.cpp
-        src/compute.cpp
+        src/mnncorrect.cpp
     )
 
     target_link_libraries(
