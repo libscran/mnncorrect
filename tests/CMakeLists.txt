@@ -17,14 +17,13 @@ include(GoogleTest)
 macro(create_test name) 
     add_executable(
         ${name} 
-        src/fuse_nn_results.cpp
-        src/find_batch_neighbors.cpp
+        src/find_neighbors.cpp
         src/find_closest_mnn.cpp
-        src/correct_target.cpp
-        src/AutomaticOrder.cpp
+        src/compute_center_of_mass.cpp
+        src/Coordinator.cpp
         src/define_merge_order.cpp
-        src/restore_input_order.cpp
-        src/compute.cpp
+        src/reorder_matrix_in_place.cpp
+        src/mnncorrect.cpp
     )
 
     target_link_libraries(
