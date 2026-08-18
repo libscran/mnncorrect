@@ -47,10 +47,10 @@ void find_closest_mnn(
     FindClosestMnnResults<Index_>& results
 ) {
     workspace.used.clear();
-    for (const auto& rev : workspace.resorted_neighbors) {
+    for ([[maybe_unused]] const auto& rev : workspace.resorted_neighbors) {
         assert(rev.empty());
     }
-    for (const auto lu : workspace.last_checked) {
+    for ([[maybe_unused]] const auto lu : workspace.last_checked) {
         assert(lu == 0);
     }
 
