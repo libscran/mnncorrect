@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(mnncorrect
-    VERSION 3.0.2
+project(
+    mnncorrect
+    VERSION 3.1.0
     DESCRIPTION "MNN correction in C++"
-    LANGUAGES CXX)
+    LANGUAGES CXX
+)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
