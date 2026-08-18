@@ -15,35 +15,21 @@ which provides a number of improvements and speed-ups over the original method i
 
 ## Quick start
 
-Consider a dense matrix in column-major format where rows are dimensions (e.g., principal components) and cells are columns,
-and a vector of integers specifying the batch of origin for each cell.
-These are passed to `mnncorrect::compute()` to compute corrected values:
+We'll start from a dense column-major matrix where rows are dimensions and cells are columns.
+In single-cell contexts, this is typically a low-dimensional embedding from PCA or related techniques, which compacts the dataset for more efficient processing.
+We also need a vector of integers specifying the batch of origin for each cell in our embedding matrix.
+Both of these arguments are passed to `mnncorrect::compute()` to compute a corrected embedding:
 
 ```cpp
 #include "mnncorrect/mnncorrect.hpp"
 
-std::vector<double> matrix(ndim * nobs); // fill with values...
-std::vector<int> batch(nobs) // fill with batch IDs from [0, num_batches)
+std::size_t num_dim, num_obs, num_batches; // set these values appropriately.
+std::vector<double> data(num_dim * num_obs); // fill with the uncorrected embedding.
+std::vector<int> batch(num_obs) // fill with batch IDs from [0, num_batches)
 
+// On output, 'data' is modified in-place to contain the MNN-corrected embedding.
 mnncorrect::Options<int, double> opt;
-std::vector<double> output(ndim * nobs);
-mnncorrect::compute(ndim, nobs, matrix.data(), batch.data(), output.data(), opt);
-```
-
-We also support batches in separate arrays, storing the corrected values for all batches in a single output array:
-
-```cpp
-int nbatches = 3;
-std::vector<int> batch_size;
-std::vector<std::vector<double> > batches;
-for (int b = 0; b < 3; ++b) { // mocking up three batches of different size.
-    batch_size.push_back((b + 1) * 100);
-    batch.resize(ndim * batch_size.back()); // fill with values...
-}
-
-std::size_t total_size = std::accumulate(batch_size.begin(), batch_size.end(), 0);
-std::vector<double> output(ndim * total_size);
-mnncorrect::compute(ndim, batch_size, batch_ptrs, output.data(), opt);
+mnncorrect::compute(num_dim, num_obs, data.data(), batch.data(), num_batches, opt);
 ```
 
 Advanced users can also fiddle with the options: 
